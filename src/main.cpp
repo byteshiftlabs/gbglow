@@ -4,11 +4,10 @@
  * A crystal-clear, educational Game Boy Color emulator implementation.
  * Every line of code is designed to teach how the hardware works.
  * 
- * Main entry point - demonstrates basic ROM loading and execution.
+ * Main entry point - demonstrates ROM loading and continuous execution.
  */
 
 #include "core/emulator.h"
-#include "video/ppu.h"
 
 #include <iostream>
 #include <string>
@@ -19,6 +18,13 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Usage: " << argv[0] << " <rom_file>" << std::endl;
         std::cerr << "\nExample: " << argv[0] << " tetris.gb" << std::endl;
+        std::cerr << "\nControls:" << std::endl;
+        std::cerr << "  Arrow keys = D-pad" << std::endl;
+        std::cerr << "  Z = A button" << std::endl;
+        std::cerr << "  X = B button" << std::endl;
+        std::cerr << "  Enter = Start" << std::endl;
+        std::cerr << "  Shift = Select" << std::endl;
+        std::cerr << "  ESC = Exit" << std::endl;
         return 1;
     }
     
@@ -33,26 +39,9 @@ int main(int argc, char* argv[])
     }
     
     std::cout << "Loaded ROM: " << rom_path << std::endl;
-    std::cout << "Running emulator..." << std::endl;
     
-    // Run a few frames for demonstration
-    // In a real application, this would be a game loop with timing control
-    for (int frame = 0; frame < 10; ++frame)
-    {
-        emulator.run_frame();
-        
-        // Check if frame is ready for display
-        if (emulator.ppu().frame_ready())
-        {
-            std::cout << "\n=== Frame " << frame << " ===" << std::endl;
-            emulator.ppu().render_to_terminal();
-            
-            // Clear the frame ready flag
-            const_cast<emugbc::PPU&>(emulator.ppu()).clear_frame_ready();
-        }
-    }
-    
-    std::cout << "\nEmulator test complete." << std::endl;
+    // Run emulator with display (game loop)
+    emulator.run("EmuGBC - Game Boy Color Emulator");
     
     return 0;
 }
