@@ -47,4 +47,24 @@ void Emulator::run_cycles(Cycles cycles) {
     }
 }
 
+const PPU& Emulator::ppu() const
+{
+    return *ppu_;
+}
+
+PPU& Emulator::ppu()
+{
+    return *ppu_;
+}
+
+const CPU& Emulator::cpu() const
+{
+    return *cpu_;
+}
+
+CPU& Emulator::cpu()
+{
+    return *cpu_;
+}
+
 } // namespace emugbc

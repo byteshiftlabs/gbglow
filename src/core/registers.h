@@ -43,39 +43,60 @@ public:
     };
     
     // 16-bit register pair accessors
-    u16 af() const { return (static_cast<u16>(a) << 8) | f; }
-    u16 bc() const { return (static_cast<u16>(b) << 8) | c; }
-    u16 de() const { return (static_cast<u16>(d) << 8) | e; }
-    u16 hl() const { return (static_cast<u16>(h) << 8) | l; }
+    u16 af() const
+    {
+        return (static_cast<u16>(a) << 8) | f;
+    }
     
-    void set_af(u16 value) { a = value >> 8; f = value & 0xF0; }  // Lower 4 bits always 0
-    void set_bc(u16 value) { b = value >> 8; c = value & 0xFF; }
-    void set_de(u16 value) { d = value >> 8; e = value & 0xFF; }
-    void set_hl(u16 value) { h = value >> 8; l = value & 0xFF; }
+    u16 bc() const
+    {
+        return (static_cast<u16>(b) << 8) | c;
+    }
+    
+    u16 de() const
+    {
+        return (static_cast<u16>(d) << 8) | e;
+    }
+    
+    u16 hl() const
+    {
+        return (static_cast<u16>(h) << 8) | l;
+    }
+    
+    void set_af(u16 value)
+    {
+        a = value >> 8;
+        f = value & 0xF0;  // Lower 4 bits always 0
+    }
+    
+    void set_bc(u16 value)
+    {
+        b = value >> 8;
+        c = value & 0xFF;
+    }
+    
+    void set_de(u16 value)
+    {
+        d = value >> 8;
+        e = value & 0xFF;
+    }
+    
+    void set_hl(u16 value)
+    {
+        h = value >> 8;
+        l = value & 0xFF;
+    }
     
     // Flag operations
-    bool get_flag(Flags flag) const { return (f & flag) != 0; }
-    void set_flag(Flags flag, bool value) {
-        if (value) {
-            f |= flag;
-        } else {
-            f &= ~flag;
-        }
+    bool get_flag(Flags flag) const
+    {
+        return (f & flag) != 0;
     }
     
+    void set_flag(Flags flag, bool value);
+    
     // Initialize registers to post-boot values
-    void reset() {
-        a = 0x01;  // After boot ROM
-        f = 0xB0;
-        b = 0x00;
-        c = 0x13;
-        d = 0x00;
-        e = 0xD8;
-        h = 0x01;
-        l = 0x4D;
-        sp = 0xFFFE;
-        pc = 0x0100;  // Start of cartridge
-    }
+    void reset();
 };
 
 } // namespace emugbc

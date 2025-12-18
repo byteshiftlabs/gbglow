@@ -39,15 +39,15 @@ public:
     void reset();
     
     // Access registers (for debugging)
-    const Registers& registers() const { return regs_; }
-    Registers& registers() { return regs_; }
+    const Registers& registers() const;
+    Registers& registers();
     
     // Interrupt Master Enable flag
-    bool ime() const { return ime_; }
-    void set_ime(bool value) { ime_ = value; }
+    bool ime() const;
+    void set_ime(bool value);
     
     // Check if CPU is halted
-    bool is_halted() const { return halted_; }
+    bool is_halted() const;
     
 private:
     Registers regs_;
