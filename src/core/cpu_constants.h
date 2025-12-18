@@ -51,6 +51,31 @@ constexpr u8 MEMORY_HL_REGISTER_INDEX = 6;      // Register index value indicati
 constexpr u16 IO_REGISTERS_BASE = 0xFF00;       // Base address for I/O registers (high RAM page)
 
 // ============================================================================
+// Interrupt System Constants
+// ============================================================================
+
+// Interrupt vector addresses - where PC jumps when interrupt is serviced
+constexpr u16 INT_VBLANK_VECTOR = 0x0040;       // VBlank interrupt vector
+constexpr u16 INT_LCD_STAT_VECTOR = 0x0048;     // LCD STAT interrupt vector
+constexpr u16 INT_TIMER_VECTOR = 0x0050;        // Timer interrupt vector
+constexpr u16 INT_SERIAL_VECTOR = 0x0058;       // Serial interrupt vector
+constexpr u16 INT_JOYPAD_VECTOR = 0x0060;       // Joypad interrupt vector
+
+// Interrupt register addresses
+constexpr u16 REG_INTERRUPT_FLAG = 0xFF0F;      // IF register - Interrupt Flag (pending interrupts)
+constexpr u16 REG_INTERRUPT_ENABLE = 0xFFFF;    // IE register - Interrupt Enable (which interrupts are enabled)
+
+// Interrupt bit masks in IF/IE registers
+constexpr u8 INT_VBLANK_BIT = 0x01;             // Bit 0: VBlank interrupt
+constexpr u8 INT_LCD_STAT_BIT = 0x02;           // Bit 1: LCD STAT interrupt
+constexpr u8 INT_TIMER_BIT = 0x04;              // Bit 2: Timer interrupt
+constexpr u8 INT_SERIAL_BIT = 0x08;             // Bit 3: Serial interrupt
+constexpr u8 INT_JOYPAD_BIT = 0x10;             // Bit 4: Joypad interrupt
+
+// Interrupt handling timing
+constexpr Cycles CYCLES_INTERRUPT_DISPATCH = 5;  // M-cycles to dispatch an interrupt (push PC, jump to vector)
+
+// ============================================================================
 // RST Vector Addresses
 // ============================================================================
 // RST instructions jump to fixed addresses in the lower memory page
