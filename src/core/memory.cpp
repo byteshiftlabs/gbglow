@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "../cartridge/cartridge.h"
+#include "../input/joypad.h"
 
 namespace emugbc {
 
@@ -25,6 +26,7 @@ namespace {
     constexpr u16 HRAM_START = 0xFF80;
     constexpr u16 HRAM_END = 0xFFFF;
     constexpr u16 INTERRUPT_ENABLE_REG = 0xFFFF;
+    constexpr u16 JOYPAD_REG = 0xFF00;
 }
 
 Memory::Memory() 
@@ -35,6 +37,9 @@ Memory::Memory()
     oam_.fill(0);
     hram_.fill(0);
     io_regs_.fill(0);
+    
+    // Create joypad controller
+    joypad_ = std::make_unique<Joypad>(*this);
 }
 
 Memory::~Memory() {
@@ -89,6 +94,10 @@ u8 Memory::read(u16 address) const {
     
     // I/O registers - hardware device control
     if (address < IO_REGISTERS_END) {
+        // Joypad register - route through joypad controller
+        if (address == JOYPAD_REG) {
+            return joypad_->read_register();
+        }
         return io_regs_[address - IO_REGISTERS_START];
     }
     
@@ -153,6 +162,11 @@ void Memory::write(u16 address, u8 value) {
     
     // I/O registers - hardware device control
     if (address < IO_REGISTERS_END) {
+        // Joypad register - route through joypad controller
+        if (address == JOYPAD_REG) {
+            joypad_->write_register(value);
+            return;
+        }
         io_regs_[address - IO_REGISTERS_START] = value;
         return;
     }
@@ -182,6 +196,11 @@ void Memory::write16(u16 address, u16 value)
     // Write low byte first (little-endian)
     write(address, value & 0xFF);
     write(address + 1, value >> 8);
+}
+
+Joypad& Memory::joypad()
+{
+    return *joypad_;
 }
 
 } // namespace emugbc
