@@ -49,6 +49,9 @@ public:
     // Check if CPU is halted
     bool is_halted() const;
     
+    // Interrupt management
+    void request_interrupt(u8 interrupt_bit);
+    
 private:
     Registers regs_;
     Memory& memory_;
