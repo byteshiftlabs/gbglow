@@ -11,7 +11,7 @@ Emulator::Emulator() {
 
 bool Emulator::load_rom(const std::string& path) {
     try {
-        auto cartridge = Cartridge::load_from_file(path);
+        auto cartridge = Cartridge::load_rom_from_file(path);
         memory_->load_cartridge(std::move(cartridge));
         reset();
         return true;
