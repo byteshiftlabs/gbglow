@@ -325,7 +325,105 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 🪟 Phase 12: Window Layer
+## 🎮 Phase 12: Graphics Frontend (SDL2) ✅ COMPLETE
+
+**Goal:** Display Game Boy graphics on screen with SDL2
+
+**Status:** COMPLETE - SDL2 display system implemented
+
+**Priority:** CRITICAL - Required to see games running
+
+### Requirements
+- SDL2 window creation
+- Framebuffer rendering (160×144 pixels)
+- Scale factor support (default 4x = 640×576 window)
+- RGBA conversion from grayscale palette
+- V-Sync support for smooth rendering
+- Hardware-accelerated rendering
+- Event handling (window close, ESC key)
+
+### Implementation Details
+- **Files Created:**
+  - `src/video/display.h` - Display class interface with SDL2
+  - `src/video/display.cpp` - Window, renderer, texture management
+- **Files Modified:**
+  - `src/video/ppu.h` - Added get_rgba_framebuffer() method
+  - `src/video/ppu.cpp` - Implemented grayscale to RGBA conversion
+  - `CMakeLists.txt` - Added SDL2 dependency and display.cpp
+- **Features:**
+  - SDL2 window with configurable scale factor
+  - Hardware-accelerated rendering with V-Sync
+  - DMG palette (4 shades of gray → RGBA)
+  - Clean resource management (RAII pattern)
+  - Event loop for window close and ESC key
+  - Centered window positioning
+
+### Acceptance Criteria
+- ✅ SDL2 window creates successfully
+- ✅ Framebuffer renders to screen
+- ✅ Grayscale palette converts to RGBA correctly
+- ✅ Window scales properly (4x default)
+- ✅ V-Sync prevents tearing
+- ✅ ESC key and window close work
+- ✅ All tests passing
+- ✅ Zero compilation warnings
+- ✅ Clean code compliance (zero magic numbers)
+
+---
+
+## ⌨️ Phase 13: Input Integration
+
+**Goal:** Connect keyboard input to joypad hardware
+
+**Status:** NEXT UP - Required for playable games
+
+**Priority:** CRITICAL - Can't play without controls
+
+### Requirements
+- SDL2 keyboard event handling
+- Keyboard to joypad mapping:
+  - Arrow keys → D-pad (Up/Down/Left/Right)
+  - Z/X keys → A/B buttons
+  - Enter → Start button
+  - Shift → Select button
+- Press events trigger joypad hardware
+- Release events clear joypad hardware
+- Configurable key mapping (optional)
+
+### Acceptance Criteria
+- [ ] Keyboard presses update joypad register
+- [ ] Can control game with keyboard
+- [ ] Joypad interrupts trigger correctly
+- [ ] All 8 buttons responsive
+
+---
+
+## 🔄 Phase 14: Game Loop & Timing
+
+**Goal:** Implement main emulation loop with accurate timing
+
+**Status:** NEXT - Required for continuous gameplay
+
+**Priority:** CRITICAL - Makes game actually playable
+
+### Requirements
+- Main loop in Emulator class
+- Frame timing (~16.67ms per frame for 59.73 Hz)
+- Integrate Display with PPU
+- Run CPU/PPU/Timer until VBlank
+- Update display on frame_ready
+- Handle SDL events each frame
+- Frame rate limiting
+
+### Acceptance Criteria
+- [ ] Game runs at correct speed
+- [ ] Display updates at 60 FPS
+- [ ] No input lag
+- [ ] CPU/PPU synchronized correctly
+
+---
+
+## 🪟 Phase 15: Window Layer
 
 **Goal:** Implement window overlay for menus and text
 
@@ -346,32 +444,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 🎵 Phase 13: Audio Processing Unit (APU)
-
-**Goal:** Sound and music generation
-
-**Priority:** LOW - Enhances experience but optional
-
-### Requirements
-- Channel 1: Square wave with sweep
-- Channel 2: Square wave
-- Channel 3: Programmable wave
-- Channel 4: Noise
-- Sound control registers (0xFF10-0xFF26)
-- Volume control
-- Panning control
-- Audio mixing
-- Sample output (WAV or direct audio)
-
-### Acceptance Criteria
-- [ ] All 4 channels functional
-- [ ] Pokémon music plays
-- [ ] Sound effects work
-- [ ] Volume control responsive
-
----
-
-## 🎨 Phase 14: Color Support (GBC Mode)
+## � Phase 16: Color Support (GBC Mode)
 
 **Goal:** Full Game Boy Color palette system
 
@@ -393,7 +466,58 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 🚀 Phase 15: Polish & Quality
+## 💾 Phase 17: Save File Support
+
+**Goal:** Persistent storage for battery-backed RAM
+
+**Priority:** HIGH - Required to save Pokémon progress
+
+**Status:** Can test without this initially
+
+### Requirements
+- .sav file format
+- Load RAM from .sav on startup
+- Save RAM to .sav periodically
+- Save on emulator shutdown
+- Handle missing .sav files (initialize)
+- RTC state persistence (for MBC3)
+
+### Acceptance Criteria
+- [ ] Can save Pokémon game
+- [ ] Saves persist across runs
+- [ ] RTC state persists (for Gold/Silver/Crystal)
+- [ ] No data corruption
+
+---
+
+## 🎵 Phase 18: Audio Processing Unit (APU)
+
+**Goal:** Sound and music generation
+
+**Priority:** LOW - Enhances experience but optional
+
+**Status:** Can test without this initially
+
+### Requirements
+- Channel 1: Square wave with sweep
+- Channel 2: Square wave
+- Channel 3: Programmable wave
+- Channel 4: Noise
+- Sound control registers (0xFF10-0xFF26)
+- Volume control
+- Panning control
+- Audio mixing
+- Sample output (WAV or direct audio)
+
+### Acceptance Criteria
+- [ ] All 4 channels functional
+- [ ] Pokémon music plays
+- [ ] Sound effects work
+- [ ] Volume control responsive
+
+---
+
+## 🚀 Phase 19: Polish & Quality
 
 **Goal:** Refine and enhance emulator functionality
 
@@ -420,14 +544,18 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 6. ✅ Phase 9: Input System (COMPLETE)
 7. ✅ Phase 10: Timer (COMPLETE)
 8. ✅ Phase 11: MBC5 Support (COMPLETE)
-9. 🚧 **Phase 12: Graphics Frontend (SDL/OpenGL)** - IN PROGRESS NEXT
-10. 🚧 **Phase 13: Input Integration** - Required for gameplay
+9. ✅ **Phase 12: Graphics Frontend (SDL2)** - COMPLETE
+10. 🚧 **Phase 13: Input Integration** - IN PROGRESS NEXT
 11. 🚧 **Phase 14: Game Loop & Timing** - Required for continuous play
-12. 📦 **Phase 15: Save File Support** - Required to save progress
+12. 🪟 **Phase 15: Window Layer** - Optional for initial testing
+13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
+14. 💾 **Phase 17: Save File Support** - Optional for initial testing
+15. 🎵 **Phase 18: Audio** - Optional for initial testing
 
-**Current Blocker:** Need graphical frontend to display actual game graphics (not just terminal ASCII art)
+**Current Status:** Graphics frontend complete! Next: Integrate keyboard input with joypad and implement game loop
 
-**After MVP:** Audio (Phase 16), Window Layer (Phase 17), Color Support (Phase 18), Polish (Phase 19)
+**Minimum for Playable Pokémon:** Phases 1-14 (through Game Loop)
+**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18), Polish (19)
 
 ---
 
@@ -443,16 +571,16 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 9: Input (Hardware) | ✅ Complete | 100% |
 | 10: Timer | ✅ Complete | 100% |
 | 11: MBC5 | ✅ Complete | 100% |
-| 12: Graphics Frontend | 🚧 Next | 0% |
-| 13: Input Integration | ⏳ Planned | 0% |
+| 12: Graphics Frontend | ✅ Complete | 100% |
+| 13: Input Integration | 🚧 Next | 0% |
 | 14: Game Loop | ⏳ Planned | 0% |
-| 15: Save Files | ⏳ Planned | 0% |
-| 16: Audio | ⏳ Future | 0% |
-| 17: Window Layer | ⏳ Future | 0% |
-| 18: Color Support | ⏳ Future | 0% |
+| 15: Window Layer | ⏳ Future | 0% |
+| 16: Color Support | ⏳ Future | 0% |
+| 17: Save Files | ⏳ Future | 0% |
+| 18: Audio | ⏳ Future | 0% |
 | 19: Polish | ⏳ Future | 0% |
 
-**Overall Progress: ~65%** (Core emulation complete, need frontend for gameplay)
+**Overall Progress: ~70%** (Core emulation + graphics complete, need input integration and game loop)
 
 ---
 
@@ -522,4 +650,4 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ---
 
 **Last Updated:** December 18, 2025
-**Current Focus:** Phase 12 - Graphics Frontend (SDL/OpenGL) for playable games
+**Current Focus:** Phase 13 - Input Integration (keyboard to joypad mapping)

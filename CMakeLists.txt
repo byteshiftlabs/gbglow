@@ -26,6 +26,7 @@ set(CORE_SOURCES
 set(VIDEO_SOURCES
     src/video/ppu.cpp
     src/video/lcd.cpp
+    src/video/display.cpp
 )
 
 set(CARTRIDGE_SOURCES
@@ -52,9 +53,11 @@ target_include_directories(emugbc PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-# Optional: Add SDL2 for graphics later
-# find_package(SDL2 REQUIRED)
-# target_link_libraries(emugbc SDL2::SDL2)
+# Find and link SDL2 for graphics output
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2)
+target_include_directories(emugbc PRIVATE ${SDL2_INCLUDE_DIRS})
+target_link_libraries(emugbc ${SDL2_LIBRARIES})
 
 # Testing support
 enable_testing()
