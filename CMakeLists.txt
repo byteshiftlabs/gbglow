@@ -32,6 +32,7 @@ set(CARTRIDGE_SOURCES
     src/cartridge/cartridge.cpp
     src/cartridge/mbc1.cpp
     src/cartridge/mbc3.cpp
+    src/cartridge/mbc5.cpp
 )
 
 set(INPUT_SOURCES
