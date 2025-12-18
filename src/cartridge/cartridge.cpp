@@ -1,29 +1,48 @@
 #include "cartridge.h"
+
 #include <fstream>
 #include <stdexcept>
 #include <cstring>
 
+#include "mbc1.h"
+
 namespace emugbc {
 
+// Cartridge header offsets per Game Boy cartridge specification
+namespace {
+    constexpr u16 HEADER_TITLE_OFFSET = 0x0134;
+    constexpr u16 HEADER_CARTRIDGE_TYPE_OFFSET = 0x0147;
+    constexpr int TITLE_MAX_LENGTH = 16;
+}
+
 void Cartridge::parse_header() {
-    // Title is at 0x0134-0x0143 (16 bytes)
-    char title_buf[17] = {0};
-    for (int i = 0; i < 16; i++) {
-        char c = rom_[0x0134 + i];
+    // Extract game title from header - null-terminated ASCII string
+    // Located at fixed offset per cartridge format specification
+    char title_buf[TITLE_MAX_LENGTH + 1] = {0};
+    for (int i = 0; i < TITLE_MAX_LENGTH; i++) {
+        char c = rom_[HEADER_TITLE_OFFSET + i];
         if (c == 0) break;
         title_buf[i] = c;
     }
     title_ = title_buf;
     
-    // Cartridge type at 0x0147
-    cartridge_type_ = rom_[0x0147];
+    // Cartridge type determines MBC chip and capabilities
+    cartridge_type_ = rom_[HEADER_CARTRIDGE_TYPE_OFFSET];
     
-    // Check for battery
-    has_battery_ = (cartridge_type_ == 0x03 || cartridge_type_ == 0x06 ||
-                    cartridge_type_ == 0x09 || cartridge_type_ == 0x0D ||
-                    cartridge_type_ == 0x0F || cartridge_type_ == 0x10 ||
-                    cartridge_type_ == 0x13 || cartridge_type_ == 0x1B ||
-                    cartridge_type_ == 0x1E || cartridge_type_ == 0xFF);
+    // Battery flag determines if external RAM needs persistent storage
+    // Check against all known cartridge types with battery support
+    has_battery_ = (
+        cartridge_type_ == 0x03 ||  // MBC1+RAM+BATTERY
+        cartridge_type_ == 0x06 ||  // MBC2+BATTERY
+        cartridge_type_ == 0x09 ||  // ROM+RAM+BATTERY
+        cartridge_type_ == 0x0D ||  // MMM01+RAM+BATTERY
+        cartridge_type_ == 0x0F ||  // MBC3+TIMER+BATTERY
+        cartridge_type_ == 0x10 ||  // MBC3+TIMER+RAM+BATTERY
+        cartridge_type_ == 0x13 ||  // MBC3+RAM+BATTERY
+        cartridge_type_ == 0x1B ||  // MBC5+RAM+BATTERY
+        cartridge_type_ == 0x1E ||  // MBC5+RUMBLE+RAM+BATTERY
+        cartridge_type_ == 0xFF     // HuC1+RAM+BATTERY
+    );
 }
 
 std::unique_ptr<Cartridge> Cartridge::load_from_file(const std::string& path) {
@@ -56,6 +75,21 @@ std::unique_ptr<Cartridge> Cartridge::load_from_file(const std::string& path) {
         throw std::runtime_error("Cartridge type not yet implemented: " + 
                                 std::to_string(cartridge_type));
     }
+}
+
+const std::string& Cartridge::title() const
+{
+    return title_;
+}
+
+u8 Cartridge::cartridge_type() const
+{
+    return cartridge_type_;
+}
+
+bool Cartridge::has_battery() const
+{
+    return has_battery_;
 }
 
 // ROM-only cartridge implementation
