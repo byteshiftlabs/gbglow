@@ -5,6 +5,7 @@ add_executable(test_basic
     ../src/core/instructions.cpp
     ../src/core/memory.cpp
     ../src/core/registers.cpp
+    ../src/core/timer.cpp
     ../src/cartridge/cartridge.cpp
     ../src/cartridge/mbc1.cpp
     ../src/cartridge/mbc3.cpp
