@@ -35,18 +35,16 @@ public:
     // Execute PPU for given number of cycles
     void step(Cycles cycles);
     
-    // Get current mode
-    Mode mode() const { return mode_; }
+    // Accessors
+    Mode mode() const;
+    u8 scanline() const;
     
-    // Get current scanline
-    u8 scanline() const { return ly_; }
-    
-    // Check if frame is complete (for rendering)
-    bool frame_ready() const { return frame_ready_; }
-    void clear_frame_ready() { frame_ready_ = false; }
+    // Frame buffer access
+    bool frame_ready() const;
+    void clear_frame_ready();
     
     // Get framebuffer (160x144, grayscale 0-3)
-    const std::array<u8, 160 * 144>& framebuffer() const { return framebuffer_; }
+    const std::array<u8, 160 * 144>& framebuffer() const;
     
     // Render current frame to terminal as ASCII
     void render_to_terminal() const;
