@@ -4,6 +4,7 @@
 
 #include "../cartridge/cartridge.h"
 #include "../input/joypad.h"
+#include "timer.h"
 
 namespace emugbc {
 
@@ -27,6 +28,10 @@ namespace {
     constexpr u16 HRAM_END = 0xFFFF;
     constexpr u16 INTERRUPT_ENABLE_REG = 0xFFFF;
     constexpr u16 JOYPAD_REG = 0xFF00;
+    constexpr u16 TIMER_DIV_REG = 0xFF04;
+    constexpr u16 TIMER_TIMA_REG = 0xFF05;
+    constexpr u16 TIMER_TMA_REG = 0xFF06;
+    constexpr u16 TIMER_TAC_REG = 0xFF07;
 }
 
 Memory::Memory() 
@@ -40,6 +45,9 @@ Memory::Memory()
     
     // Create joypad controller
     joypad_ = std::make_unique<Joypad>(*this);
+    
+    // Create timer system
+    timer_ = std::make_unique<Timer>(*this);
 }
 
 Memory::~Memory() {
@@ -98,6 +106,21 @@ u8 Memory::read(u16 address) const {
         if (address == JOYPAD_REG) {
             return joypad_->read_register();
         }
+        
+        // Timer registers - route through timer system
+        if (address == TIMER_DIV_REG) {
+            return timer_->read_div();
+        }
+        if (address == TIMER_TIMA_REG) {
+            return timer_->read_tima();
+        }
+        if (address == TIMER_TMA_REG) {
+            return timer_->read_tma();
+        }
+        if (address == TIMER_TAC_REG) {
+            return timer_->read_tac();
+        }
+        
         return io_regs_[address - IO_REGISTERS_START];
     }
     
@@ -167,6 +190,25 @@ void Memory::write(u16 address, u8 value) {
             joypad_->write_register(value);
             return;
         }
+        
+        // Timer registers - route through timer system
+        if (address == TIMER_DIV_REG) {
+            timer_->write_div(value);
+            return;
+        }
+        if (address == TIMER_TIMA_REG) {
+            timer_->write_tima(value);
+            return;
+        }
+        if (address == TIMER_TMA_REG) {
+            timer_->write_tma(value);
+            return;
+        }
+        if (address == TIMER_TAC_REG) {
+            timer_->write_tac(value);
+            return;
+        }
+        
         io_regs_[address - IO_REGISTERS_START] = value;
         return;
     }
@@ -201,6 +243,11 @@ void Memory::write16(u16 address, u16 value)
 Joypad& Memory::joypad()
 {
     return *joypad_;
+}
+
+Timer& Memory::timer()
+{
+    return *timer_;
 }
 
 } // namespace emugbc

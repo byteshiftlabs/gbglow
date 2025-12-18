@@ -20,6 +20,7 @@ set(CORE_SOURCES
     src/core/registers.cpp
     src/core/instructions.cpp
     src/core/emulator.cpp
+    src/core/timer.cpp
 )
 
 set(VIDEO_SOURCES
