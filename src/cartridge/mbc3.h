@@ -34,6 +34,16 @@ public:
     void write(u16 address, u8 value) override;
     
     /**
+     * Save RAM and RTC state to file
+     */
+    bool save_ram_to_file(const std::string& path) override;
+    
+    /**
+     * Load RAM and RTC state from file
+     */
+    bool load_ram_from_file(const std::string& path) override;
+    
+    /**
      * Update RTC if not halted
      * Should be called periodically (e.g., every frame)
      */
