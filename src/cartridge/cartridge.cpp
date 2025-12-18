@@ -6,6 +6,7 @@
 
 #include "mbc1.h"
 #include "mbc3.h"
+#include "mbc5.h"
 
 namespace emugbc {
 
@@ -118,6 +119,16 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
         case 0x12: // MBC3+RAM
         case 0x13: // MBC3+RAM+BATTERY
             return std::make_unique<MBC3>(std::move(rom_data), ram_size, false);
+            
+        case 0x19: // MBC5
+        case 0x1A: // MBC5+RAM
+        case 0x1B: // MBC5+RAM+BATTERY
+            return std::make_unique<MBC5>(std::move(rom_data), ram_size, false);
+            
+        case 0x1C: // MBC5+RUMBLE
+        case 0x1D: // MBC5+RUMBLE+RAM
+        case 0x1E: // MBC5+RUMBLE+RAM+BATTERY
+            return std::make_unique<MBC5>(std::move(rom_data), ram_size, true);
             
         default:
             throw std::runtime_error("Unsupported cartridge type: 0x" + 

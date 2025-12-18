@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "cpu_constants.h"
+#include <stdexcept>
 
 namespace emugbc {
 
@@ -856,7 +857,8 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
             case 4: return regs_.h;
             case 5: return regs_.l;
             case 7: return regs_.a;
-            default: throw std::runtime_error("Invalid register index");
+            default:
+                throw std::runtime_error("Invalid register index");
         }
     };
     
