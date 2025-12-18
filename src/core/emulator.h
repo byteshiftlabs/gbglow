@@ -5,36 +5,62 @@
 #include "memory.h"
 #include "../video/ppu.h"
 #include "../cartridge/cartridge.h"
+
 #include <memory>
 #include <string>
 
 namespace emugbc {
 
 /**
- * Main Emulator Class
+ * Main emulator class that coordinates all components
  * 
- * Coordinates CPU, PPU, and other components
+ * The Emulator ties together the CPU, Memory, PPU, and Cartridge
+ * into a functioning Game Boy Color system. It manages execution
+ * timing and component synchronization.
  */
-class Emulator {
+class Emulator
+{
 public:
     Emulator();
     
-    // Load a ROM file
+    /**
+     * Load a ROM file into the emulator
+     * @param path Path to the ROM file
+     * @return true if loaded successfully, false otherwise
+     */
     bool load_rom(const std::string& path);
     
-    // Run for one frame (~70224 cycles)
+    /**
+     * Reset emulator to initial state
+     * Resets CPU registers and clears memory state
+     */
+    void reset();
+    
+    /**
+     * Execute one complete frame worth of cycles
+     * A frame is 70224 cycles at 4.194304 MHz (~59.7 fps)
+     */
     void run_frame();
     
-    // Run for a specific number of cycles
+    /**
+     * Execute a specific number of cycles
+     * @param cycles Number of CPU cycles to execute
+     */
     void run_cycles(Cycles cycles);
     
-    // Get components
-    CPU& cpu() { return *cpu_; }
-    PPU& ppu() { return *ppu_; }
-    Memory& memory() { return *memory_; }
+    /**
+     * Access to PPU for rendering
+     * @return Reference to the PPU component
+     */
+    const PPU& ppu() const;
+    PPU& ppu();
     
-    // Reset emulator
-    void reset();
+    /**
+     * Access to CPU for debugging
+     * @return Reference to the CPU component
+     */
+    const CPU& cpu() const;
+    CPU& cpu();
     
 private:
     std::unique_ptr<Memory> memory_;
