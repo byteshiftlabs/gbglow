@@ -13,7 +13,12 @@ APU::APU(Memory& memory)
     , nr52_(0)
     , cycle_accumulator_(0)
 {
-    wave_ram_.fill(0);
+    // Initialize Wave RAM with default pattern (similar to Game Boy boot state)
+    // This is a simple triangle-ish wave pattern
+    wave_ram_ = {{
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
+    }};
     audio_buffer_.reserve(SAMPLE_RATE / 60);  // Reserve space for one frame at 60fps
     reset();
 }
@@ -105,11 +110,34 @@ void APU::step(Cycles cycles) {
     
     // Frame sequencer runs at 512 Hz (every ~8192 cycles)
     // GNUBOY: Length y envelope ahora se manejan por sample, no por frame sequencer
-    // Solo mantenemos el contador del frame sequencer por si se usa en otro lado
+    // Sweep se maneja aquí en el frame sequencer (steps 2 y 6)
     while (frame_sequencer_cycles_ >= CYCLES_PER_FRAME) {
         frame_sequencer_cycles_ -= CYCLES_PER_FRAME;
         
-        // TODO: Sweep para Channel 1 (Step 2, 6 @ 128 Hz) si se implementa
+        // Sweep para Channel 1 (Step 2, 6 @ 128 Hz)
+        if (frame_sequencer_step_ == 2 || frame_sequencer_step_ == 6) {
+            if (channel1_.enabled && channel1_.sweep_period > 0 && channel1_.sweep_shift > 0) {
+                // Calculate new frequency
+                int delta = channel1_.frequency >> channel1_.sweep_shift;
+                int new_freq;
+                
+                if (channel1_.sweep_direction) {
+                    // Decrease frequency (negate)
+                    new_freq = channel1_.frequency - delta;
+                } else {
+                    // Increase frequency
+                    new_freq = channel1_.frequency + delta;
+                }
+                
+                // Check overflow (frequency > 2047 disables channel)
+                if (new_freq > 2047) {
+                    channel1_.enabled = false;
+                } else if (new_freq >= 0 && channel1_.sweep_shift > 0) {
+                    channel1_.frequency = static_cast<u16>(new_freq);
+                    channel1_.phase_increment = calc_square_phase_inc(channel1_.frequency);
+                }
+            }
+        }
         
         // Advance frame sequencer (0-7 loop)
         frame_sequencer_step_ = (frame_sequencer_step_ + 1) & 0x07;
@@ -417,6 +445,15 @@ u8 APU::read_register(u16 address) const {
     
     // Wave RAM
     if (address >= WAVE_RAM_START && address <= WAVE_RAM_END) {
+        // IMPORTANTE: Wave RAM solo es accesible cuando Channel 3 está apagado o DAC deshabilitado
+        // Cuando está activo, solo se puede acceder al byte siendo reproducido actualmente
+        // Esto es crítico para sonidos como el de Game Freak en Pokemon
+        if (channel3_.enabled && channel3_.dac_enabled) {
+            // Cuando está activo, retornar el byte que se está leyendo ahora
+            // gnuboy: bits 22-25 de phase contienen el índice del byte (0-15)
+            int current_byte_index = (channel3_.phase >> 22) & 0x0F;
+            return wave_ram_[current_byte_index];
+        }
         return wave_ram_[address - WAVE_RAM_START];
     }
     
@@ -462,15 +499,12 @@ void APU::write_register(u16 address, u8 value) {
     if (address == REG_NR13) {
         channel1_.frequency = (channel1_.frequency & 0x0700) | value;
         channel1_.phase_increment = calc_square_phase_inc(channel1_.frequency);
-        printf("[NR13] write=0x%02X freq_now=%d\n", value, channel1_.frequency);
         return;
     }
     if (address == REG_NR14) {
-        printf("[NR14] write=0x%02X ", value);
         channel1_.frequency = (channel1_.frequency & 0x00FF) | ((value & 0x07) << 8);
         channel1_.phase_increment = calc_square_phase_inc(channel1_.frequency);
         channel1_.length_enable = (value & 0x40) != 0;
-        printf("freq_final=%d trigger=%d\n", channel1_.frequency, (value & 0x80) != 0);
         
         if (value & 0x80) {  // Trigger
             channel1_.enabled = true;
@@ -478,15 +512,21 @@ void APU::write_register(u16 address, u8 value) {
             // gnuboy: reset counters
             channel1_.cnt = 0;
             channel1_.encnt = 0;
+            channel1_.swcnt = 0;  // Reset sweep counter on trigger
             channel1_.envol = channel1_.initial_volume;
             // Si len no fue configurado, usar default
             if (channel1_.len == 0) {
                 channel1_.len = 64 << 13;
             }
-            printf("[CH1] freq=%d phase_inc=%d duty=%d vol=%d env_dir=%d env_per=%d dac=%d enabled=%d\n",
-                   channel1_.frequency, channel1_.phase_increment, channel1_.wave_duty, 
-                   channel1_.initial_volume, channel1_.envelope_direction, channel1_.envelope_period,
-                   channel1_.dac_enabled, channel1_.enabled);
+            // Sweep overflow check on trigger
+            if (channel1_.sweep_shift > 0) {
+                int delta = channel1_.frequency >> channel1_.sweep_shift;
+                int new_freq = channel1_.sweep_direction ? 
+                    (channel1_.frequency - delta) : (channel1_.frequency + delta);
+                if (new_freq > 2047) {
+                    channel1_.enabled = false;
+                }
+            }
         }
         return;
     }
@@ -536,9 +576,6 @@ void APU::write_register(u16 address, u8 value) {
             if (channel2_.len == 0) {
                 channel2_.len = 64 << 13;
             }
-            printf("[CH2] freq=%d duty=%d vol=%d env_dir=%d env_per=%d\n",
-                   channel2_.frequency, channel2_.wave_duty, channel2_.initial_volume,
-                   channel2_.envelope_direction, channel2_.envelope_period);
         }
         return;
     }
@@ -580,15 +617,6 @@ void APU::write_register(u16 address, u8 value) {
                 if (channel3_.len == 0) {
                     channel3_.len = 256 << 20;
                 }
-                
-                // DEBUG: Log Channel 3 trigger
-                printf("[CH3 TRIGGER] freq=%d phase_inc=%d output_level=%d\n", 
-                       channel3_.frequency, channel3_.phase_increment, channel3_.output_level);
-                printf("[CH3 WAVE] ");
-                for (int i = 0; i < 16; i++) {
-                    printf("%02X ", wave_ram_[i]);
-                }
-                printf("\n");
             }
         }
         return;
@@ -639,9 +667,6 @@ void APU::write_register(u16 address, u8 value) {
             if (channel4_.len == 0) {
                 channel4_.len = 64 << 13;
             }
-            printf("[CH4] vol=%d env_dir=%d env_per=%d shift=%d width=%d div=%d\n",
-                   channel4_.initial_volume, channel4_.envelope_direction, channel4_.envelope_period,
-                   channel4_.clock_shift, channel4_.width_mode, channel4_.divisor_code);
         }
         return;
     }
@@ -671,7 +696,18 @@ void APU::write_register(u16 address, u8 value) {
     
     // Wave RAM
     if (address >= WAVE_RAM_START && address <= WAVE_RAM_END) {
-        wave_ram_[address - WAVE_RAM_START] = value;
+        // IMPORTANTE: Wave RAM solo es escribible cuando Channel 3 está apagado o DAC deshabilitado
+        // Cuando está activo, las escrituras solo afectan al byte siendo reproducido actualmente
+        // Esto es crítico para sonidos como el de Game Freak en Pokemon
+        if (channel3_.enabled && channel3_.dac_enabled) {
+            // Cuando está activo, solo escribir al byte que se está leyendo ahora
+            // gnuboy: bits 22-25 de phase contienen el índice del byte (0-15)
+            int current_byte_index = (channel3_.phase >> 22) & 0x0F;
+            wave_ram_[current_byte_index] = value;
+        } else {
+            // Cuando está inactivo, escritura normal
+            wave_ram_[address - WAVE_RAM_START] = value;
+        }
         return;
     }
 }
