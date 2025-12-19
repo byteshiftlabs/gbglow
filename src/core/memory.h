@@ -9,6 +9,7 @@ namespace emugbc {
 // Forward declarations
 class Cartridge;
 class Joypad;
+class Timer;
 
 /**
  * Memory Management Unit (MMU)
@@ -38,6 +39,9 @@ public:
     // Get joypad reference for input handling
     Joypad& joypad();
     
+    // Get timer reference for timing operations
+    Timer& timer();
+    
     // Read/Write operations
     u8 read(u16 address) const;
     void write(u16 address, u8 value);
@@ -58,6 +62,7 @@ private:
     
     std::unique_ptr<Cartridge> cartridge_;
     std::unique_ptr<Joypad> joypad_;
+    std::unique_ptr<Timer> timer_;
 };
 
 } // namespace emugbc
