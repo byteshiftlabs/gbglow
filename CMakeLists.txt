@@ -40,6 +40,10 @@ set(INPUT_SOURCES
     src/input/joypad.cpp
 )
 
+set(AUDIO_SOURCES
+    src/audio/apu.cpp
+)
+
 # Main executable
 add_executable(emugbc
     src/main.cpp
@@ -47,6 +51,7 @@ add_executable(emugbc
     ${VIDEO_SOURCES}
     ${CARTRIDGE_SOURCES}
     ${INPUT_SOURCES}
+    ${AUDIO_SOURCES}
 )
 
 target_include_directories(emugbc PRIVATE
