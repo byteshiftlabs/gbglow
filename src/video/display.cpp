@@ -1,4 +1,5 @@
 #include "display.h"
+#include "../input/joypad.h"
 #include <SDL2/SDL.h>
 #include <stdexcept>
 
@@ -129,7 +130,7 @@ bool Display::should_close() const {
     return should_close_;
 }
 
-void Display::poll_events() {
+void Display::poll_events(Joypad* joypad) {
     SDL_Event event;
     
     while (SDL_PollEvent(&event)) {
@@ -139,15 +140,108 @@ void Display::poll_events() {
                 break;
                 
             case SDL_KEYDOWN:
-                // ESC key closes window
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    should_close_ = true;
-                }
+                handle_keydown(event.key.keysym.sym, joypad);
+                break;
+                
+            case SDL_KEYUP:
+                handle_keyup(event.key.keysym.sym, joypad);
                 break;
                 
             default:
                 break;
         }
+    }
+}
+
+void Display::handle_keydown(int key, Joypad* joypad) {
+    // ESC key closes window
+    if (key == SDLK_ESCAPE) {
+        should_close_ = true;
+        return;
+    }
+    
+    // Route keyboard input to joypad if available
+    if (!joypad) {
+        return;
+    }
+    
+    switch (key) {
+        // D-Pad - Arrow keys
+        case SDLK_UP:
+            joypad->press_up();
+            break;
+        case SDLK_DOWN:
+            joypad->press_down();
+            break;
+        case SDLK_LEFT:
+            joypad->press_left();
+            break;
+        case SDLK_RIGHT:
+            joypad->press_right();
+            break;
+            
+        // Action buttons
+        case SDLK_z:
+            joypad->press_a();
+            break;
+        case SDLK_x:
+            joypad->press_b();
+            break;
+            
+        // Start/Select
+        case SDLK_RETURN:
+            joypad->press_start();
+            break;
+        case SDLK_RSHIFT:
+        case SDLK_LSHIFT:
+            joypad->press_select();
+            break;
+            
+        default:
+            break;
+    }
+}
+
+void Display::handle_keyup(int key, Joypad* joypad) {
+    // Route keyboard input to joypad if available
+    if (!joypad) {
+        return;
+    }
+    
+    switch (key) {
+        // D-Pad - Arrow keys
+        case SDLK_UP:
+            joypad->release_up();
+            break;
+        case SDLK_DOWN:
+            joypad->release_down();
+            break;
+        case SDLK_LEFT:
+            joypad->release_left();
+            break;
+        case SDLK_RIGHT:
+            joypad->release_right();
+            break;
+            
+        // Action buttons
+        case SDLK_z:
+            joypad->release_a();
+            break;
+        case SDLK_x:
+            joypad->release_b();
+            break;
+            
+        // Start/Select
+        case SDLK_RETURN:
+            joypad->release_start();
+            break;
+        case SDLK_RSHIFT:
+        case SDLK_LSHIFT:
+            joypad->release_select();
+            break;
+            
+        default:
+            break;
     }
 }
 
