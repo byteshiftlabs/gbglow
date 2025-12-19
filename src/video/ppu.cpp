@@ -498,13 +498,12 @@ void PPU::render_to_terminal() const {
 }
 
 std::vector<u8> PPU::get_rgba_framebuffer() const {
-    // DMG palette: 4 shades of gray
-    // Each shade maps to RGB value
-    const u8 palette[4][3] = {
-        {0xFF, 0xFF, 0xFF},  // Shade 0: White
-        {0xAA, 0xAA, 0xAA},  // Shade 1: Light gray
-        {0x55, 0x55, 0x55},  // Shade 2: Dark gray
-        {0x00, 0x00, 0x00}   // Shade 3: Black
+    // DMG palette: 4 shades with greenish tint (classic Game Boy look)
+    const u8 palette[4][4] = {
+        {0x9B, 0xBC, 0x0F, 0xFF},  // Shade 0: Lightest (greenish yellow)
+        {0x8B, 0xAC, 0x0F, 0xFF},  // Shade 1: Light green
+        {0x30, 0x62, 0x30, 0xFF},  // Shade 2: Dark green
+        {0x0F, 0x38, 0x0F, 0xFF}   // Shade 3: Darkest green
     };
     
     // Allocate RGBA framebuffer (160×144×4 bytes)
@@ -520,7 +519,7 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
         rgba_framebuffer[i * 4 + 0] = palette[shade][0];  // R
         rgba_framebuffer[i * 4 + 1] = palette[shade][1];  // G
         rgba_framebuffer[i * 4 + 2] = palette[shade][2];  // B
-        rgba_framebuffer[i * 4 + 3] = 0xFF;                // A (opaque)
+        rgba_framebuffer[i * 4 + 3] = palette[shade][3];  // A
     }
     
     return rgba_framebuffer;

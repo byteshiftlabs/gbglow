@@ -46,10 +46,10 @@ public:
     // Get timer reference for timing operations
     Timer& timer();
     
-    // Get APU reference for audio
+    // Get APU reference for audio operations
     APU& apu();
     
-    // Get cartridge pointer (can be null)
+    // Get cartridge pointer (may be null)
     Cartridge* cartridge();
     
     // Read/Write operations
