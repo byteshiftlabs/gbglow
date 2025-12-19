@@ -10,7 +10,17 @@ Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
     cpu_ = std::make_unique<CPU>(*memory_);
     ppu_ = std::make_unique<PPU>(*memory_);
-    joypad_ = std::make_unique<Joypad>(*memory_);
+    // Note: Joypad is owned by Memory, not Emulator
+    
+    // Try to load boot ROM (optional - emulator works without it)
+    // Common locations: dmg_boot.bin, boot.gb, etc.
+    if (memory_->load_boot_rom("dmg_boot.bin")) {
+        std::cout << "Boot ROM loaded" << std::endl;
+    } else if (memory_->load_boot_rom("boot.gb")) {
+        std::cout << "Boot ROM loaded" << std::endl;
+    } else {
+        std::cout << "No boot ROM found (emulator will skip boot sequence)" << std::endl;
+    }
 }
 
 bool Emulator::load_rom(const std::string& path) {
@@ -71,8 +81,8 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     while (!display.should_close()) {
         auto frame_start = Clock::now();
         
-        // Handle input events
-        display.poll_events(joypad_.get());
+        // Handle input events - get joypad from memory (single source of truth)
+        display.poll_events(&memory_->joypad());
         
         // Run one frame of emulation
         run_frame();
@@ -122,7 +132,7 @@ CPU& Emulator::cpu()
 
 Joypad& Emulator::joypad()
 {
-    return *joypad_;
+    return memory_->joypad();
 }
 
 } // namespace emugbc
