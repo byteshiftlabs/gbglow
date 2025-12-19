@@ -2,6 +2,7 @@
 #include "../input/joypad.h"
 #include <SDL2/SDL.h>
 #include <stdexcept>
+#include <iostream>
 
 namespace emugbc {
 
@@ -180,11 +181,13 @@ void Display::handle_keydown(int key, Joypad* joypad) {
             joypad->press_right();
             break;
             
-        // Action buttons
+        // Action buttons - handle both upper and lowercase
         case SDLK_z:
+        case SDLK_a:  // Alternative: A key for A button
             joypad->press_a();
             break;
         case SDLK_x:
+        case SDLK_s:  // Alternative: S key for B button
             joypad->press_b();
             break;
             
@@ -223,11 +226,13 @@ void Display::handle_keyup(int key, Joypad* joypad) {
             joypad->release_right();
             break;
             
-        // Action buttons
+        // Action buttons - handle both upper and lowercase
         case SDLK_z:
+        case SDLK_a:  // Alternative: A key for A button
             joypad->release_a();
             break;
         case SDLK_x:
+        case SDLK_s:  // Alternative: S key for B button
             joypad->release_b();
             break;
             
