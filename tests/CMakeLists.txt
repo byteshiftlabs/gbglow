@@ -11,6 +11,7 @@ add_executable(test_basic
     ../src/cartridge/mbc3.cpp
     ../src/cartridge/mbc5.cpp
     ../src/input/joypad.cpp
+    ../src/audio/apu.cpp
 )
 
 target_include_directories(test_basic PRIVATE
