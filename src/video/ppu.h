@@ -59,6 +59,9 @@ public:
     // Get framebuffer (160x144, grayscale 0-3)
     const std::array<u8, 160 * 144>& framebuffer() const;
     
+    // Get RGBA framebuffer for display (160x144x4 bytes)
+    std::vector<u8> get_rgba_framebuffer() const;
+    
     // Render current frame to terminal as ASCII
     void render_to_terminal() const;
     
