@@ -83,6 +83,9 @@ private:
     Cycles frame_sequencer_cycles_; // For length/envelope/sweep timing
     u8 frame_sequencer_step_;       // 0-7 for frame sequencer
     
+    // Frame rate constants
+    static constexpr int FRAMES_PER_SECOND = 60;
+    
     // Sample rate constants - COMPATIBLE CON GNUBOY
     static constexpr int SAMPLE_RATE = 44100;
     static constexpr int CPU_CLOCK_HZ = 4194304;
@@ -128,7 +131,121 @@ private:
     static constexpr u8 NR52_CH3_ON = 0x04;
     static constexpr u8 NR52_CH4_ON = 0x08;
     
-    // Channel structures (to be implemented)
+    // NR51 panning bit masks
+    static constexpr u8 NR51_CH1_RIGHT = 0x01;
+    static constexpr u8 NR51_CH2_RIGHT = 0x02;
+    static constexpr u8 NR51_CH3_RIGHT = 0x04;
+    static constexpr u8 NR51_CH4_RIGHT = 0x08;
+    static constexpr u8 NR51_CH1_LEFT = 0x10;
+    static constexpr u8 NR51_CH2_LEFT = 0x20;
+    static constexpr u8 NR51_CH3_LEFT = 0x40;
+    static constexpr u8 NR51_CH4_LEFT = 0x80;
+    
+    // NR50 volume masks
+    static constexpr u8 NR50_RIGHT_VOLUME_MASK = 0x07;
+    static constexpr u8 NR50_LEFT_VOLUME_MASK = 0x70;
+    static constexpr u8 NR50_LEFT_VOLUME_SHIFT = 4;
+    
+    // Bit shift constants for sample generation
+    static constexpr int PHASE_SHIFT_SQUARE = 18;  // For square wave position (pos >> 18)
+    static constexpr int PHASE_SHIFT_WAVE = 22;     // For wave RAM position (pos >> 22)
+    static constexpr int PHASE_MASK_SQUARE = 7;     // Mask for 8-step duty cycle
+    static constexpr int PHASE_MASK_WAVE = 15;      // Mask for 16-byte wave RAM
+    static constexpr int WAVE_NIBBLE_BIT = 21;      // Bit to check for high/low nibble
+    
+    // Frequency calculation constants
+    static constexpr int FREQ_DIVISOR_BASE = 2048;  // Base frequency divisor
+    static constexpr int FREQ_SHIFT_SQUARE = 17;    // Shift for square wave frequency
+    static constexpr int FREQ_SHIFT_WAVE = 21;      // Shift for wave frequency
+    static constexpr int FREQ_CHECK_SHIFT_SQUARE = 4;  // Check shift for square
+    static constexpr int FREQ_CHECK_SHIFT_WAVE = 3;    // Check shift for wave
+    
+    // Length counter constants
+    static constexpr int LENGTH_SHIFT = 13;         // Shift for length counter calculation
+    static constexpr int LENGTH_MAX_64 = 64;        // Max length for channels 1,2,4
+    static constexpr int LENGTH_MAX_256 = 256;      // Max length for channel 3
+    static constexpr int LENGTH_MASK = 0x3F;        // Mask for 6-bit length value
+    
+    // Envelope constants
+    static constexpr int ENVELOPE_SHIFT = 15;       // Shift for envelope period
+    static constexpr int ENVELOPE_MASK = 7;         // Mask for 3-bit period
+    static constexpr int ENVELOPE_MIN = 0;          // Minimum envelope volume
+    static constexpr int ENVELOPE_MAX = 15;         // Maximum envelope volume
+    
+    // Sweep constants
+    static constexpr int SWEEP_SHIFT = 14;          // Shift for sweep period
+    static constexpr int SWEEP_FREQUENCY_MAX = 2047; // Maximum frequency value
+    
+    // Register bit positions and masks
+    static constexpr int DUTY_CYCLE_SHIFT = 6;
+    static constexpr int DUTY_CYCLE_MASK = 0x03;
+    static constexpr int SWEEP_PERIOD_SHIFT = 4;
+    static constexpr int SWEEP_PERIOD_MASK = 0x07;
+    static constexpr int SWEEP_DIRECTION_SHIFT = 3;
+    static constexpr int SWEEP_DIRECTION_MASK = 0x01;
+    static constexpr int SWEEP_SHIFT_MASK = 0x07;
+    static constexpr int VOLUME_SHIFT = 4;
+    static constexpr int VOLUME_MASK = 0x0F;
+    static constexpr int ENVELOPE_DIRECTION_SHIFT = 3;
+    static constexpr int FREQUENCY_HIGH_MASK = 0x07;
+    static constexpr int FREQUENCY_LOW_MASK = 0xFF;
+    static constexpr int FREQUENCY_HIGH_SHIFT = 8;
+    static constexpr int LENGTH_ENABLE_BIT = 0x40;
+    static constexpr int TRIGGER_BIT = 0x80;
+    static constexpr int OUTPUT_LEVEL_SHIFT = 5;
+    static constexpr int OUTPUT_LEVEL_MASK = 0x03;
+    static constexpr int DAC_ENABLE_BIT = 0x80;
+    static constexpr int DAC_ENABLE_MASK = 0xF8;
+    
+    // Channel 4 specific constants
+    static constexpr int CLOCK_SHIFT_SHIFT = 4;
+    static constexpr int CLOCK_SHIFT_MASK = 0x0F;
+    static constexpr int WIDTH_MODE_SHIFT = 3;
+    static constexpr int WIDTH_MODE_MASK = 0x01;
+    static constexpr int DIVISOR_CODE_MASK = 0x07;
+    static constexpr int LFSR_INIT = 0x7FFF;        // Initial LFSR value
+    static constexpr int LFSR_BIT_MASK = 1;         // Bit 0 mask for LFSR
+    static constexpr int LFSR_XOR_SHIFT = 1;        // Shift for XOR calculation
+    static constexpr int LFSR_FEEDBACK_BIT = 14;    // Position for 15-bit feedback
+    static constexpr int LFSR_WIDTH_BIT = 6;        // Position for 7-bit mode
+    static constexpr int LFSR_PHASE_THRESHOLD = 18; // Threshold shift for LFSR advance
+    
+    // Sample amplitude constants
+    static constexpr int SAMPLE_AMPLIFY_SHIFT = 2;  // Shift left 2 = multiply by 4
+    static constexpr int SAMPLE_NOISE_MULTIPLY = 3;  // Noise multiply factor
+    static constexpr int SAMPLE_VOLUME_SHIFT = 4;   // Final volume shift
+    static constexpr int SAMPLE_MIN = -128;         // Minimum signed sample value
+    static constexpr int SAMPLE_MAX = 127;          // Maximum signed sample value
+    static constexpr int SAMPLE_ZERO = 128;         // Zero point in unsigned format
+    static constexpr int SAMPLE_WAVE_OFFSET = 8;    // Offset for wave samples
+    
+    // Wave output level shifts
+    static constexpr int WAVE_VOLUME_FULL_SHIFT = 0;   // 100% volume (no shift)
+    static constexpr int WAVE_VOLUME_HALF_SHIFT = 1;   // 50% volume (shift 1)
+    static constexpr int WAVE_VOLUME_QUARTER_SHIFT = 2; // 25% volume (shift 2)
+    static constexpr int WAVE_VOLUME_BASE = 3;         // Base for shift calculation
+    
+    // Wave RAM constants
+    static constexpr int WAVE_NIBBLE_MASK = 15;     // Mask for 4-bit nibble
+    static constexpr int WAVE_NIBBLE_SHIFT = 4;     // Shift for high nibble
+    
+    // Read-only register return values
+    static constexpr u8 REG_WRITE_ONLY = 0xFF;
+    static constexpr u8 REG_NR10_UNUSED_BITS = 0x80;
+    static constexpr u8 REG_NR11_UNUSED_BITS = 0x3F;
+    static constexpr u8 REG_NR14_UNUSED_BITS = 0xBF;
+    static constexpr u8 REG_NR21_UNUSED_BITS = 0x3F;
+    static constexpr u8 REG_NR24_UNUSED_BITS = 0xBF;
+    static constexpr u8 REG_NR30_UNUSED_BITS = 0x7F;
+    static constexpr u8 REG_NR32_UNUSED_BITS = 0x9F;
+    static constexpr u8 REG_NR34_UNUSED_BITS = 0xBF;
+    static constexpr u8 REG_NR44_UNUSED_BITS = 0xBF;
+    static constexpr u8 REG_NR52_UNUSED_BITS = 0xF0;
+    
+    // Reset value
+    static constexpr u8 NR52_RESET_VALUE = 0xF0;    // Power off, bits 4-7 always 1
+    
+    // Channel structures (gnuboy compatible naming)
     struct Channel1 {
         // Sweep
         u8 sweep_period;
@@ -151,17 +268,19 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // Internal state (gnuboy compatible)
-        int phase;
-        int phase_increment;  // Pre-calculated frequency
-        int cnt;      // Length counter (accumulated)
+        // gnuboy compatible internal state
+        bool on;      // Channel enabled (gnuboy: S1.on)
+        int pos;      // Phase position (gnuboy: S1.pos)
+        int freq;     // Phase increment (gnuboy: S1.freq)
+        int cnt;      // Length counter accumulated
         int len;      // Length threshold
-        int encnt;    // Envelope counter (accumulated)
+        int encnt;    // Envelope counter accumulated
         int enlen;    // Envelope threshold
         int endir;    // Envelope direction (-1 or +1)
         int envol;    // Current envelope volume
-        int swcnt;    // Sweep counter
+        int swcnt;    // Sweep counter accumulated
         int swlen;    // Sweep threshold
+        int swfreq;   // Sweep frequency (gnuboy: S1.swfreq)
     } channel1_;
     
     struct Channel2 {
@@ -180,9 +299,10 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // Internal state (gnuboy compatible)
-        int phase;
-        int phase_increment;
+        // gnuboy compatible internal state
+        bool on;      // Channel enabled (gnuboy: S2.on)
+        int pos;      // Phase position (gnuboy: S2.pos)
+        int freq;     // Phase increment (gnuboy: S2.freq)
         int cnt;      // Length counter
         int len;      // Length threshold
         int encnt;    // Envelope counter
@@ -204,11 +324,12 @@ private:
         bool length_enable;
         bool enabled;
         
-        // Internal state (gnuboy compatible)
-        int phase;
-        int phase_increment;
+        // gnuboy compatible internal state
+        bool on;      // Channel enabled (gnuboy: S3.on)
+        int pos;      // Phase position (gnuboy: S3.pos)
+        int freq;     // Phase increment (gnuboy: S3.freq)
         int cnt;      // Length counter
-        int len;      // Length threshold (uses different scale)
+        int len;      // Length threshold
     } channel3_;
     
     struct Channel4 {
@@ -227,10 +348,11 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // Internal state (gnuboy compatible)
-        u16 lfsr;
-        int phase;
-        int phase_increment;
+        // gnuboy compatible internal state
+        bool on;      // Channel enabled (gnuboy: S4.on)
+        u16 lfsr;     // Linear feedback shift register
+        int pos;      // Phase position (gnuboy: S4.pos)
+        int freq;     // Phase increment (gnuboy: S4.freq)
         int cnt;      // Length counter
         int len;      // Length threshold
         int encnt;    // Envelope counter
