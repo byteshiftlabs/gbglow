@@ -169,6 +169,11 @@ Cartridge* Emulator::cartridge()
     return memory_->cartridge();
 }
 
+Memory& Emulator::memory()
+{
+    return *memory_;
+}
+
 std::string Emulator::get_save_path() const
 {
     // Replace .gb, .gbc extension with .sav
