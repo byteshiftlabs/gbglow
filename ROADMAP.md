@@ -563,7 +563,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 **Goal:** Sound and music generation
 
-**Status:** COMPLETE - APU core implementation finished (basic audio functional)
+**Status:** COMPLETE - Full APU with SDL2 audio output
 
 **Priority:** LOW - Enhances experience but optional
 
@@ -580,43 +580,49 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Implementation Details
 - **Files Created:**
-  - `src/audio/apu.h` - APU class with 4 channel structures
-  - `src/audio/apu.cpp` - Sound register handling and basic sample generation
+  - `src/audio/apu.h` - APU class with 4 channel structures (gnuboy-compatible naming)
+  - `src/audio/apu.cpp` - Sound register handling and sample generation (gnuboy algorithm)
 - **Files Modified:**
   - `src/core/memory.h` - Added APU forward declaration and apu() accessor
   - `src/core/memory.cpp` - Integrated APU, routed audio registers (0xFF10-0xFF3F)
   - `src/core/emulator.cpp` - Added APU step() call in run_cycles()
+  - `src/video/display.h` - Added SDL audio device and audio callback
+  - `src/video/display.cpp` - Implemented SDL2 audio output with proper U8→S16 conversion
   - `CMakeLists.txt` - Added audio source files
   - `tests/CMakeLists.txt` - Added apu.cpp to test builds
 - **Features:**
   - Full sound register address space (0xFF10-0xFF3F)
-  - Channel 1 (square + sweep): NR10-NR14 registers
+  - Channel 1 (square + sweep): NR10-NR14 registers with frequency sweep
   - Channel 2 (square): NR21-NR24 registers
   - Channel 3 (wave): NR30-NR34 registers + wave RAM (0xFF30-0xFF3F)
-  - Channel 4 (noise): NR41-NR44 registers
+  - Channel 4 (noise): NR41-NR44 registers with LFSR
   - Master control: NR50 (volume), NR51 (panning), NR52 (power)
-  - Basic square wave generation for Channel 1
-  - 44.1kHz sample rate
-  - Stereo audio buffer generation
-  - Channel enable/disable logic
-  - Length counters, volume envelopes, frequency control
-  - APU power control (NR52 bit 7)
+  - gnuboy-compatible sample generation algorithm
+  - 44.1kHz sample rate with RATE = (1<<21)/44100 timing
+  - SDL2 audio output with hardware callback
+  - Proper U8→S16 conversion (*128 amplification)
+  - 1024 sample buffer (gnuboy method: samplerate/60 rounded to power of 2)
 
-### Current Status
-- ✅ All register reads/writes implemented
-- ✅ Channel 1 basic square wave works
-- ✅ Sample generation at 44.1kHz
-- 🚧 SDL audio output pending (buffer ready, needs SDL_OpenAudioDevice)
-- 🚧 Full channel mixing pending
-- 🚧 Envelope and sweep effects need refinement
+### Key Implementation Notes (gnuboy Compatibility)
+The APU was rewritten to exactly match gnuboy's `sound_mix()` function:
+- **RATE constant:** `(1<<21)/SAMPLE_RATE` for timing accumulation
+- **Phase-based generation:** Each channel has `pos` accumulator, advances by RATE
+- **Inline frequency calculation:** `(2048 - freq) << 13` for square waves
+- **Channel 3 scaling:** `(2048 - freq) << 13` (not <<20)
+- **Single `on` flag:** Instead of separate enabled/dac_enabled checks
+- **Envelope/sweep inline:** Applied during sample generation, not separate step()
+
+See `docs/architecture/apu.md` for detailed implementation notes and lessons learned.
 
 ### Acceptance Criteria
 - ✅ All 4 channels have register support
-- 🚧 Pokémon music plays (needs SDL audio output)
-- 🚧 Sound effects work (needs full mixing)
+- ✅ Pokémon music plays correctly
+- ✅ Sound effects work (Game Freak logo jingle confirmed)
 - ✅ Volume control responsive
+- ✅ SDL2 audio output functional
 - ✅ All tests passing
 - ✅ Zero compilation warnings
+- ✅ gnuboy-compatible implementation
 
 ---
 
@@ -653,12 +659,12 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 12. ✅ **Phase 15: Window Layer** - COMPLETE 🎉
 13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
 14. ✅ **Phase 17: Save File Support** - COMPLETE 🎉
-15. ✅ **Phase 18: Audio** - COMPLETE (90% - core functional, SDL output pending) 🎉
+15. ✅ **Phase 18: Audio** - COMPLETE (gnuboy-compatible, SDL2 output) 🎉
 
 **Current Status:** 🎉 PLAYABLE! All core systems complete. Next: Optional enhancements
 
 **Minimum for Playable Pokémon:** ✅ COMPLETE (Phases 1-14)
-**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18), Polish (19)
+**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18) - ALL COMPLETE except Color (16)
 
 ---
 
@@ -680,10 +686,10 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 15: Window Layer | ✅ Complete | 100% |
 | 16: Color Support | ⏳ Future | 0% |
 | 17: Save Files | ✅ Complete | 100% |
-| 18: Audio | ✅ Complete | 90% |
+| 18: Audio | ✅ Complete | 100% |
 | 19: Polish | ⏳ Future | 0% |
 
-**Overall Progress: ~95%** 🎉 (MVP+ Window, Saves, Audio COMPLETE - Fully playable with all core features! Only Color GBC and Polish remain)
+**Overall Progress: ~95%** 🎉 (MVP+ Window, Saves, Audio COMPLETE - Fully playable with audio! Only Color GBC and Polish remain)
 
 ---
 
@@ -753,4 +759,4 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ---
 
 **Last Updated:** December 19, 2025
-**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18). Optional: Color GBC (16), Polish (19)
+**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18) with full audio. Optional: Color GBC (16), Polish (19)
