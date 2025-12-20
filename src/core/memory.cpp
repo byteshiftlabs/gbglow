@@ -85,7 +85,7 @@ Memory::Memory()
     // Create timer system
     timer_ = std::make_unique<Timer>(*this);
     
-    // Create APU (audio)
+    // Create audio system
     apu_ = std::make_unique<APU>(*this);
 }
 
@@ -95,6 +95,14 @@ Memory::~Memory() {
 
 void Memory::load_cartridge(std::unique_ptr<Cartridge> cart) {
     cartridge_ = std::move(cart);
+}
+
+Cartridge* Memory::cartridge() {
+    return cartridge_.get();
+}
+
+APU& Memory::apu() {
+    return *apu_;
 }
 
 bool Memory::load_boot_rom(const std::string& path) {
@@ -182,7 +190,11 @@ u8 Memory::read(u16 address) const {
             return timer_->read_tac();
         }
         
+<<<<<<< Updated upstream
         // Sound registers (0xFF10-0xFF3F) - route through APU
+=======
+        // Audio registers - route through APU
+>>>>>>> Stashed changes
         if (address >= 0xFF10 && address <= 0xFF3F) {
             return apu_->read_register(address);
         }
@@ -275,7 +287,11 @@ void Memory::write(u16 address, u8 value) {
             return;
         }
         
+<<<<<<< Updated upstream
         // Sound registers (0xFF10-0xFF3F) - route through APU
+=======
+        // Audio registers - route through APU
+>>>>>>> Stashed changes
         if (address >= 0xFF10 && address <= 0xFF3F) {
             apu_->write_register(address, value);
             return;
