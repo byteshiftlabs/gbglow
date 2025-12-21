@@ -4,12 +4,11 @@
 
 ## Philosophy
 
-Unlike existing emulators that prioritize performance or features, EmuGBC emphasizes:
+EmuGBC emphasizes:
 
 - **Clear code**: Easy to understand and learn from
 - **Comprehensive documentation**: Every component fully documented
 - **Educational value**: Reference implementation for learning GB emulation
-- **Cycle accuracy**: Matches hardware timing behavior
 
 ## Current Status
 
@@ -17,7 +16,6 @@ Unlike existing emulators that prioritize performance or features, EmuGBC emphas
 - ~180 standard opcodes implemented
 - All 256 CB prefix instructions
 - Complete flag handling
-- Cycle-accurate timing
 
 ✅ **Phase 2 Complete: Basic PPU**
 - Background tile rendering
