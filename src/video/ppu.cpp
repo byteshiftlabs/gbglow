@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include "../core/memory.h"
+#include "../cartridge/cartridge.h"
 
 namespace emugbc {
 
@@ -81,12 +82,17 @@ namespace {
 
 PPU::PPU(Memory& memory) 
     : memory_(memory)
+    , cartridge_(nullptr)
     , mode_(Mode::OAMSearch)
     , dots_(0)
     , ly_(0)
     , frame_ready_(false)
+    , bcps_(0)
+    , ocps_(0)
     , window_line_counter_(0) {
     framebuffer_.fill(0);
+    bg_palette_ram_.fill(0xFF);   // Initialize to white (as per CGB boot ROM)
+    obj_palette_ram_.fill(0);     // Initialize to black (sprites unused by default)
 }
 
 void PPU::step(Cycles cycles) {
@@ -511,31 +517,137 @@ void PPU::render_to_terminal() const {
 }
 
 std::vector<u8> PPU::get_rgba_framebuffer() const {
-    // DMG palette: 4 shades with greenish tint (classic Game Boy look)
-    const u8 palette[4][4] = {
-        {0x9B, 0xBC, 0x0F, 0xFF},  // Shade 0: Lightest (greenish yellow)
-        {0x8B, 0xAC, 0x0F, 0xFF},  // Shade 1: Light green
-        {0x30, 0x62, 0x30, 0xFF},  // Shade 2: Dark green
-        {0x0F, 0x38, 0x0F, 0xFF}   // Shade 3: Darkest green
-    };
-    
     // Allocate RGBA framebuffer (160×144×4 bytes)
     const size_t pixel_count = 160 * 144;
     const size_t rgba_size = pixel_count * 4;
     std::vector<u8> rgba_framebuffer(rgba_size);
     
-    // Convert each grayscale pixel to RGBA
-    for (size_t i = 0; i < pixel_count; i++) {
-        u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+    // Check if we're in CGB mode
+    bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    
+    if (is_cgb) {
+        // CGB mode: Use palette 0, color 0-3 from background palette RAM
+        for (size_t i = 0; i < pixel_count; i++) {
+            u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+            
+            // Read 15-bit RGB from palette RAM (palette 0, color 0-3)
+            // Each color is 2 bytes: gggrrrrr 0bbbbbgg (little-endian)
+            u8 color_index = shade * 2;  // Palette 0, colors 0-3
+            u16 rgb555 = bg_palette_ram_[color_index] | (bg_palette_ram_[color_index + 1] << 8);
+            
+            // Convert 15-bit RGB to 8-bit RGB
+            u8 r, g, b;
+            cgb_rgb555_to_rgba(rgb555, r, g, b);
+            
+            // Write RGBA components
+            rgba_framebuffer[i * 4 + 0] = r;
+            rgba_framebuffer[i * 4 + 1] = g;
+            rgba_framebuffer[i * 4 + 2] = b;
+            rgba_framebuffer[i * 4 + 3] = 0xFF;  // Alpha
+        }
+    } else {
+        // DMG mode: Use classic greenish palette
+        const u8 palette[4][4] = {
+            {0x9B, 0xBC, 0x0F, 0xFF},  // Shade 0: Lightest (greenish yellow)
+            {0x8B, 0xAC, 0x0F, 0xFF},  // Shade 1: Light green
+            {0x30, 0x62, 0x30, 0xFF},  // Shade 2: Dark green
+            {0x0F, 0x38, 0x0F, 0xFF}   // Shade 3: Darkest green
+        };
         
-        // Write RGBA components
-        rgba_framebuffer[i * 4 + 0] = palette[shade][0];  // R
-        rgba_framebuffer[i * 4 + 1] = palette[shade][1];  // G
-        rgba_framebuffer[i * 4 + 2] = palette[shade][2];  // B
-        rgba_framebuffer[i * 4 + 3] = palette[shade][3];  // A
+        for (size_t i = 0; i < pixel_count; i++) {
+            u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+            
+            // Write RGBA components
+            rgba_framebuffer[i * 4 + 0] = palette[shade][0];  // R
+            rgba_framebuffer[i * 4 + 1] = palette[shade][1];  // G
+            rgba_framebuffer[i * 4 + 2] = palette[shade][2];  // B
+            rgba_framebuffer[i * 4 + 3] = palette[shade][3];  // A
+        }
     }
     
     return rgba_framebuffer;
+}
+
+// CGB Palette Register Access
+
+u8 PPU::read_bcps() const {
+    return bcps_ | 0x40;  // Bits 6-7 are set to 1
+}
+
+void PPU::write_bcps(u8 value) {
+    bcps_ = value;
+}
+
+u8 PPU::read_bcpd() const {
+    // Can only read during VBlank or HBlank (Mode 0 or 1)
+    if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
+        u8 index = bcps_ & 0x3F;  // Lower 6 bits are the address
+        return bg_palette_ram_[index];
+    }
+    return 0xFF;  // Return 0xFF if PPU is busy
+}
+
+void PPU::write_bcpd(u8 value) {
+    // Can only write during VBlank or HBlank (Mode 0 or 1)
+    if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
+        u8 index = bcps_ & 0x3F;  // Lower 6 bits are the address
+        bg_palette_ram_[index] = value;
+        
+        // Auto-increment if bit 7 is set
+        if (bcps_ & 0x80) {
+            u8 new_index = (index + 1) & 0x3F;
+            bcps_ = (bcps_ & 0x80) | new_index;
+        }
+    }
+}
+
+u8 PPU::read_ocps() const {
+    return ocps_ | 0x40;  // Bits 6-7 are set to 1
+}
+
+void PPU::write_ocps(u8 value) {
+    ocps_ = value;
+}
+
+u8 PPU::read_ocpd() const {
+    // Can only read during VBlank or HBlank (Mode 0 or 1)
+    if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
+        u8 index = ocps_ & 0x3F;  // Lower 6 bits are the address
+        return obj_palette_ram_[index];
+    }
+    return 0xFF;  // Return 0xFF if PPU is busy
+}
+
+void PPU::write_ocpd(u8 value) {
+    // Can only write during VBlank or HBlank (Mode 0 or 1)
+    if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
+        u8 index = ocps_ & 0x3F;  // Lower 6 bits are the address
+        obj_palette_ram_[index] = value;
+        
+        // Auto-increment if bit 7 is set
+        if (ocps_ & 0x80) {
+            u8 new_index = (index + 1) & 0x3F;
+            ocps_ = (ocps_ & 0x80) | new_index;
+        }
+    }
+}
+
+void PPU::set_cartridge(const Cartridge* cart) {
+    cartridge_ = cart;
+}
+
+void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
+    // CGB format: gggrrrrr 0bbbbbgg (little-endian, stored as 2 bytes)
+    // Extract 5-bit values
+    u8 r5 = (rgb555 >> 0) & 0x1F;
+    u8 g5 = (rgb555 >> 5) & 0x1F;
+    u8 b5 = (rgb555 >> 10) & 0x1F;
+    
+    // Scale from 5-bit (0-31) to 8-bit (0-255)
+    // Formula: (value * 255 + 15) / 31 to get proper rounding
+    r = (r5 * 255 + 15) / 31;
+    g = (g5 * 255 + 15) / 31;
+    b = (b5 * 255 + 15) / 31;
 }
 
 } // namespace emugbc
