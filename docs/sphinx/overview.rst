@@ -73,16 +73,6 @@ Input
 Technical Specifications
 ------------------------
 
-CPU Clock Speed
-   4.194304 MHz (DMG/CGB normal mode)
-   8.388608 MHz (CGB double-speed mode)
-
-Display Refresh Rate
-   59.7 Hz (~16.7ms per frame)
-
-Cycles per Frame
-   70,224 cycles (154 scanlines × 456 dots)
-
 Screen Resolution
    160×144 pixels (visible area)
 

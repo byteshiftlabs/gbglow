@@ -754,10 +754,3 @@ Implemented Features
 * ✅ Sprite flip (X and Y)
 * ✅ Proper 8x16 tile selection
 
-Performance Notes
------------------
-
-* Framebuffer stored as flat array for cache efficiency
-* Tile pixel lookup cached where possible
-* Mode transitions checked per-cycle for accuracy
-* Rendering only during Transfer mode (not every cycle)

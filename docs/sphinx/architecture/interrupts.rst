@@ -296,17 +296,6 @@ On DMG, there's a HALT bug when IE & IF are both non-zero but IME is 0:
 
 This is not yet implemented in EmuGBC.
 
-Interrupt Latency
------------------
-
-Interrupt response time:
-
-* Instruction finishes executing
-* Interrupt check occurs
-* 5 M-cycles to service (push PC, jump to vector)
-
-**Total latency**: Current instruction + 5 cycles
-
 Nested Interrupts
 -----------------
 
