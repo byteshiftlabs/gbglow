@@ -52,6 +52,8 @@ public:
     const std::string& title() const;
     u8 cartridge_type() const;
     bool has_battery() const;
+    bool is_cgb_supported() const;  // Returns true if game supports CGB features
+    bool is_cgb_only() const;        // Returns true if game requires CGB hardware
     
 protected:
     /**
@@ -63,6 +65,7 @@ protected:
         , ram_(ram_size)
         , title_()
         , cartridge_type_(0)
+        , cgb_flag_(0)
         , has_battery_(false)
     {
         parse_header();
@@ -73,6 +76,7 @@ protected:
     
     std::string title_;
     u8 cartridge_type_;
+    u8 cgb_flag_;      // CGB support flag from header 0x0143
     bool has_battery_;
     
     /**
