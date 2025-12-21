@@ -10,6 +10,7 @@ namespace emugbc {
 class Cartridge;
 class Joypad;
 class Timer;
+class APU;
 
 /**
  * Memory Management Unit (MMU)
@@ -36,11 +37,20 @@ public:
     // Load a cartridge into memory
     void load_cartridge(std::unique_ptr<Cartridge> cart);
     
+    // Load boot ROM (256 bytes, optional)
+    bool load_boot_rom(const std::string& path);
+    
     // Get joypad reference for input handling
     Joypad& joypad();
     
     // Get timer reference for timing operations
     Timer& timer();
+    
+    // Get APU reference for audio operations
+    APU& apu();
+    
+    // Get cartridge pointer (may be null)
+    Cartridge* cartridge();
     
     // Read/Write operations
     u8 read(u16 address) const;
@@ -58,11 +68,17 @@ private:
     std::array<u8, 0x0080> hram_;      // High RAM
     std::array<u8, 0x0080> io_regs_;   // I/O registers
     
+    // Boot ROM (256 bytes at 0x0000-0x00FF)
+    std::array<u8, 0x0100> boot_rom_;
+    bool boot_rom_loaded_;
+    bool boot_rom_enabled_;
+    
     u8 interrupt_enable_;  // 0xFFFF register
     
     std::unique_ptr<Cartridge> cartridge_;
     std::unique_ptr<Joypad> joypad_;
     std::unique_ptr<Timer> timer_;
+    std::unique_ptr<APU> apu_;
 };
 
 } // namespace emugbc
