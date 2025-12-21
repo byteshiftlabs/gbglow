@@ -11,6 +11,7 @@ Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
     cpu_ = std::make_unique<CPU>(*memory_);
     ppu_ = std::make_unique<PPU>(*memory_);
+    memory_->set_ppu(ppu_.get());
     // Note: Joypad is owned by Memory, not Emulator
     
     // Try to load boot ROM (optional - emulator works without it)

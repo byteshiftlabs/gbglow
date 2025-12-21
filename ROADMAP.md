@@ -524,25 +524,50 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## � Phase 16: Color Support (GBC Mode)
+## 🎨 Phase 16: Color Support (GBC Mode) 🚧 IN PROGRESS
 
 **Goal:** Full Game Boy Color palette system
+
+**Status:** IN PROGRESS - Palette system implemented, VRAM banking and full rendering pending
 
 **Priority:** MEDIUM - Required for GBC-only games
 
 ### Requirements
-- CGB mode detection
-- Background palette memory (BCPS/BCPD)
-- Sprite palette memory (OCPS/OCPD)
-- 32K×15-bit color palettes
-- Palette auto-increment
-- Double-speed mode (CPU at 8MHz)
-- VRAM banking (2 banks)
+- ✅ CGB mode detection (ROM header byte 0x143)
+- ✅ Background palette memory (BCPS/BCPD at 0xFF68-0xFF69)
+- ✅ Sprite palette memory (OCPS/OCPD at 0xFF6A-0xFF6B)
+- ✅ 8×4 colors×2 bytes = 64-byte palette RAM (backgrounds + sprites)
+- ✅ Palette auto-increment (bit 7 of index register)
+- ✅ 15-bit RGB color conversion (gggrrrrr 0bbbbbgg format)
+- ✅ CGB-aware framebuffer conversion
+- [ ] Double-speed mode (CPU at 8MHz via KEY1 register)
+- [ ] VRAM banking (2×8KB banks via VBK register 0xFF4F)
+- [ ] CGB tile attributes (palette selection, priority, flipping)
+
+### Completed Work
+- **Files Modified:**
+  - `src/cartridge/cartridge.h/cpp` - Added CGB flag parsing and detection
+  - `src/video/ppu.h/cpp` - Added palette RAM arrays and register handlers
+  - `src/core/memory.h/cpp` - Routed palette registers to PPU
+  - `src/core/emulator.cpp` - Wired PPU into Memory
+  - `tests/CMakeLists.txt` - Added PPU sources to tests
+- **Features:**
+  - CGB mode detection from ROM header (0x80=supported, 0xC0=only)
+  - 64-byte palette RAM for backgrounds (8 palettes × 4 colors)
+  - 64-byte palette RAM for sprites (8 palettes × 4 colors)
+  - BCPS/BCPD registers with auto-increment
+  - OCPS/OCPD registers with auto-increment
+  - Mode-aware access (blocked during OAM search/transfer)
+  - 15-bit to 32-bit RGBA color conversion
+  - `get_rgba_framebuffer()` uses CGB palettes when in CGB mode
 
 ### Acceptance Criteria
-- [ ] GBC palettes functional
-- [ ] Colors display correctly
+- ✅ CGB palettes functional (basic)
+- ✅ Colors display correctly (palette 0 only)
+- [ ] Full CGB tile attributes working
+- [ ] VRAM banking functional
 - [ ] Double-speed mode works
+- [ ] GBC ROMs render with proper colors
 
 ---
 
