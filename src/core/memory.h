@@ -11,6 +11,7 @@ class Cartridge;
 class Joypad;
 class Timer;
 class APU;
+class PPU;
 
 /**
  * Memory Management Unit (MMU)
@@ -49,6 +50,9 @@ public:
     // Get APU reference for audio operations
     APU& apu();
     
+    // Set PPU reference (called by Emulator after PPU creation)
+    void set_ppu(PPU* ppu);
+    
     // Get cartridge pointer (may be null)
     Cartridge* cartridge();
     
@@ -79,6 +83,7 @@ private:
     std::unique_ptr<Joypad> joypad_;
     std::unique_ptr<Timer> timer_;
     std::unique_ptr<APU> apu_;
+    PPU* ppu_;  // Non-owning pointer, set by Emulator
 };
 
 } // namespace emugbc

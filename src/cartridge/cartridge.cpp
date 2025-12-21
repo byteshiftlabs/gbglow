@@ -13,9 +13,14 @@ namespace emugbc {
 // Cartridge header offsets per Game Boy cartridge specification
 namespace {
     constexpr u16 HEADER_TITLE_OFFSET = 0x0134;
+    constexpr u16 HEADER_CGB_FLAG_OFFSET = 0x0143;
     constexpr u16 HEADER_CARTRIDGE_TYPE_OFFSET = 0x0147;
     constexpr u16 HEADER_RAM_SIZE_OFFSET = 0x0149;
     constexpr int TITLE_MAX_LENGTH = 16;
+    
+    // CGB flag values at 0x0143
+    constexpr u8 CGB_FLAG_SUPPORTED = 0x80;  // Supports CGB functions (also works on DMG)
+    constexpr u8 CGB_FLAG_ONLY = 0xC0;       // CGB-only game (doesn't work on DMG)
     
     // RAM size codes from cartridge header
     constexpr size_t RAM_SIZE_NONE = 0;
@@ -57,6 +62,11 @@ void Cartridge::parse_header() {
         title_buf[i] = c;
     }
     title_ = title_buf;
+    
+    // CGB flag indicates Color Game Boy support
+    // 0x80 = Game supports CGB functions (backward compatible with DMG)
+    // 0xC0 = Game requires CGB hardware (won't work on DMG)
+    cgb_flag_ = rom_[HEADER_CGB_FLAG_OFFSET];
     
     // Cartridge type determines MBC chip and capabilities
     cartridge_type_ = rom_[HEADER_CARTRIDGE_TYPE_OFFSET];
@@ -149,6 +159,20 @@ u8 Cartridge::cartridge_type() const
 bool Cartridge::has_battery() const
 {
     return has_battery_;
+}
+
+bool Cartridge::is_cgb_supported() const
+{
+    // Check if CGB flag indicates CGB support
+    // 0x80 = CGB supported (also works on DMG)
+    // 0xC0 = CGB only
+    return (cgb_flag_ == CGB_FLAG_SUPPORTED) || (cgb_flag_ == CGB_FLAG_ONLY);
+}
+
+bool Cartridge::is_cgb_only() const
+{
+    // Check if game requires CGB hardware
+    return cgb_flag_ == CGB_FLAG_ONLY;
 }
 
 bool Cartridge::save_ram_to_file(const std::string& path) {
