@@ -2,6 +2,7 @@
 #include "../input/joypad.h"
 #include <SDL2/SDL.h>
 #include <stdexcept>
+#include <iostream>
 
 namespace emugbc {
 
@@ -9,6 +10,7 @@ Display::Display()
     : window_(nullptr)
     , renderer_(nullptr)
     , texture_(nullptr)
+    , audio_device_(0)
     , should_close_(false)
     , scale_factor_(DEFAULT_SCALE)
 {
@@ -16,6 +18,11 @@ Display::Display()
 
 Display::~Display() {
     // Clean up SDL resources in reverse order of creation
+    if (audio_device_) {
+        SDL_CloseAudioDevice(audio_device_);
+        audio_device_ = 0;
+    }
+    
     if (texture_) {
         SDL_DestroyTexture(texture_);
         texture_ = nullptr;
@@ -37,8 +44,8 @@ Display::~Display() {
 bool Display::initialize(const std::string& title, int scale_factor) {
     scale_factor_ = scale_factor;
     
-    // Initialize SDL video subsystem
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    // Initialize SDL video and audio subsystems
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         return false;
     }
     
@@ -76,9 +83,10 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     }
     
     // Create texture for Game Boy framebuffer
+    // Use RGBA32 format for maximum compatibility
     texture_ = SDL_CreateTexture(
         renderer_,
-        SDL_PIXELFORMAT_RGBA8888,
+        SDL_PIXELFORMAT_RGBA32,
         SDL_TEXTUREACCESS_STREAMING,
         LCD_WIDTH,
         LCD_HEIGHT
@@ -91,6 +99,25 @@ bool Display::initialize(const std::string& title, int scale_factor) {
         window_ = nullptr;
         SDL_Quit();
         return false;
+    }
+    
+    // Set up audio specification
+    SDL_AudioSpec audio_spec;
+    SDL_zero(audio_spec);
+    audio_spec.freq = 44100;              // 44.1 kHz sample rate
+    audio_spec.format = AUDIO_S16SYS;     // 16-bit signed audio
+    audio_spec.channels = 2;              // Stereo
+    audio_spec.samples = 1024;            // Buffer size (power of 2) - gnuboy uses ~735→1024 for 44100 Hz
+    audio_spec.callback = nullptr;        // Use queue-based audio
+    
+    // Open audio device
+    audio_device_ = SDL_OpenAudioDevice(nullptr, 0, &audio_spec, nullptr, 0);
+    if (audio_device_ == 0) {
+        std::cerr << "Failed to open audio device: " << SDL_GetError() << std::endl;
+        // Continue without audio - not a fatal error
+    } else {
+        // Start audio playback (unpause)
+        SDL_PauseAudioDevice(audio_device_, 0);
     }
     
     return true;
@@ -180,11 +207,13 @@ void Display::handle_keydown(int key, Joypad* joypad) {
             joypad->press_right();
             break;
             
-        // Action buttons
+        // Action buttons - handle both upper and lowercase
         case SDLK_z:
+        case SDLK_a:  // Alternative: A key for A button
             joypad->press_a();
             break;
         case SDLK_x:
+        case SDLK_s:  // Alternative: S key for B button
             joypad->press_b();
             break;
             
@@ -223,11 +252,13 @@ void Display::handle_keyup(int key, Joypad* joypad) {
             joypad->release_right();
             break;
             
-        // Action buttons
+        // Action buttons - handle both upper and lowercase
         case SDLK_z:
+        case SDLK_a:  // Alternative: A key for A button
             joypad->release_a();
             break;
         case SDLK_x:
+        case SDLK_s:  // Alternative: S key for B button
             joypad->release_b();
             break;
             
@@ -256,6 +287,26 @@ int Display::height() const {
 std::string Display::get_sdl_error() const {
     const char* error = SDL_GetError();
     return error ? std::string(error) : "Unknown SDL error";
+}
+
+void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
+    if (audio_device_ == 0 || samples.empty()) {
+        return;
+    }
+    
+    // Convert U8 samples (0-255, 128=silence) to S16 (-32768..32767, 0=silence)
+    // and interleave to format (L, R, L, R, ...)
+    std::vector<i16> interleaved(samples.size() * 2);
+    for (size_t i = 0; i < samples.size(); i++) {
+        // Convert U8 to S16: (sample - 128) * 128
+        // gnuboy uses AUDIO_U8 directly, we use S16 so need conversion
+        // *128 gives moderate amplification (-16384 to +16256 range)
+        interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - 128) * 128);   // Left
+        interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - 128) * 128);  // Right
+    }
+    
+    // Queue audio data
+    SDL_QueueAudio(audio_device_, interleaved.data(), interleaved.size() * sizeof(i16));
 }
 
 } // namespace emugbc
