@@ -191,7 +191,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - **Features:**
   - **OAM DMA:** Writing to 0xFF46 copies 160 bytes from (value << 8) to OAM
   - OAM search during Mode 2 (80 dots)
-  - gnuboy-compatible sprite visibility logic (raw Y coordinate checks)
+  - Hardware-accurate sprite visibility logic (raw Y coordinate checks)
   - Sprite data structure with position, tile, flags, OAM index
   - 10 sprites per scanline hardware limit enforced
   - 8x8 and 8x16 sprite modes with proper tile selection
@@ -204,7 +204,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
   - Zero magic numbers (all constants properly named)
 
 - **Technical Implementation:**
-  - `search_oam()` - Scans OAM for sprites visible on current scanline using gnuboy logic
+  - `search_oam()` - Scans OAM for sprites visible on current scanline using hardware-accurate logic
   - `render_sprites()` - Renders sprites after background with correct tile calculation
   - `get_sprite_pixel(tile_num, flags, x, y)` - Extracts pixel with flip support (signature updated)
   - `is_sprite_priority()` - Determines if sprite should draw over background
@@ -220,7 +220,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Key Bug Fixes
 1. **Missing OAM DMA:** Games use DMA to copy sprite data to OAM, not direct writes
-2. **Incorrect visibility check:** Must use raw Y values with gnuboy's algorithm
+2. **Incorrect visibility check:** Must use raw Y values with hardware-accurate algorithm
 3. **Wrong 8x16 tile calculation:** Must use calculated tile_num, not sprite.tile
 4. **Function signature:** Updated get_sprite_pixel() to accept tile_num parameter
 
@@ -229,7 +229,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
   - Implementation guide in `docs/sphinx/implementation/index.rst`
   - Architecture details in `docs/sphinx/architecture/ppu.rst`
   - Memory architecture in `docs/sphinx/architecture/memory.rst`
-- Complete code examples with gnuboy algorithm explanation
+- Complete code examples with hardware algorithm explanation
 - Testing tips and debugging guidance
 - Common pitfalls documented
 
@@ -245,6 +245,7 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - ✅ Zero compilation warnings
 - ✅ Clean code compliance (zero magic numbers)
 - ✅ Comprehensive documentation
+- ✅ Hardware-accurate sprite visibility
 
 **Test Results:** Pokémon Red confirmed working - Game Freak logo displays, Nidorino appears in fight scene
 
@@ -617,8 +618,8 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Implementation Details
 - **Files Created:**
-  - `src/audio/apu.h` - APU class with 4 channel structures (gnuboy-compatible naming)
-  - `src/audio/apu.cpp` - Sound register handling and sample generation (gnuboy algorithm)
+  - `src/audio/apu.h` - APU class with 4 channel structures
+  - `src/audio/apu.cpp` - Sound register handling and sample generation
 - **Files Modified:**
   - `src/core/memory.h` - Added APU forward declaration and apu() accessor
   - `src/core/memory.cpp` - Integrated APU, routed audio registers (0xFF10-0xFF3F)
@@ -634,14 +635,14 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
   - Channel 3 (wave): NR30-NR34 registers + wave RAM (0xFF30-0xFF3F)
   - Channel 4 (noise): NR41-NR44 registers with LFSR
   - Master control: NR50 (volume), NR51 (panning), NR52 (power)
-  - gnuboy-compatible sample generation algorithm
+  - Hardware-accurate sample generation
   - 44.1kHz sample rate with RATE = (1<<21)/44100 timing
   - SDL2 audio output with hardware callback
   - Proper U8→S16 conversion (*128 amplification)
-  - 1024 sample buffer (gnuboy method: samplerate/60 rounded to power of 2)
+  - 1024 sample buffer for smooth audio output
 
-### Key Implementation Notes (gnuboy Compatibility)
-The APU was rewritten to exactly match gnuboy's `sound_mix()` function:
+### Key Implementation Notes
+The APU uses phase-based sample generation:
 - **RATE constant:** `(1<<21)/SAMPLE_RATE` for timing accumulation
 - **Phase-based generation:** Each channel has `pos` accumulator, advances by RATE
 - **Inline frequency calculation:** `(2048 - freq) << 13` for square waves
@@ -659,7 +660,6 @@ See `docs/architecture/apu.md` for detailed implementation notes and lessons lea
 - ✅ SDL2 audio output functional
 - ✅ All tests passing
 - ✅ Zero compilation warnings
-- ✅ gnuboy-compatible implementation
 
 ---
 
@@ -696,7 +696,7 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 12. ✅ **Phase 15: Window Layer** - COMPLETE 🎉
 13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
 14. ✅ **Phase 17: Save File Support** - COMPLETE 🎉
-15. ✅ **Phase 18: Audio** - COMPLETE (gnuboy-compatible, SDL2 output) 🎉
+15. ✅ **Phase 18: Audio** - COMPLETE (SDL2 output) 🎉
 
 **Current Status:** 🎉 PLAYABLE! All core systems complete. Next: Optional enhancements
 

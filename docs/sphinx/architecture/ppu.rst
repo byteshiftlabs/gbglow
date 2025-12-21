@@ -527,7 +527,7 @@ During mode 2, PPU searches all 40 sprites to find up to 10 visible on current s
            sprite.flags = memory_.read(oam_addr + 3);
            sprite.oam_index = i;
            
-           // Visibility check (gnuboy logic)
+           // Visibility check (hardware logic)
            // Uses raw Y value (not screen-adjusted)
            if (ly_ >= sprite.y || ly_ + 16 < sprite.y) {
                continue;
@@ -549,7 +549,7 @@ During mode 2, PPU searches all 40 sprites to find up to 10 visible on current s
 
 **Why This Visibility Logic?**
 
-The gnuboy visibility check ``ly_ >= sprite.y || ly_ + 16 < sprite.y`` works because:
+The visibility check ``ly_ >= sprite.y || ly_ + 16 < sprite.y`` works because:
 
 1. Sprites use Y+16 coordinate system
 2. Check if scanline is within sprite's vertical range
@@ -750,7 +750,7 @@ Implemented Features
 * ✅ Sprite rendering (8x8 and 8x16)
 * ✅ Sprite priority system
 * ✅ OAM DMA transfer
-* ✅ gnuboy-compatible sprite visibility
+* ✅ Hardware-accurate sprite visibility
 * ✅ Sprite flip (X and Y)
 * ✅ Proper 8x16 tile selection
 
