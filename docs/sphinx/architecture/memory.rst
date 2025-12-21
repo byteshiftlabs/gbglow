@@ -319,25 +319,6 @@ Memory access is decoded by address range:
            return interrupt_enable_;
        }
    }
-
-Memory Access Timing
---------------------
-
-Different memory regions have different access characteristics:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 40 20 40
-
-   * - Region
-     - Cycles
-     - Notes
-   * - ROM
-     - 1
-     - Via cartridge
-   * - VRAM
-     - 1
-     - Blocked during PPU mode 3
    * - WRAM
      - 1
      - Always accessible
@@ -378,10 +359,3 @@ Memory tests verify:
 * Cartridge integration
 * 16-bit read/write operations
 
-Performance
------------
-
-* Direct array access for internal RAM (no indirection)
-* Inline address decoding (branch predictor friendly)
-* Cartridge access delegated for banking logic
-* No dynamic allocation during normal operation
