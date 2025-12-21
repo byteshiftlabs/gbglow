@@ -1,7 +1,6 @@
 #include "ppu.h"
 
 #include <iostream>
-#include <iomanip>
 #include <algorithm>
 
 #include "../core/memory.h"
@@ -67,6 +66,11 @@ namespace {
     constexpr u8 SPRITE_8X16_TILE_MASK = 0xFE;
     constexpr u8 SPRITE_8X16_BOTTOM_TILE_BIT = 0x01;
     constexpr u8 SPRITE_8X16_ROW_THRESHOLD = 8;
+    
+    // Sprite visibility constants (gnuboy compatibility)
+    constexpr u8 SPRITE_Y_VISIBILITY_OFFSET = 16;  // Sprites use Y+16 coordinate system
+    constexpr u8 SPRITE_8X8_HEIGHT_CHECK = 8;      // For 8x8 sprite visibility
+    constexpr u8 SPRITE_ROW_MASK = 7;              // Mask for pixel row within 8-pixel tile (0-7)
     
     // Bit manipulation constants
     constexpr u8 BIT_0 = 0;
@@ -308,17 +312,23 @@ void PPU::search_oam() {
         sprite.flags = memory_.read(oam_addr + OAM_FLAGS_OFFSET);
         sprite.oam_index = static_cast<u8>(i);
         
-        // Convert Y position to screen coordinates
-        int screen_y = sprite.y - SPRITE_Y_OFFSET;
+        // gnuboy logic: Compare against RAW Y value (not screen-adjusted)
+        // Skip if: scanline >= Y OR scanline + 16 < Y
+        if (ly_ >= sprite.y || ly_ + SPRITE_Y_VISIBILITY_OFFSET < sprite.y) {
+            continue;
+        }
         
-        // Check if sprite is on this scanline
-        if (ly_ >= screen_y && ly_ < screen_y + sprite_height) {
-            scanline_sprites_.push_back(sprite);
-            
-            // Hardware limit: max 10 sprites per scanline
-            if (scanline_sprites_.size() >= MAX_SPRITES_PER_SCANLINE) {
-                break;
-            }
+        // For 8x8 mode: additional check
+        // Skip if: scanline + 8 >= Y
+        if (sprite_height == SPRITE_HEIGHT_8X8 && ly_ + SPRITE_8X8_HEIGHT_CHECK >= sprite.y) {
+            continue;
+        }
+        
+        scanline_sprites_.push_back(sprite);
+        
+        // Hardware limit: max 10 sprites per scanline
+        if (scanline_sprites_.size() >= MAX_SPRITES_PER_SCANLINE) {
+            break;
         }
     }
 }
@@ -339,26 +349,29 @@ void PPU::render_sprites() {
     for (auto it = scanline_sprites_.rbegin(); it != scanline_sprites_.rend(); ++it) {
         const Sprite& sprite = *it;
         
-        // Convert sprite position to screen coordinates
-        int screen_y = sprite.y - SPRITE_Y_OFFSET;
-        int screen_x = sprite.x - SPRITE_X_OFFSET;
+        // gnuboy: v = L - (int)o->y + 16
+        int sprite_row = ly_ - static_cast<int>(sprite.y) + SPRITE_Y_VISIBILITY_OFFSET;
+        int screen_x = static_cast<int>(sprite.x) - SPRITE_X_OFFSET;
         
-        // Calculate which row of the sprite to render
-        u8 sprite_row = ly_ - screen_y;
-        
-        // Apply Y-flip if needed
-        if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
-            sprite_row = (sprite_height - BIT_1) - sprite_row;
-        }
-        
-        // Get tile number (for 8x16 mode, bit 0 is ignored)
+        // Get tile number
         u8 tile_num = sprite.tile;
+        
+        // Handle 8x16 mode
         if (sprite_height == SPRITE_HEIGHT_8X16) {
             tile_num &= SPRITE_8X16_TILE_MASK;  // Clear bit 0
             if (sprite_row >= SPRITE_8X16_ROW_THRESHOLD) {
-                tile_num |= SPRITE_8X16_BOTTOM_TILE_BIT;  // Use bottom tile
                 sprite_row -= SPRITE_8X16_ROW_THRESHOLD;
+                tile_num++;
             }
+            // gnuboy: Y-flip swaps tiles
+            if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
+                tile_num ^= 1;
+            }
+        }
+        
+        // Apply Y-flip to row (for both 8x8 and within 8-pixel row for 8x16)
+        if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
+            sprite_row = SPRITE_ROW_MASK - sprite_row;
         }
         
         // Render each pixel of the sprite
@@ -370,8 +383,8 @@ void PPU::render_sprites() {
                 continue;
             }
             
-            // Get sprite pixel color
-            u8 sprite_pixel = get_sprite_pixel(sprite, pixel_x, sprite_row);
+            // Get sprite pixel color (use calculated tile_num, not sprite.tile)
+            u8 sprite_pixel = get_sprite_pixel(tile_num, sprite.flags, pixel_x, static_cast<u8>(sprite_row));
             
             // Color 0 is transparent for sprites
             if (sprite_pixel == TRANSPARENT_COLOR) {
@@ -392,14 +405,14 @@ void PPU::render_sprites() {
     }
 }
 
-u8 PPU::get_sprite_pixel(const Sprite& sprite, u8 pixel_x, u8 pixel_y) const {
+u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y) const {
     // Apply X-flip if needed
-    if (sprite.flags & (BIT_1 << SPRITE_FLAG_X_FLIP_BIT)) {
+    if (sprite_flags & (BIT_1 << SPRITE_FLAG_X_FLIP_BIT)) {
         pixel_x = (TILE_SIZE - BIT_1) - pixel_x;
     }
     
     // Sprites always use tile data at 0x8000-0x8FFF
-    u16 tile_addr = TILE_DATA_UNSIGNED_BASE + (sprite.tile * BYTES_PER_TILE) + (pixel_y * BYTES_PER_TILE_ROW);
+    u16 tile_addr = TILE_DATA_UNSIGNED_BASE + (tile_num * BYTES_PER_TILE) + (pixel_y * BYTES_PER_TILE_ROW);
     
     u8 byte1 = memory_.read(tile_addr);
     u8 byte2 = memory_.read(tile_addr + BIT_1);

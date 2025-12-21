@@ -111,6 +111,93 @@ Sprite Layer
 * Up to 10 sprites per scanline
 * Priority system determines rendering order
 
+**OAM Structure**
+
+Each sprite occupies 4 bytes in OAM:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 70
+
+   * - Byte
+     - Name
+     - Description
+   * - 0
+     - Y Position
+     - Y coordinate + 16 (0-255)
+   * - 1
+     - X Position
+     - X coordinate + 8 (0-255)
+   * - 2
+     - Tile Number
+     - Index into sprite tile data (8x16: bit 0 ignored)
+   * - 3
+     - Attributes
+     - Flags (priority, flip, palette)
+
+**Sprite Attributes (Byte 3)**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 20 70
+
+   * - Bit
+     - Name
+     - Description
+   * - 7
+     - Priority
+     - 0=Above BG, 1=Behind BG colors 1-3
+   * - 6
+     - Y-Flip
+     - 0=Normal, 1=Vertically mirrored
+   * - 5
+     - X-Flip
+     - 0=Normal, 1=Horizontally mirrored
+   * - 4
+     - Palette
+     - 0=OBP0, 1=OBP1
+   * - 3-0
+     - Unused
+     - DMG: unused, CGB: palette number
+
+**OAM DMA Transfer**
+
+Games use DMA (Direct Memory Access) to quickly copy sprite data to OAM:
+
+.. code-block:: text
+
+   Register: 0xFF46 (DMA)
+   
+   Writing value XX triggers:
+   - Source address: XX00 (e.g., 0xC3 → 0xC300)
+   - Copies 160 bytes to OAM (0xFE00-0xFE9F)
+   - Takes 160 machine cycles on real hardware
+   
+   Common usage:
+   ld a, $C3      ; High byte of source
+   ldh ($46), a   ; Trigger DMA
+
+**Coordinate System**
+
+Sprites use an offset coordinate system to allow partial off-screen positioning:
+
+.. code-block:: text
+
+   Screen position (0,0) = Sprite position (8, 16)
+   
+   X coordinate: sprite.x = screen_x + 8
+   Y coordinate: sprite.y = screen_y + 16
+   
+   Valid ranges:
+   - X: 0-168 (sprite.x: 8-176)
+   - Y: 0-160 (sprite.y: 16-176)
+   
+   Fully off-screen:
+   - Left: X < 8
+   - Right: X >= 168
+   - Top: Y < 16
+   - Bottom: Y >= 160
+
 Palettes
 --------
 
@@ -222,6 +309,14 @@ PPU Class
            Transfer = 3
        };
        
+       struct Sprite {
+           u8 y;           // Y position + 16
+           u8 x;           // X position + 8
+           u8 tile;        // Tile index
+           u8 flags;       // Attributes
+           u8 oam_index;   // Original OAM index (for priority)
+       };
+       
        explicit PPU(Memory& memory);
        
        void step(Cycles cycles);
@@ -232,6 +327,7 @@ PPU Class
        void clear_frame_ready();
        
        const std::array<u8, 160 * 144>& framebuffer() const;
+       std::vector<u8> get_rgba_framebuffer() const;
        void render_to_terminal() const;
        
    private:
@@ -240,11 +336,22 @@ PPU Class
        u16 dots_;
        u8 ly_;
        bool frame_ready_;
+       u8 window_line_counter_;
        std::array<u8, 160 * 144> framebuffer_;
+       std::vector<Sprite> scanline_sprites_;
        
        void render_scanline();
+       void render_background();
+       void render_window();
+       void render_sprites();
+       
+       void search_oam();
+       
        u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, 
-                         u8 x, u8 y);
+                         u8 x, u8 y) const;
+       u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags,
+                          u8 pixel_x, u8 pixel_y) const;
+       bool is_sprite_priority(u8 sprite_flags, u8 bg_color) const;
    };
 
 Rendering Process
@@ -343,6 +450,7 @@ PPU advances through modes based on dot counter:
            switch (mode_) {
                case Mode::OAMSearch:
                    if (dots_ >= 80) {
+                       search_oam();  // Find sprites for this scanline
                        mode_ = Mode::Transfer;
                    }
                    break;
@@ -376,6 +484,7 @@ PPU advances through modes based on dot counter:
                        
                        if (ly_ >= 154) {
                            ly_ = 0;
+                           window_line_counter_ = 0;
                            mode_ = Mode::OAMSearch;
                        }
                    }
@@ -388,6 +497,180 @@ PPU advances through modes based on dot counter:
            // Update STAT with current mode
            update_stat_register();
        }
+   }
+
+Sprite Rendering Implementation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**OAM Search Phase**
+
+During mode 2, PPU searches all 40 sprites to find up to 10 visible on current scanline:
+
+.. code-block:: cpp
+
+   void PPU::search_oam() {
+       scanline_sprites_.clear();
+       
+       u8 lcdc = memory_.read(0xFF40);
+       if (!(lcdc & 0x02)) return;  // Sprites disabled
+       
+       u8 sprite_height = (lcdc & 0x04) ? 16 : 8;
+       
+       // Check all 40 sprites in OAM
+       for (u16 i = 0; i < 40; i++) {
+           u16 oam_addr = 0xFE00 + (i * 4);
+           
+           Sprite sprite;
+           sprite.y = memory_.read(oam_addr + 0);
+           sprite.x = memory_.read(oam_addr + 1);
+           sprite.tile = memory_.read(oam_addr + 2);
+           sprite.flags = memory_.read(oam_addr + 3);
+           sprite.oam_index = i;
+           
+           // Visibility check (gnuboy logic)
+           // Uses raw Y value (not screen-adjusted)
+           if (ly_ >= sprite.y || ly_ + 16 < sprite.y) {
+               continue;
+           }
+           
+           // 8x8 mode: additional check
+           if (sprite_height == 8 && ly_ + 8 >= sprite.y) {
+               continue;
+           }
+           
+           scanline_sprites_.push_back(sprite);
+           
+           // Hardware limit: 10 sprites per scanline
+           if (scanline_sprites_.size() >= 10) {
+               break;
+           }
+       }
+   }
+
+**Why This Visibility Logic?**
+
+The gnuboy visibility check ``ly_ >= sprite.y || ly_ + 16 < sprite.y`` works because:
+
+1. Sprites use Y+16 coordinate system
+2. Check if scanline is within sprite's vertical range
+3. First condition: scanline hasn't reached sprite yet
+4. Second condition: scanline has passed sprite
+
+**Sprite Rendering Phase**
+
+During mode 3, render found sprites over background:
+
+.. code-block:: cpp
+
+   void PPU::render_sprites() {
+       if (scanline_sprites_.empty()) return;
+       
+       u8 lcdc = memory_.read(0xFF40);
+       u8 sprite_height = (lcdc & 0x04) ? 16 : 8;
+       
+       // Render in reverse order (lower OAM index = higher priority)
+       for (auto it = scanline_sprites_.rbegin(); 
+            it != scanline_sprites_.rend(); ++it) {
+           const Sprite& sprite = *it;
+           
+           // Calculate row within sprite
+           int sprite_row = ly_ - static_cast<int>(sprite.y) + 16;
+           int screen_x = static_cast<int>(sprite.x) - 8;
+           
+           u8 tile_num = sprite.tile;
+           
+           // Handle 8x16 mode
+           if (sprite_height == 16) {
+               tile_num &= 0xFE;  // Clear bit 0
+               if (sprite_row >= 8) {
+                   sprite_row -= 8;
+                   tile_num++;
+               }
+               // Y-flip swaps tiles in 8x16 mode
+               if (sprite.flags & 0x40) {
+                   tile_num ^= 1;
+               }
+           }
+           
+           // Apply Y-flip to row
+           if (sprite.flags & 0x40) {
+               sprite_row = 7 - sprite_row;
+           }
+           
+           // Render each pixel
+           for (u8 pixel_x = 0; pixel_x < 8; pixel_x++) {
+               int draw_x = screen_x + pixel_x;
+               if (draw_x < 0 || draw_x >= 160) continue;
+               
+               u8 sprite_pixel = get_sprite_pixel(
+                   tile_num, sprite.flags, pixel_x, sprite_row);
+               
+               // Color 0 is transparent
+               if (sprite_pixel == 0) continue;
+               
+               // Check priority against background
+               u8 bg_color = framebuffer_[ly_ * 160 + draw_x];
+               if (is_sprite_priority(sprite.flags, bg_color)) {
+                   // Apply sprite palette
+                   u16 palette_reg = (sprite.flags & 0x10) ? 
+                                     0xFF49 : 0xFF48;
+                   u8 palette = memory_.read(palette_reg);
+                   u8 color = (palette >> (sprite_pixel * 2)) & 0x03;
+                   
+                   framebuffer_[ly_ * 160 + draw_x] = color;
+               }
+           }
+       }
+   }
+
+**8x16 Sprite Tile Selection**
+
+In 8x16 mode:
+
+* Bit 0 of tile number is ignored (always uses even tile)
+* Top 8 pixels: use ``tile & 0xFE``
+* Bottom 8 pixels: use ``(tile & 0xFE) + 1``
+* Y-flip: XOR final tile number with 1 (swaps top/bottom)
+
+**Priority System**
+
+.. code-block:: cpp
+
+   bool PPU::is_sprite_priority(u8 sprite_flags, u8 bg_color) const {
+       // Priority bit 7: 0=above BG, 1=behind BG colors 1-3
+       bool behind_bg = (sprite_flags & 0x80) != 0;
+       
+       if (!behind_bg) {
+           return true;  // Always above background
+       }
+       
+       // Behind BG colors 1-3, visible only if BG is color 0
+       return bg_color == 0;
+   }
+
+**Sprite Pixel Extraction**
+
+.. code-block:: cpp
+
+   u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags,
+                            u8 pixel_x, u8 pixel_y) const {
+       // Apply X-flip
+       if (sprite_flags & 0x20) {
+           pixel_x = 7 - pixel_x;
+       }
+       
+       // Sprites always use 0x8000 tile data
+       u16 tile_addr = 0x8000 + (tile_num * 16) + (pixel_y * 2);
+       
+       u8 byte1 = memory_.read(tile_addr);
+       u8 byte2 = memory_.read(tile_addr + 1);
+       
+       // Extract 2-bit pixel
+       u8 bit_pos = 7 - pixel_x;
+       u8 pixel = ((byte2 >> bit_pos) & 1) << 1 | 
+                  ((byte1 >> bit_pos) & 1);
+       
+       return pixel;
    }
 
 Terminal Output
@@ -425,9 +708,27 @@ PPU tests verify:
 
 * Correct mode transitions and timing
 * Scanline rendering accuracy
+* Background and window rendering
+* Sprite visibility logic
+* Sprite 8x16 mode tile selection
+* Sprite priority system
 * Palette application
 * Scroll position handling
 * VRAM access during different modes
+* OAM DMA transfer functionality
+
+Test ROMs
+~~~~~~~~~
+
+**Pokémon Red/Blue**
+   * Tests OAM DMA, sprite rendering, 8x16 sprites
+   * Game Freak logo uses sprites
+   * Battle scenes test sprite positioning
+
+**Test ROM Suite**
+   * blargg's test ROMs for PPU timing
+   * Sprite priority tests
+   * OAM timing tests
 
 Future Enhancements
 -------------------
@@ -435,12 +736,23 @@ Future Enhancements
 Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
-* Window layer rendering
-* Sprite rendering
-* Sprite priority system
 * STAT interrupts (HBlank, OAM, LYC=LY)
 * Color support (CGB mode)
 * VRAM banking (CGB mode)
+* Cycle-accurate OAM DMA delay (currently instant)
+* Sprite rendering edge cases (X=0 wrapping)
+
+Implemented Features
+~~~~~~~~~~~~~~~~~~~~
+
+* ✅ Background layer rendering
+* ✅ Window layer rendering
+* ✅ Sprite rendering (8x8 and 8x16)
+* ✅ Sprite priority system
+* ✅ OAM DMA transfer
+* ✅ gnuboy-compatible sprite visibility
+* ✅ Sprite flip (X and Y)
+* ✅ Proper 8x16 tile selection
 
 Performance Notes
 -----------------
