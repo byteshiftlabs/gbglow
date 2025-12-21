@@ -81,9 +81,76 @@ OAM (0xFE00-0xFE9F)
 
 Object Attribute Memory stores sprite data:
 
-* 40 sprites, 4 bytes each
+* 40 sprites, 4 bytes each (160 bytes total)
 * Sprite format: Y pos, X pos, Tile #, Attributes
 * Inaccessible during PPU modes 2 & 3
+
+**OAM Structure**
+
+.. code-block:: text
+
+   Each sprite entry (4 bytes):
+   
+   Byte 0: Y Position (screen Y + 16)
+   Byte 1: X Position (screen X + 8)
+   Byte 2: Tile Number
+   Byte 3: Attributes
+      Bit 7: Priority (0=above BG, 1=behind BG)
+      Bit 6: Y-flip
+      Bit 5: X-flip
+      Bit 4: Palette (0=OBP0, 1=OBP1)
+      Bits 3-0: Unused (DMG) / Palette # (CGB)
+
+**OAM DMA (0xFF46)**
+
+Games use DMA to quickly copy sprite data from RAM to OAM:
+
+.. code-block:: text
+
+   Register: 0xFF46
+   
+   Write: Triggers DMA transfer
+   Value: High byte of source address (XX → XX00)
+   
+   Transfer:
+   - Source: (value << 8) to (value << 8) + 159
+   - Destination: 0xFE00 to 0xFE9F
+   - Size: 160 bytes (40 sprites × 4 bytes)
+   - Time: 160 machine cycles (real hardware)
+   
+   Example:
+      LD A, $C3      ; Source = 0xC300
+      LDH ($46), A   ; Trigger DMA
+
+**Why DMA?**
+
+* OAM is not accessible during PPU modes 2 & 3
+* Games need to update all sprites quickly during VBlank
+* DMA allows fast transfer without CPU overhead
+* Common pattern: Copy from Work RAM (0xC000-0xDF00)
+
+**Implementation**
+
+.. code-block:: cpp
+
+   // In Memory::write()
+   if (address == OAM_DMA_REG) {
+       u16 source = static_cast<u16>(value) << OAM_DMA_SOURCE_SHIFT;
+       
+       for (u16 i = 0; i < OAM_SIZE; i++) {
+           oam_[i] = read(source + i);
+       }
+       io_regs_[address - IO_REGISTERS_START] = value;
+       return;
+   }
+
+**Constants**
+
+.. code-block:: cpp
+
+   constexpr u16 OAM_DMA_REG = 0xFF46;
+   constexpr u16 OAM_SIZE = 160;  // 40 sprites × 4 bytes
+   constexpr u8 OAM_DMA_SOURCE_SHIFT = 8;
 
 I/O Registers (0xFF00-0xFF7F)
 -----------------------------
@@ -142,6 +209,9 @@ Memory-mapped hardware control:
    * - 0xFF45
      - LYC
      - Scanline compare
+   * - 0xFF46
+     - DMA
+     - OAM DMA transfer
    * - 0xFF47
      - BGP
      - Background palette

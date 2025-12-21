@@ -113,7 +113,7 @@ private:
     void search_oam();
     
     // Sprite helpers
-    u8 get_sprite_pixel(const Sprite& sprite, u8 screen_x, u8 screen_y) const;
+    u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y) const;
     bool is_sprite_priority(u8 sprite_flags, u8 bg_color) const;
     
     // Tile data
