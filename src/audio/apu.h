@@ -75,7 +75,7 @@ private:
     // Wave pattern RAM (32 4-bit samples)
     std::array<u8, 16> wave_ram_;  // 0xFF30-0xFF3F
     
-    // Audio output buffer (gnuboy: U8 format, 0-255 range, 128 = silence)
+    // Audio output buffer (U8 format, 0-255 range, 128 = silence)
     std::vector<std::pair<u8, u8>> audio_buffer_;
     
     // Cycle accumulators
@@ -86,10 +86,10 @@ private:
     // Frame rate constants
     static constexpr int FRAMES_PER_SECOND = 60;
     
-    // Sample rate constants - COMPATIBLE CON GNUBOY
+    // Sample rate constants
     static constexpr int SAMPLE_RATE = 44100;
     static constexpr int CPU_CLOCK_HZ = 4194304;
-    static constexpr int RATE = (1 << 21) / SAMPLE_RATE;  // ~47.5 (gnuboy scaling factor for freq calculations)
+    static constexpr int RATE = (1 << 21) / SAMPLE_RATE;  // ~47.5 (scaling factor for frequency calculations)
     static constexpr int CYCLES_PER_SAMPLE = CPU_CLOCK_HZ / SAMPLE_RATE;  // ~95 cycles per sample
     static constexpr int FRAME_SEQUENCER_RATE = 8192;  // 512 Hz
     static constexpr int CYCLES_PER_FRAME = CPU_CLOCK_HZ / FRAME_SEQUENCER_RATE;  // ~512 cycles
@@ -245,7 +245,7 @@ private:
     // Reset value
     static constexpr u8 NR52_RESET_VALUE = 0xF0;    // Power off, bits 4-7 always 1
     
-    // Channel structures (gnuboy compatible naming)
+    // Channel structures
     struct Channel1 {
         // Sweep
         u8 sweep_period;
@@ -268,10 +268,10 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // gnuboy compatible internal state
-        bool on;      // Channel enabled (gnuboy: S1.on)
-        int pos;      // Phase position (gnuboy: S1.pos)
-        int freq;     // Phase increment (gnuboy: S1.freq)
+        // Internal state
+        bool on;      // Channel enabled
+        int pos;      // Phase position
+        int freq;     // Phase increment
         int cnt;      // Length counter accumulated
         int len;      // Length threshold
         int encnt;    // Envelope counter accumulated
@@ -280,7 +280,7 @@ private:
         int envol;    // Current envelope volume
         int swcnt;    // Sweep counter accumulated
         int swlen;    // Sweep threshold
-        int swfreq;   // Sweep frequency (gnuboy: S1.swfreq)
+        int swfreq;   // Sweep frequency
     } channel1_;
     
     struct Channel2 {
@@ -299,10 +299,10 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // gnuboy compatible internal state
-        bool on;      // Channel enabled (gnuboy: S2.on)
-        int pos;      // Phase position (gnuboy: S2.pos)
-        int freq;     // Phase increment (gnuboy: S2.freq)
+        // Internal state
+        bool on;      // Channel enabled
+        int pos;      // Phase position
+        int freq;     // Phase increment
         int cnt;      // Length counter
         int len;      // Length threshold
         int encnt;    // Envelope counter
@@ -324,10 +324,10 @@ private:
         bool length_enable;
         bool enabled;
         
-        // gnuboy compatible internal state
-        bool on;      // Channel enabled (gnuboy: S3.on)
-        int pos;      // Phase position (gnuboy: S3.pos)
-        int freq;     // Phase increment (gnuboy: S3.freq)
+        // Internal state
+        bool on;      // Channel enabled
+        int pos;      // Phase position
+        int freq;     // Phase increment
         int cnt;      // Length counter
         int len;      // Length threshold
     } channel3_;
@@ -348,11 +348,11 @@ private:
         bool enabled;
         bool dac_enabled;
         
-        // gnuboy compatible internal state
-        bool on;      // Channel enabled (gnuboy: S4.on)
+        // Internal state
+        bool on;      // Channel enabled
         u16 lfsr;     // Linear feedback shift register
-        int pos;      // Phase position (gnuboy: S4.pos)
-        int freq;     // Phase increment (gnuboy: S4.freq)
+        int pos;      // Phase position
+        int freq;     // Phase increment
         int cnt;      // Length counter
         int len;      // Length threshold
         int encnt;    // Envelope counter
