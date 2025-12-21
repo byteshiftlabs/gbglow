@@ -295,10 +295,3 @@ Example test:
        assert(!cpu.registers().get_flag(FLAG_C));
    }
 
-Performance Considerations
---------------------------
-
-* Instruction dispatch via switch is branch-predictor friendly
-* ALU operations inline for zero overhead
-* Memory access goes through efficient address decoding
-* No dynamic allocation during execution
