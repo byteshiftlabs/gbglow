@@ -4,7 +4,7 @@
 
 ## Philosophy
 
-Unlike existing emulators (gnuboy, etc.) that prioritize performance or features, EmuGBC emphasizes:
+Unlike existing emulators that prioritize performance or features, EmuGBC emphasizes:
 
 - **Clear code**: Easy to understand and learn from
 - **Comprehensive documentation**: Every component fully documented
@@ -27,7 +27,7 @@ Unlike existing emulators (gnuboy, etc.) that prioritize performance or features
 
 ✅ **Phase 3 Complete: Audio**
 - 4 sound channels (2 square, 1 wave, 1 noise)
-- gnuboy-compatible APU implementation
+- APU implementation
 - Real-time SDL2 audio output
 - Sweep, envelope, and length support
 

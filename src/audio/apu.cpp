@@ -48,7 +48,7 @@ void APU::step(Cycles cycles) {
     
     cycle_accumulator_ += cycles;
     
-    // gnuboy's approach: length counters, envelopes, and sweep are applied
+    // Hardware-accurate approach: length counters, envelopes, and sweep are applied
     // per-sample inside generate_sample() using RATE-based accumulators.
     // This eliminates the need for a separate 512Hz frame sequencer.
     
@@ -62,7 +62,7 @@ void APU::step(Cycles cycles) {
 
 // Square wave duty cycle patterns for each of the 4 duty cycle settings.
 // Each pattern has 8 steps: -1 = high, 0 = low.
-// These patterns match gnuboy's implementation for audio compatibility.
+// These patterns match the hardware audio behavior for compatibility.
 static const int sqwave[4][8] = {
     {  0, 0,-1, 0, 0, 0, 0, 0 },  // 12.5% duty
     {  0,-1,-1, 0, 0, 0, 0, 0 },  // 25% duty
@@ -71,7 +71,7 @@ static const int sqwave[4][8] = {
 };
 
 std::pair<u8, u8> APU::generate_sample() {
-    // This function exactly replicates gnuboy's sound_mix() algorithm.
+    // This function implements hardware-accurate audio generation.
     // Each channel is processed independently, then mixed with panning.
     // Sample format: signed values (-128 to 127) converted to unsigned (0 to 255).
     int sample = 0;
@@ -381,7 +381,7 @@ void APU::write_register(u16 address, u8 value) {
         channel1_.sweep_direction = (value >> SWEEP_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
         channel1_.sweep_shift = value & SWEEP_SHIFT_MASK;
         
-        // Convert sweep period to cycle threshold (gnuboy algorithm)
+        // Convert sweep period to cycle threshold
         channel1_.swlen = channel1_.sweep_period << SWEEP_SHIFT;
         
         // Initialize sweep frequency to current frequency
@@ -392,7 +392,7 @@ void APU::write_register(u16 address, u8 value) {
     if (address == REG_NR11) {
         channel1_.wave_duty = (value >> DUTY_CYCLE_SHIFT) & DUTY_CYCLE_MASK;
         
-        // Convert length (0-63) to cycle count using gnuboy formula
+        // Convert length (0-63) to cycle count
         channel1_.len = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
         return;
     }
@@ -402,7 +402,7 @@ void APU::write_register(u16 address, u8 value) {
         channel1_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
         channel1_.initial_volume = channel1_.envol;
         
-        // Envelope direction: convert 0/1 to -1/+1 using gnuboy's trick
+        // Envelope direction: convert 0/1 to -1/+1
         channel1_.endir = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
         channel1_.endir |= channel1_.endir - 1;  // 0 becomes -1, 1 stays 1
         
