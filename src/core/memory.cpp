@@ -444,4 +444,86 @@ Timer& Memory::timer()
     return *timer_;
 }
 
+// ============================================================================
+// Serialization for Save States
+// ============================================================================
+
+namespace {
+    // Helper to serialize an array
+    template<typename T, size_t N>
+    void serialize_array(const std::array<T, N>& arr, std::vector<u8>& data) {
+        for (const auto& elem : arr) {
+            data.push_back(elem);
+        }
+    }
+    
+    // Helper to deserialize an array
+    template<typename T, size_t N>
+    void deserialize_array(std::array<T, N>& arr, const u8* data, size_t& offset) {
+        for (auto& elem : arr) {
+            elem = data[offset++];
+        }
+    }
+}
+
+void Memory::serialize(std::vector<u8>& data) const
+{
+    // VRAM (16KB for CGB)
+    serialize_array(vram_, data);
+    
+    // VRAM bank selector
+    data.push_back(vram_bank_);
+    
+    // Speed switch register
+    data.push_back(speed_switch_);
+    
+    // WRAM (8KB)
+    serialize_array(wram_, data);
+    
+    // OAM (160 bytes)
+    serialize_array(oam_, data);
+    
+    // HRAM (128 bytes)
+    serialize_array(hram_, data);
+    
+    // IO registers (128 bytes)
+    serialize_array(io_regs_, data);
+    
+    // Boot ROM state
+    data.push_back(boot_rom_enabled_ ? 1 : 0);
+    
+    // Interrupt enable register
+    data.push_back(interrupt_enable_);
+}
+
+void Memory::deserialize(const u8* data, size_t& offset)
+{
+    // VRAM
+    deserialize_array(vram_, data, offset);
+    
+    // VRAM bank selector
+    vram_bank_ = data[offset++];
+    
+    // Speed switch register
+    speed_switch_ = data[offset++];
+    
+    // WRAM
+    deserialize_array(wram_, data, offset);
+    
+    // OAM
+    deserialize_array(oam_, data, offset);
+    
+    // HRAM
+    deserialize_array(hram_, data, offset);
+    
+    // IO registers
+    deserialize_array(io_regs_, data, offset);
+    
+    // Boot ROM state
+    boot_rom_enabled_ = data[offset++] != 0;
+    
+    // Interrupt enable register
+    interrupt_enable_ = data[offset++];
+}
+
 } // namespace emugbc
