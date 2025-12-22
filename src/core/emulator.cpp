@@ -100,31 +100,53 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         // Handle input events - get joypad from memory (single source of truth)
         display.poll_events(&memory_->joypad());
         
-        // Run one frame of emulation
-        run_frame();
+        // Check if turbo mode is active (Space key held)
+        bool turbo_active = display.is_turbo_active();
         
-        // Update display if frame is ready
-        if (ppu_->frame_ready()) {
-            const auto& framebuffer = ppu_->get_rgba_framebuffer();
-            display.update(framebuffer);
-            ppu_->clear_frame_ready();
-        }
-        
-        // Queue audio samples
-        const auto& audio_samples = memory_->apu().get_audio_buffer();
-        if (!audio_samples.empty()) {
-            display.queue_audio(audio_samples);
+        if (turbo_active) {
+            // TURBO MODE: Run as fast as possible
+            // Clear audio queue to prevent backpressure from slowing us down
+            display.clear_audio_queue();
             memory_->apu().clear_audio_buffer();
-        }
-        
-        // Audio-based synchronization: wait if audio queue is too full
-        // This naturally throttles emulation to ~60fps based on audio playback rate
-        // Under system load, we might run slightly behind but audio stays smooth
-        unsigned int queue_size = display.get_audio_queue_size();
-        while (queue_size > MAX_AUDIO_QUEUE) {
-            // Small sleep to reduce CPU spinning while waiting
-            std::this_thread::sleep_for(std::chrono::microseconds(500));
-            queue_size = display.get_audio_queue_size();
+            
+            // Run multiple frames without any synchronization
+            for (int i = 0; i < 10; i++) {
+                run_frame();
+            }
+            
+            // Update display to show progress
+            if (ppu_->frame_ready()) {
+                const auto& framebuffer = ppu_->get_rgba_framebuffer();
+                display.update(framebuffer);
+                ppu_->clear_frame_ready();
+            }
+            // No audio in turbo - it would just cause stuttering
+        } else {
+            // NORMAL MODE: Run one frame with audio synchronization
+            run_frame();
+            
+            // Update display if frame is ready
+            if (ppu_->frame_ready()) {
+                const auto& framebuffer = ppu_->get_rgba_framebuffer();
+                display.update(framebuffer);
+                ppu_->clear_frame_ready();
+            }
+            
+            // Queue audio samples
+            const auto& audio_samples = memory_->apu().get_audio_buffer();
+            if (!audio_samples.empty()) {
+                display.queue_audio(audio_samples);
+                memory_->apu().clear_audio_buffer();
+            }
+            
+            // Audio-based synchronization: wait if audio queue is too full
+            // This naturally throttles emulation to ~60fps
+            unsigned int queue_size = display.get_audio_queue_size();
+            while (queue_size > MAX_AUDIO_QUEUE) {
+                // Small sleep to reduce CPU spinning while waiting
+                std::this_thread::sleep_for(std::chrono::microseconds(500));
+                queue_size = display.get_audio_queue_size();
+            }
         }
     }
     
