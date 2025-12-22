@@ -603,12 +603,12 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
             rgba_framebuffer[i * 4 + 3] = 0xFF;  // Alpha
         }
     } else {
-        // DMG mode: Use classic greenish palette
+        // DMG mode: Use neutral grayscale palette
         const u8 palette[4][4] = {
-            {0x9B, 0xBC, 0x0F, 0xFF},  // Shade 0: Lightest (greenish yellow)
-            {0x8B, 0xAC, 0x0F, 0xFF},  // Shade 1: Light green
-            {0x30, 0x62, 0x30, 0xFF},  // Shade 2: Dark green
-            {0x0F, 0x38, 0x0F, 0xFF}   // Shade 3: Darkest green
+            {0xFF, 0xFF, 0xFF, 0xFF},  // Shade 0: White
+            {0xAA, 0xAA, 0xAA, 0xFF},  // Shade 1: Light gray
+            {0x55, 0x55, 0x55, 0xFF},  // Shade 2: Dark gray
+            {0x00, 0x00, 0x00, 0xFF}   // Shade 3: Black
         };
         
         for (size_t i = 0; i < pixel_count; i++) {
@@ -705,6 +705,61 @@ void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
     r = (r5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
     g = (g5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
     b = (b5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
+}
+
+// ============================================================================
+// Serialization for Save States
+// ============================================================================
+
+void PPU::serialize(std::vector<u8>& data) const
+{
+    // PPU mode and timing
+    data.push_back(static_cast<u8>(mode_));
+    data.push_back(static_cast<u8>(dots_ & 0xFF));
+    data.push_back(static_cast<u8>((dots_ >> 8) & 0xFF));
+    data.push_back(ly_);
+    data.push_back(frame_ready_ ? 1 : 0);
+    data.push_back(window_line_counter_);
+    
+    // CGB palette specification registers
+    data.push_back(bcps_);
+    data.push_back(ocps_);
+    
+    // CGB palette RAM (64 bytes each)
+    for (const auto& byte : bg_palette_ram_) {
+        data.push_back(byte);
+    }
+    for (const auto& byte : obj_palette_ram_) {
+        data.push_back(byte);
+    }
+    
+    // We don't save framebuffer or scanline_sprites as they're reconstructed
+}
+
+void PPU::deserialize(const u8* data, size_t& offset)
+{
+    // PPU mode and timing
+    mode_ = static_cast<Mode>(data[offset++]);
+    dots_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+    ly_ = data[offset++];
+    frame_ready_ = data[offset++] != 0;
+    window_line_counter_ = data[offset++];
+    
+    // CGB palette specification registers
+    bcps_ = data[offset++];
+    ocps_ = data[offset++];
+    
+    // CGB palette RAM
+    for (auto& byte : bg_palette_ram_) {
+        byte = data[offset++];
+    }
+    for (auto& byte : obj_palette_ram_) {
+        byte = data[offset++];
+    }
+    
+    // Clear transient state
+    scanline_sprites_.clear();
 }
 
 } // namespace emugbc

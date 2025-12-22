@@ -2,6 +2,7 @@
 
 #include "../core/types.h"
 #include <array>
+#include <cstddef>
 #include <vector>
 
 namespace emugbc {
@@ -64,6 +65,12 @@ public:
      */
     void clear_audio_buffer();
     
+    /**
+     * Serialization for save states
+     */
+    void serialize(std::vector<u8>& data) const;
+    void deserialize(const u8* data, size_t& offset);
+    
 private:
     Memory& memory_;
     
@@ -78,21 +85,15 @@ private:
     // Audio output buffer (U8 format, 0-255 range, 128 = silence)
     std::vector<std::pair<u8, u8>> audio_buffer_;
     
-    // Cycle accumulators
-    Cycles cycle_accumulator_;      // For sample generation
-    Cycles frame_sequencer_cycles_; // For length/envelope/sweep timing
-    u8 frame_sequencer_step_;       // 0-7 for frame sequencer
+    // Cycle accumulator for sample generation
+    Cycles cycle_accumulator_;
     
-    // Frame rate constants
+    // Timing constants
     static constexpr int FRAMES_PER_SECOND = 60;
-    
-    // Sample rate constants
     static constexpr int SAMPLE_RATE = 44100;
     static constexpr int CPU_CLOCK_HZ = 4194304;
-    static constexpr int RATE = (1 << 21) / SAMPLE_RATE;  // ~47.5 (scaling factor for frequency calculations)
-    static constexpr int CYCLES_PER_SAMPLE = CPU_CLOCK_HZ / SAMPLE_RATE;  // ~95 cycles per sample
-    static constexpr int FRAME_SEQUENCER_RATE = 8192;  // 512 Hz
-    static constexpr int CYCLES_PER_FRAME = CPU_CLOCK_HZ / FRAME_SEQUENCER_RATE;  // ~512 cycles
+    static constexpr int RATE = (1 << 21) / SAMPLE_RATE;  // ~47.5 (frequency scaling factor)
+    static constexpr int CYCLES_PER_SAMPLE = CPU_CLOCK_HZ / SAMPLE_RATE;  // ~95 cycles
     
     // Register addresses
     static constexpr u16 REG_NR10 = 0xFF10;  // Channel 1 Sweep
@@ -203,31 +204,21 @@ private:
     static constexpr int WIDTH_MODE_SHIFT = 3;
     static constexpr int WIDTH_MODE_MASK = 0x01;
     static constexpr int DIVISOR_CODE_MASK = 0x07;
-    static constexpr int LFSR_INIT = 0x7FFF;        // Initial LFSR value
-    static constexpr int LFSR_BIT_MASK = 1;         // Bit 0 mask for LFSR
-    static constexpr int LFSR_XOR_SHIFT = 1;        // Shift for XOR calculation
-    static constexpr int LFSR_FEEDBACK_BIT = 14;    // Position for 15-bit feedback
-    static constexpr int LFSR_WIDTH_BIT = 6;        // Position for 7-bit mode
-    static constexpr int LFSR_PHASE_THRESHOLD = 18; // Threshold shift for LFSR advance
+    static constexpr int LFSR_INIT = 0x7FFF;
+    static constexpr int LFSR_PHASE_THRESHOLD = 18;
     
     // Sample amplitude constants
-    static constexpr int SAMPLE_AMPLIFY_SHIFT = 2;  // Shift left 2 = multiply by 4
-    static constexpr int SAMPLE_NOISE_MULTIPLY = 3;  // Noise multiply factor
-    static constexpr int SAMPLE_VOLUME_SHIFT = 4;   // Final volume shift
-    static constexpr int SAMPLE_MIN = -128;         // Minimum signed sample value
-    static constexpr int SAMPLE_MAX = 127;          // Maximum signed sample value
-    static constexpr int SAMPLE_ZERO = 128;         // Zero point in unsigned format
-    static constexpr int SAMPLE_WAVE_OFFSET = 8;    // Offset for wave samples
+    static constexpr int SAMPLE_AMPLIFY_SHIFT = 2;
+    static constexpr int SAMPLE_VOLUME_SHIFT = 4;
+    static constexpr int SAMPLE_MIN = -128;
+    static constexpr int SAMPLE_MAX = 127;
+    static constexpr int SAMPLE_ZERO = 128;
+    static constexpr int SAMPLE_WAVE_OFFSET = 8;
     
-    // Wave output level shifts
-    static constexpr int WAVE_VOLUME_FULL_SHIFT = 0;   // 100% volume (no shift)
-    static constexpr int WAVE_VOLUME_HALF_SHIFT = 1;   // 50% volume (shift 1)
-    static constexpr int WAVE_VOLUME_QUARTER_SHIFT = 2; // 25% volume (shift 2)
-    static constexpr int WAVE_VOLUME_BASE = 3;         // Base for shift calculation
-    
-    // Wave RAM constants
-    static constexpr int WAVE_NIBBLE_MASK = 15;     // Mask for 4-bit nibble
-    static constexpr int WAVE_NIBBLE_SHIFT = 4;     // Shift for high nibble
+    // Wave channel constants
+    static constexpr int WAVE_VOLUME_BASE = 3;
+    static constexpr int WAVE_NIBBLE_MASK = 15;
+    static constexpr int WAVE_NIBBLE_SHIFT = 4;
     
     // Read-only register return values
     static constexpr u8 REG_WRITE_ONLY = 0xFF;
@@ -245,120 +236,97 @@ private:
     // Reset value
     static constexpr u8 NR52_RESET_VALUE = 0xF0;    // Power off, bits 4-7 always 1
     
-    // Channel structures
+    // Channel 1: Square wave with frequency sweep
     struct Channel1 {
-        // Sweep
+        // Register values
         u8 sweep_period;
         u8 sweep_direction;
         u8 sweep_shift;
-        
-        // Sound length/Wave pattern
         u8 wave_duty;
-        
-        // Volume envelope
         u8 initial_volume;
         u8 envelope_direction;
         u8 envelope_period;
-        u8 current_volume;
-        
-        // Frequency
         u16 frequency;
-        bool trigger;
         bool length_enable;
-        bool enabled;
         bool dac_enabled;
         
-        // Internal state
-        bool on;      // Channel enabled
+        // Runtime state
+        bool on;
         int pos;      // Phase position
         int freq;     // Phase increment
-        int cnt;      // Length counter accumulated
+        int cnt;      // Length counter
         int len;      // Length threshold
-        int encnt;    // Envelope counter accumulated
+        int encnt;    // Envelope counter
         int enlen;    // Envelope threshold
-        int endir;    // Envelope direction (-1 or +1)
-        int envol;    // Current envelope volume
-        int swcnt;    // Sweep counter accumulated
+        int endir;    // Envelope direction (-1/+1)
+        int envol;    // Current volume
+        int swcnt;    // Sweep counter
         int swlen;    // Sweep threshold
         int swfreq;   // Sweep frequency
     } channel1_;
     
+    // Channel 2: Square wave (no sweep)
     struct Channel2 {
-        // Sound length/Wave pattern
+        // Register values
         u8 wave_duty;
-        
-        // Volume envelope
         u8 initial_volume;
         u8 envelope_direction;
         u8 envelope_period;
-        
-        // Frequency
         u16 frequency;
-        bool trigger;
         bool length_enable;
-        bool enabled;
         bool dac_enabled;
         
-        // Internal state
-        bool on;      // Channel enabled
-        int pos;      // Phase position
-        int freq;     // Phase increment
-        int cnt;      // Length counter
-        int len;      // Length threshold
-        int encnt;    // Envelope counter
-        int enlen;    // Envelope threshold
-        int endir;    // Envelope direction (-1 or +1)
-        int envol;    // Current envelope volume
+        // Runtime state
+        bool on;
+        int pos;
+        int freq;
+        int cnt;
+        int len;
+        int encnt;
+        int enlen;
+        int endir;
+        int envol;
     } channel2_;
     
+    // Channel 3: Programmable wave
     struct Channel3 {
-        // Sound on/off
+        // Register values
+        u8 output_level;
+        u16 frequency;
+        bool length_enable;
         bool dac_enabled;
         
-        // Output level
-        u8 output_level;
-        
-        // Frequency
-        u16 frequency;
-        bool trigger;
-        bool length_enable;
-        bool enabled;
-        
-        // Internal state
-        bool on;      // Channel enabled
-        int pos;      // Phase position
-        int freq;     // Phase increment
-        int cnt;      // Length counter
-        int len;      // Length threshold
+        // Runtime state
+        bool on;
+        int pos;
+        int freq;
+        int cnt;
+        int len;
     } channel3_;
     
+    // Channel 4: Noise
     struct Channel4 {
-        // Volume envelope
+        // Register values
         u8 initial_volume;
         u8 envelope_direction;
         u8 envelope_period;
-        
-        // Polynomial counter
         u8 clock_shift;
         u8 width_mode;
         u8 divisor_code;
-        
-        bool trigger;
         bool length_enable;
-        bool enabled;
         bool dac_enabled;
         
-        // Internal state
-        bool on;      // Channel enabled
-        u16 lfsr;     // Linear feedback shift register
-        int pos;      // Phase position
-        int freq;     // Phase increment
-        int cnt;      // Length counter
-        int len;      // Length threshold
-        int encnt;    // Envelope counter
-        int enlen;    // Envelope threshold
-        int endir;    // Envelope direction (-1 or +1)
-        int envol;    // Current envelope volume
+        // Runtime state
+        bool on;
+        u16 lfsr;
+        int pos;
+        int freq;
+        int cnt;
+        int len;
+        int encnt;
+        int enlen;
+        int endir;
+        int envol;
     } channel4_;
     
     /**
@@ -367,15 +335,29 @@ private:
      */
     std::pair<u8, u8> generate_sample();
     
-    /**
-     * Mix all channels to produce final output
-     */
-    void mix_channels();
-    
-    /**
-     * Reset APU state
-     */
+    /** Reset APU state */
     void reset();
+    
+    // Channel processing helpers
+    void process_channel1_sample(int& left, int& right);
+    void process_channel2_sample(int& left, int& right);
+    void process_channel3_sample(int& left, int& right);
+    void process_channel4_sample(int& left, int& right);
+    
+    void update_channel1_length_counter();
+    void update_channel1_envelope();
+    void update_channel1_sweep();
+    
+    void update_channel2_length_counter();
+    void update_channel2_envelope();
+    
+    void update_channel3_length_counter();
+    
+    void update_channel4_length_counter();
+    void update_channel4_envelope();
+    
+    int calculate_noise_sample();
+    int calculate_noise_frequency(u8 divisor_code, u8 clock_shift) const;
 };
 
 } // namespace emugbc

@@ -1,10 +1,72 @@
 #include "apu.h"
 #include "../core/memory.h"
-#include <cmath>
 #include <algorithm>
-#include <cstdio>
 
 namespace emugbc {
+
+// Noise table generation constants
+static constexpr int NOISE7_TABLE_SIZE = 16;      // 128 bits = 16 bytes
+static constexpr int NOISE15_TABLE_SIZE = 4096;   // 32768 bits = 4096 bytes
+static constexpr int BITS_PER_BYTE = 8;
+static constexpr u16 LFSR7_INIT = 0x7F;           // Initial state for 7-bit LFSR
+static constexpr u16 LFSR15_INIT = 0x7FFF;        // Initial state for 15-bit LFSR
+static constexpr int LFSR7_FEEDBACK_BIT = 6;      // Feedback position for 7-bit
+static constexpr int LFSR15_FEEDBACK_BIT = 14;    // Feedback position for 15-bit
+
+// Noise table lookup constants
+static constexpr int NOISE_BYTE_SHIFT = 20;       // Shift for byte index
+static constexpr int NOISE_BIT_SHIFT = 17;        // Shift for bit position
+static constexpr int NOISE7_BYTE_MASK = 15;       // Mask for 7-bit table (16 bytes)
+static constexpr int NOISE15_BYTE_MASK = 4095;    // Mask for 15-bit table (4096 bytes)
+static constexpr int NOISE_BIT_MASK = 7;          // Mask for bit position (0-7)
+
+// Noise frequency calculation constants
+static constexpr int NOISE_FREQ_BASE = 1 << 14;   // Base frequency for noise channel
+static constexpr int NOISE_FREQ_DIV_2 = NOISE_FREQ_BASE;
+static constexpr int NOISE_FREQ_DIV_3 = NOISE_FREQ_BASE / 3;
+static constexpr int NOISE_FREQ_DIV_4 = NOISE_FREQ_BASE / 4;
+static constexpr int NOISE_FREQ_DIV_5 = NOISE_FREQ_BASE / 5;
+static constexpr int NOISE_FREQ_DIV_6 = NOISE_FREQ_BASE / 6;
+static constexpr int NOISE_FREQ_DIV_7 = NOISE_FREQ_BASE / 7;
+static constexpr int NOISE_AMPLIFY_FACTOR = 3;    // Noise amplitude multiplier
+
+// Precomputed noise tables for Channel 4 (LFSR-based pseudo-random noise)
+static u8 noise7[NOISE7_TABLE_SIZE];
+static u8 noise15[NOISE15_TABLE_SIZE];
+
+// Flag to indicate if noise tables have been initialized
+static bool noise_tables_initialized = false;
+
+// Generate precomputed noise tables using LFSR algorithm
+static void init_noise_tables() {
+    if (noise_tables_initialized) return;
+    
+    // Generate 7-bit LFSR noise table
+    u16 lfsr = LFSR7_INIT;
+    for (int i = 0; i < NOISE7_TABLE_SIZE; i++) {
+        u8 byte = 0;
+        for (int bit = 0; bit < BITS_PER_BYTE; bit++) {
+            int feedback = ((lfsr & 1) ^ ((lfsr >> 1) & 1));
+            lfsr = (lfsr >> 1) | (feedback << LFSR7_FEEDBACK_BIT);
+            byte |= ((lfsr & 1) << (BITS_PER_BYTE - 1 - bit));
+        }
+        noise7[i] = byte;
+    }
+    
+    // Generate 15-bit LFSR noise table
+    lfsr = LFSR15_INIT;
+    for (int i = 0; i < NOISE15_TABLE_SIZE; i++) {
+        u8 byte = 0;
+        for (int bit = 0; bit < BITS_PER_BYTE; bit++) {
+            int feedback = ((lfsr & 1) ^ ((lfsr >> 1) & 1));
+            lfsr = (lfsr >> 1) | (feedback << LFSR15_FEEDBACK_BIT);
+            byte |= ((lfsr & 1) << (BITS_PER_BYTE - 1 - bit));
+        }
+        noise15[i] = byte;
+    }
+    
+    noise_tables_initialized = true;
+}
 
 APU::APU(Memory& memory)
     : memory_(memory)
@@ -13,6 +75,9 @@ APU::APU(Memory& memory)
     , nr52_(0)
     , cycle_accumulator_(0)
 {
+    // Initialize noise lookup tables (only done once)
+    init_noise_tables();
+    
     // Initialize Wave RAM with default pattern (similar to Game Boy boot state)
     // This is a simple triangle-ish wave pattern
     wave_ram_ = {{
@@ -33,11 +98,9 @@ void APU::reset() {
     // Reset control registers
     nr50_ = 0;
     nr51_ = 0;
-    nr52_ = NR52_RESET_VALUE;  // Power off, but bits 4-7 are always 1
+    nr52_ = NR52_RESET_VALUE;
     
     cycle_accumulator_ = 0;
-    frame_sequencer_cycles_ = 0;
-    frame_sequencer_step_ = 0;
 }
 
 void APU::step(Cycles cycles) {
@@ -70,168 +133,15 @@ static const int sqwave[4][8] = {
     { -1, 0, 0,-1,-1,-1,-1,-1 }   // 75% duty
 };
 
+
 std::pair<u8, u8> APU::generate_sample() {
-    // This function implements hardware-accurate audio generation.
-    // Each channel is processed independently, then mixed with panning.
-    // Sample format: signed values (-128 to 127) converted to unsigned (0 to 255).
-    int sample = 0;
     int left = 0;
     int right = 0;
     
-    // Channel 1: Square wave with frequency sweep
-    if (channel1_.on) {
-        // Get square wave sample based on current phase position and duty cycle
-        sample = sqwave[channel1_.wave_duty][(channel1_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel1_.envol;
-        channel1_.pos += channel1_.freq;
-        
-        // Length counter: disable channel when length expires
-        if (channel1_.length_enable && ((channel1_.cnt += RATE) >= channel1_.len)) {
-            channel1_.on = false;
-        }
-        
-        // Volume envelope: adjust volume periodically
-        if (channel1_.enlen && (channel1_.encnt += RATE) >= channel1_.enlen) {
-            channel1_.encnt -= channel1_.enlen;
-            channel1_.envol += channel1_.endir;
-            if (channel1_.envol < ENVELOPE_MIN) channel1_.envol = ENVELOPE_MIN;
-            if (channel1_.envol > ENVELOPE_MAX) channel1_.envol = ENVELOPE_MAX;
-        }
-        
-        // Frequency sweep: periodically shift frequency up or down
-        if (channel1_.swlen && (channel1_.swcnt += RATE) >= channel1_.swlen) {
-            channel1_.swcnt -= channel1_.swlen;
-            int frequency = channel1_.swfreq;
-            int shift = channel1_.sweep_shift;
-            
-            // Apply sweep: subtract if direction=1, add if direction=0
-            if (channel1_.sweep_direction) {
-                frequency -= (frequency >> shift);
-            } else {
-                frequency += (frequency >> shift);
-            }
-            
-            // Disable channel if frequency overflows
-            if (frequency > SWEEP_FREQUENCY_MAX) {
-                channel1_.on = false;
-            } else {
-                channel1_.swfreq = frequency;
-                // Recalculate phase increment from new frequency
-                int divisor = FREQ_DIVISOR_BASE - frequency;
-                if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-                    channel1_.freq = 0;
-                } else {
-                    channel1_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
-                }
-            }
-        }
-        
-        // Amplify and apply panning (NR51 controls left/right output)
-        sample <<= SAMPLE_AMPLIFY_SHIFT;
-        if (nr51_ & NR51_CH1_RIGHT) right += sample;
-        if (nr51_ & NR51_CH1_LEFT) left += sample;
-    }
-    
-    // Channel 2: Square wave (no sweep)
-    if (channel2_.on) {
-        // Get square wave sample based on current phase position and duty cycle
-        sample = sqwave[channel2_.wave_duty][(channel2_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel2_.envol;
-        channel2_.pos += channel2_.freq;
-        
-        // Length counter: disable channel when length expires
-        if (channel2_.length_enable && ((channel2_.cnt += RATE) >= channel2_.len)) {
-            channel2_.on = false;
-        }
-        
-        // Volume envelope: adjust volume periodically
-        if (channel2_.enlen && (channel2_.encnt += RATE) >= channel2_.enlen) {
-            channel2_.encnt -= channel2_.enlen;
-            channel2_.envol += channel2_.endir;
-            if (channel2_.envol < ENVELOPE_MIN) channel2_.envol = ENVELOPE_MIN;
-            if (channel2_.envol > ENVELOPE_MAX) channel2_.envol = ENVELOPE_MAX;
-        }
-        
-        // Amplify and apply panning
-        sample <<= SAMPLE_AMPLIFY_SHIFT;
-        if (nr51_ & NR51_CH2_RIGHT) right += sample;
-        if (nr51_ & NR51_CH2_LEFT) left += sample;
-    }
-    
-    // Channel 3: Programmable wave pattern from wave RAM
-    if (channel3_.on) {
-        // Wave RAM stores 32 4-bit samples (16 bytes, 2 samples per byte)
-        sample = wave_ram_[(channel3_.pos >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE];
-        
-        // Extract high or low nibble based on phase position
-        if (channel3_.pos & (1 << WAVE_NIBBLE_BIT)) {
-            sample &= WAVE_NIBBLE_MASK;  // Low nibble
-        } else {
-            sample >>= WAVE_NIBBLE_SHIFT;  // High nibble
-        }
-        sample -= SAMPLE_WAVE_OFFSET;  // Convert to signed (-8 to 7)
-        
-        channel3_.pos += channel3_.freq;
-        
-        // Length counter: disable channel when length expires
-        if (channel3_.length_enable && ((channel3_.cnt += RATE) >= channel3_.len)) {
-            channel3_.on = false;
-        }
-        
-        // Apply output level (volume shift from NR32 bits 5-6)
-        if (channel3_.output_level > 0) {
-            sample <<= (WAVE_VOLUME_BASE - channel3_.output_level);
-        } else {
-            sample = 0;  // Muted
-        }
-        
-        // Apply panning
-        if (nr51_ & NR51_CH3_RIGHT) right += sample;
-        if (nr51_ & NR51_CH3_LEFT) left += sample;
-    }
-    
-    // Channel 4: Pseudo-random noise using Linear Feedback Shift Register (LFSR)
-    if (channel4_.on) {
-        // Advance LFSR based on accumulated phase
-        channel4_.pos += channel4_.freq;
-        while (channel4_.pos >= (1 << LFSR_PHASE_THRESHOLD)) {
-            channel4_.pos -= (1 << LFSR_PHASE_THRESHOLD);
-            
-            // Calculate XOR of bottom two bits
-            int xor_result = (channel4_.lfsr & LFSR_BIT_MASK) ^ ((channel4_.lfsr >> LFSR_XOR_SHIFT) & LFSR_BIT_MASK);
-            
-            // Shift register right and insert XOR result at top
-            channel4_.lfsr >>= LFSR_XOR_SHIFT;
-            channel4_.lfsr |= (xor_result << LFSR_FEEDBACK_BIT);
-            
-            // Width mode: 7-bit LFSR instead of 15-bit
-            if (channel4_.width_mode) {
-                channel4_.lfsr &= ~(1 << LFSR_WIDTH_BIT);
-                channel4_.lfsr |= (xor_result << LFSR_WIDTH_BIT);
-            }
-        }
-        
-        // Generate sample from LFSR: bit 0 determines output
-        sample = (channel4_.lfsr & LFSR_BIT_MASK) ? 0 : -1;
-        sample = sample & channel4_.envol;
-        channel4_.pos += channel4_.freq;
-        
-        // Length counter: disable channel when length expires
-        if (channel4_.length_enable && ((channel4_.cnt += RATE) >= channel4_.len)) {
-            channel4_.on = false;
-        }
-        
-        // Volume envelope: adjust volume periodically
-        if (channel4_.enlen && (channel4_.encnt += RATE) >= channel4_.enlen) {
-            channel4_.encnt -= channel4_.enlen;
-            channel4_.envol += channel4_.endir;
-            if (channel4_.envol < ENVELOPE_MIN) channel4_.envol = ENVELOPE_MIN;
-            if (channel4_.envol > ENVELOPE_MAX) channel4_.envol = ENVELOPE_MAX;
-        }
-        
-        // Amplify noise (multiply by 3) and apply panning
-        sample += sample << 1;
-        if (nr51_ & NR51_CH4_RIGHT) right += sample;
-        if (nr51_ & NR51_CH4_LEFT) left += sample;
-    }
+    process_channel1_sample(left, right);
+    process_channel2_sample(left, right);
+    process_channel3_sample(left, right);
+    process_channel4_sample(left, right);
     
     // Apply master volume from NR50 (bits 0-2 for right, bits 4-6 for left)
     left *= (nr50_ & NR50_RIGHT_VOLUME_MASK);
@@ -255,6 +165,261 @@ std::pair<u8, u8> APU::generate_sample() {
     // Convert from signed to unsigned for SDL audio
     // In this format, SAMPLE_ZERO (128) represents silence (0 amplitude)
     return {static_cast<u8>(left + SAMPLE_ZERO), static_cast<u8>(right + SAMPLE_ZERO)};
+}
+
+void APU::process_channel1_sample(int& left, int& right) {
+    if (!channel1_.on) {
+        return;
+    }
+    
+    int sample = sqwave[channel1_.wave_duty][(channel1_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel1_.envol;
+    channel1_.pos += channel1_.freq;
+    
+    update_channel1_length_counter();
+    update_channel1_envelope();
+    update_channel1_sweep();
+    
+    sample <<= SAMPLE_AMPLIFY_SHIFT;
+    if (nr51_ & NR51_CH1_RIGHT) right += sample;
+    if (nr51_ & NR51_CH1_LEFT) left += sample;
+}
+
+void APU::update_channel1_length_counter() {
+    if (!channel1_.length_enable) {
+        return;
+    }
+    
+    channel1_.cnt += RATE;
+    if (channel1_.cnt >= channel1_.len) {
+        channel1_.on = false;
+    }
+}
+
+void APU::update_channel1_envelope() {
+    if (!channel1_.enlen) {
+        return;
+    }
+    
+    channel1_.encnt += RATE;
+    if (channel1_.encnt < channel1_.enlen) {
+        return;
+    }
+    
+    channel1_.encnt -= channel1_.enlen;
+    channel1_.envol += channel1_.endir;
+    
+    if (channel1_.envol < ENVELOPE_MIN) {
+        channel1_.envol = ENVELOPE_MIN;
+    }
+    if (channel1_.envol > ENVELOPE_MAX) {
+        channel1_.envol = ENVELOPE_MAX;
+    }
+}
+
+void APU::update_channel1_sweep() {
+    if (!channel1_.swlen) {
+        return;
+    }
+    
+    channel1_.swcnt += RATE;
+    if (channel1_.swcnt < channel1_.swlen) {
+        return;
+    }
+    
+    channel1_.swcnt -= channel1_.swlen;
+    int frequency = channel1_.swfreq;
+    int shift = channel1_.sweep_shift;
+    
+    if (channel1_.sweep_direction) {
+        frequency -= (frequency >> shift);
+    } else {
+        frequency += (frequency >> shift);
+    }
+    
+    if (frequency > SWEEP_FREQUENCY_MAX) {
+        channel1_.on = false;
+        return;
+    }
+    
+    channel1_.swfreq = frequency;
+    int divisor = FREQ_DIVISOR_BASE - frequency;
+    if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
+        channel1_.freq = 0;
+    } else {
+        channel1_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+    }
+}
+
+void APU::process_channel2_sample(int& left, int& right) {
+    if (!channel2_.on) {
+        return;
+    }
+    
+    int sample = sqwave[channel2_.wave_duty][(channel2_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel2_.envol;
+    channel2_.pos += channel2_.freq;
+    
+    update_channel2_length_counter();
+    update_channel2_envelope();
+    
+    sample <<= SAMPLE_AMPLIFY_SHIFT;
+    if (nr51_ & NR51_CH2_RIGHT) right += sample;
+    if (nr51_ & NR51_CH2_LEFT) left += sample;
+}
+
+void APU::update_channel2_length_counter() {
+    if (!channel2_.length_enable) {
+        return;
+    }
+    
+    channel2_.cnt += RATE;
+    if (channel2_.cnt >= channel2_.len) {
+        channel2_.on = false;
+    }
+}
+
+void APU::update_channel2_envelope() {
+    if (!channel2_.enlen) {
+        return;
+    }
+    
+    channel2_.encnt += RATE;
+    if (channel2_.encnt < channel2_.enlen) {
+        return;
+    }
+    
+    channel2_.encnt -= channel2_.enlen;
+    channel2_.envol += channel2_.endir;
+    
+    if (channel2_.envol < ENVELOPE_MIN) {
+        channel2_.envol = ENVELOPE_MIN;
+    }
+    if (channel2_.envol > ENVELOPE_MAX) {
+        channel2_.envol = ENVELOPE_MAX;
+    }
+}
+
+void APU::process_channel3_sample(int& left, int& right) {
+    if (!channel3_.on) {
+        return;
+    }
+    
+    int sample = wave_ram_[(channel3_.pos >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE];
+    
+    if (channel3_.pos & (1 << WAVE_NIBBLE_BIT)) {
+        sample &= WAVE_NIBBLE_MASK;
+    } else {
+        sample >>= WAVE_NIBBLE_SHIFT;
+    }
+    sample -= SAMPLE_WAVE_OFFSET;
+    
+    channel3_.pos += channel3_.freq;
+    
+    update_channel3_length_counter();
+    
+    if (channel3_.output_level > 0) {
+        sample <<= (WAVE_VOLUME_BASE - channel3_.output_level);
+    } else {
+        sample = 0;
+    }
+    
+    if (nr51_ & NR51_CH3_RIGHT) right += sample;
+    if (nr51_ & NR51_CH3_LEFT) left += sample;
+}
+
+void APU::update_channel3_length_counter() {
+    if (!channel3_.length_enable) {
+        return;
+    }
+    
+    channel3_.cnt += RATE;
+    if (channel3_.cnt >= channel3_.len) {
+        channel3_.on = false;
+    }
+}
+
+void APU::process_channel4_sample(int& left, int& right) {
+    if (!channel4_.on) {
+        return;
+    }
+    
+    int sample = calculate_noise_sample();
+    channel4_.pos += channel4_.freq;
+    
+    update_channel4_length_counter();
+    update_channel4_envelope();
+    
+    sample += sample << 1;
+    if (nr51_ & NR51_CH4_RIGHT) right += sample;
+    if (nr51_ & NR51_CH4_LEFT) left += sample;
+}
+
+int APU::calculate_noise_sample() {
+    int byte_index;
+    int bit_pos;
+    int sample;
+    
+    if (channel4_.width_mode) {
+        byte_index = (channel4_.pos >> NOISE_BYTE_SHIFT) & NOISE7_BYTE_MASK;
+        bit_pos = (NOISE_BIT_MASK - ((channel4_.pos >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
+        sample = (noise7[byte_index] >> bit_pos) & 1;
+    } else {
+        byte_index = (channel4_.pos >> NOISE_BYTE_SHIFT) & NOISE15_BYTE_MASK;
+        bit_pos = (NOISE_BIT_MASK - ((channel4_.pos >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
+        sample = (noise15[byte_index] >> bit_pos) & 1;
+    }
+    
+    return (-sample) & channel4_.envol;
+}
+
+void APU::update_channel4_length_counter() {
+    if (!channel4_.length_enable) {
+        return;
+    }
+    
+    channel4_.cnt += RATE;
+    if (channel4_.cnt >= channel4_.len) {
+        channel4_.on = false;
+    }
+}
+
+void APU::update_channel4_envelope() {
+    if (!channel4_.enlen) {
+        return;
+    }
+    
+    channel4_.encnt += RATE;
+    if (channel4_.encnt < channel4_.enlen) {
+        return;
+    }
+    
+    channel4_.encnt -= channel4_.enlen;
+    channel4_.envol += channel4_.endir;
+    
+    if (channel4_.envol < ENVELOPE_MIN) {
+        channel4_.envol = ENVELOPE_MIN;
+    }
+    if (channel4_.envol > ENVELOPE_MAX) {
+        channel4_.envol = ENVELOPE_MAX;
+    }
+}
+
+int APU::calculate_noise_frequency(u8 divisor_code, u8 clock_shift) const {
+    static const int freq_table[8] = {
+        NOISE_FREQ_BASE * 2,
+        NOISE_FREQ_DIV_2,
+        NOISE_FREQ_DIV_2 / 2,
+        NOISE_FREQ_DIV_3,
+        NOISE_FREQ_DIV_4,
+        NOISE_FREQ_DIV_5,
+        NOISE_FREQ_DIV_6,
+        NOISE_FREQ_DIV_7
+    };
+    
+    int frequency = (freq_table[divisor_code] >> clock_shift) * RATE;
+    if (frequency >> LFSR_PHASE_THRESHOLD) {
+        frequency = 1 << LFSR_PHASE_THRESHOLD;
+    }
+    return frequency;
 }
 
 u8 APU::read_register(u16 address) const {
@@ -402,12 +567,16 @@ void APU::write_register(u16 address, u8 value) {
         channel1_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
         channel1_.initial_volume = channel1_.envol;
         
+        // Store envelope parameters for trigger
+        channel1_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel1_.envelope_period = value & ENVELOPE_MASK;
+        
         // Envelope direction: convert 0/1 to -1/+1
-        channel1_.endir = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel1_.endir = channel1_.envelope_direction;
         channel1_.endir |= channel1_.endir - 1;  // 0 becomes -1, 1 stays 1
         
         // Convert envelope period to cycle threshold
-        channel1_.enlen = (value & ENVELOPE_MASK) << ENVELOPE_SHIFT;
+        channel1_.enlen = channel1_.envelope_period << ENVELOPE_SHIFT;
         channel1_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
@@ -466,12 +635,16 @@ void APU::write_register(u16 address, u8 value) {
         channel2_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
         channel2_.initial_volume = channel2_.envol;
         
+        // Store envelope parameters for trigger
+        channel2_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel2_.envelope_period = value & ENVELOPE_MASK;
+        
         // Envelope direction: convert 0/1 to -1/+1
-        channel2_.endir = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel2_.endir = channel2_.envelope_direction;
         channel2_.endir |= channel2_.endir - 1;
         
         // Convert envelope period to cycle threshold
-        channel2_.enlen = (value & ENVELOPE_MASK) << ENVELOPE_SHIFT;
+        channel2_.enlen = channel2_.envelope_period << ENVELOPE_SHIFT;
         channel2_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
@@ -583,28 +756,25 @@ void APU::write_register(u16 address, u8 value) {
         channel4_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
         channel4_.initial_volume = channel4_.envol;
         
+        // Store envelope parameters for trigger
+        channel4_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel4_.envelope_period = value & ENVELOPE_MASK;
+        
         // Envelope direction: convert 0/1 to -1/+1
-        channel4_.endir = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
+        channel4_.endir = channel4_.envelope_direction;
         channel4_.endir |= channel4_.endir - 1;
         
         // Convert envelope period to cycle threshold
-        channel4_.enlen = (value & ENVELOPE_MASK) << ENVELOPE_SHIFT;
+        channel4_.enlen = channel4_.envelope_period << ENVELOPE_SHIFT;
         channel4_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
     // Channel 4: Polynomial counter/LFSR control (NR43)
     if (address == REG_NR43) {
         channel4_.clock_shift = (value >> CLOCK_SHIFT_SHIFT) & CLOCK_SHIFT_MASK;
-        channel4_.width_mode = (value >> WIDTH_MODE_SHIFT) & WIDTH_MODE_MASK;  // 0=15-bit, 1=7-bit
+        channel4_.width_mode = (value >> WIDTH_MODE_SHIFT) & WIDTH_MODE_MASK;
         channel4_.divisor_code = value & DIVISOR_CODE_MASK;
-        
-        // Calculate LFSR clock frequency from divisor and shift
-        static const int freqtab[8] = {
-            (1<<14)*2, (1<<14), (1<<14)/2, (1<<14)/3,
-            (1<<14)/4, (1<<14)/5, (1<<14)/6, (1<<14)/7
-        };
-        channel4_.freq = (freqtab[channel4_.divisor_code] >> channel4_.clock_shift) * RATE;
-        if (channel4_.freq >> LFSR_PHASE_THRESHOLD) channel4_.freq = 1 << LFSR_PHASE_THRESHOLD;
+        channel4_.freq = calculate_noise_frequency(channel4_.divisor_code, channel4_.clock_shift);
         return;
     }
     // Channel 4: Length enable and trigger (NR44)
@@ -654,6 +824,224 @@ const std::vector<std::pair<u8, u8>>& APU::get_audio_buffer() const {
 }
 
 void APU::clear_audio_buffer() {
+    audio_buffer_.clear();
+}
+
+// ============================================================================
+// Serialization for Save States
+// ============================================================================
+
+namespace {
+    // Helper to serialize a 16-bit value
+    void serialize_u16(u16 value, std::vector<u8>& data) {
+        data.push_back(static_cast<u8>(value & 0xFF));
+        data.push_back(static_cast<u8>((value >> 8) & 0xFF));
+    }
+    
+    // Helper to serialize a 32-bit value (for int)
+    void serialize_i32(int value, std::vector<u8>& data) {
+        data.push_back(static_cast<u8>(value & 0xFF));
+        data.push_back(static_cast<u8>((value >> 8) & 0xFF));
+        data.push_back(static_cast<u8>((value >> 16) & 0xFF));
+        data.push_back(static_cast<u8>((value >> 24) & 0xFF));
+    }
+    
+    // Helper to deserialize a 16-bit value
+    u16 deserialize_u16(const u8* data, size_t& offset) {
+        u16 value = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+        offset += 2;
+        return value;
+    }
+    
+    // Helper to deserialize a 32-bit value (for int)
+    int deserialize_i32(const u8* data, size_t& offset) {
+        int value = static_cast<int>(data[offset]) |
+                   (static_cast<int>(data[offset + 1]) << 8) |
+                   (static_cast<int>(data[offset + 2]) << 16) |
+                   (static_cast<int>(data[offset + 3]) << 24);
+        offset += 4;
+        return value;
+    }
+}
+
+void APU::serialize(std::vector<u8>& data) const
+{
+    // Control registers
+    data.push_back(nr50_);
+    data.push_back(nr51_);
+    data.push_back(nr52_);
+    
+    // Wave RAM
+    for (const auto& byte : wave_ram_) {
+        data.push_back(byte);
+    }
+    
+    // Cycle accumulator
+    serialize_i32(static_cast<int>(cycle_accumulator_), data);
+    
+    // Channel 1 state
+    data.push_back(channel1_.sweep_period);
+    data.push_back(channel1_.sweep_direction);
+    data.push_back(channel1_.sweep_shift);
+    data.push_back(channel1_.wave_duty);
+    data.push_back(channel1_.initial_volume);
+    data.push_back(channel1_.envelope_direction);
+    data.push_back(channel1_.envelope_period);
+    serialize_u16(channel1_.frequency, data);
+    data.push_back(channel1_.length_enable ? 1 : 0);
+    data.push_back(channel1_.dac_enabled ? 1 : 0);
+    data.push_back(channel1_.on ? 1 : 0);
+    serialize_i32(channel1_.pos, data);
+    serialize_i32(channel1_.freq, data);
+    serialize_i32(channel1_.cnt, data);
+    serialize_i32(channel1_.len, data);
+    serialize_i32(channel1_.encnt, data);
+    serialize_i32(channel1_.enlen, data);
+    serialize_i32(channel1_.endir, data);
+    serialize_i32(channel1_.envol, data);
+    serialize_i32(channel1_.swcnt, data);
+    serialize_i32(channel1_.swlen, data);
+    serialize_i32(channel1_.swfreq, data);
+    
+    // Channel 2 state
+    data.push_back(channel2_.wave_duty);
+    data.push_back(channel2_.initial_volume);
+    data.push_back(channel2_.envelope_direction);
+    data.push_back(channel2_.envelope_period);
+    serialize_u16(channel2_.frequency, data);
+    data.push_back(channel2_.length_enable ? 1 : 0);
+    data.push_back(channel2_.dac_enabled ? 1 : 0);
+    data.push_back(channel2_.on ? 1 : 0);
+    serialize_i32(channel2_.pos, data);
+    serialize_i32(channel2_.freq, data);
+    serialize_i32(channel2_.cnt, data);
+    serialize_i32(channel2_.len, data);
+    serialize_i32(channel2_.encnt, data);
+    serialize_i32(channel2_.enlen, data);
+    serialize_i32(channel2_.endir, data);
+    serialize_i32(channel2_.envol, data);
+    
+    // Channel 3 state
+    data.push_back(channel3_.output_level);
+    serialize_u16(channel3_.frequency, data);
+    data.push_back(channel3_.length_enable ? 1 : 0);
+    data.push_back(channel3_.dac_enabled ? 1 : 0);
+    data.push_back(channel3_.on ? 1 : 0);
+    serialize_i32(channel3_.pos, data);
+    serialize_i32(channel3_.freq, data);
+    serialize_i32(channel3_.cnt, data);
+    serialize_i32(channel3_.len, data);
+    
+    // Channel 4 state
+    data.push_back(channel4_.initial_volume);
+    data.push_back(channel4_.envelope_direction);
+    data.push_back(channel4_.envelope_period);
+    data.push_back(channel4_.clock_shift);
+    data.push_back(channel4_.width_mode);
+    data.push_back(channel4_.divisor_code);
+    data.push_back(channel4_.length_enable ? 1 : 0);
+    data.push_back(channel4_.dac_enabled ? 1 : 0);
+    data.push_back(channel4_.on ? 1 : 0);
+    serialize_u16(channel4_.lfsr, data);
+    serialize_i32(channel4_.pos, data);
+    serialize_i32(channel4_.freq, data);
+    serialize_i32(channel4_.cnt, data);
+    serialize_i32(channel4_.len, data);
+    serialize_i32(channel4_.encnt, data);
+    serialize_i32(channel4_.enlen, data);
+    serialize_i32(channel4_.endir, data);
+    serialize_i32(channel4_.envol, data);
+}
+
+void APU::deserialize(const u8* data, size_t& offset)
+{
+    // Control registers
+    nr50_ = data[offset++];
+    nr51_ = data[offset++];
+    nr52_ = data[offset++];
+    
+    // Wave RAM
+    for (auto& byte : wave_ram_) {
+        byte = data[offset++];
+    }
+    
+    // Cycle accumulator
+    cycle_accumulator_ = static_cast<Cycles>(deserialize_i32(data, offset));
+    
+    // Channel 1 state
+    channel1_.sweep_period = data[offset++];
+    channel1_.sweep_direction = data[offset++];
+    channel1_.sweep_shift = data[offset++];
+    channel1_.wave_duty = data[offset++];
+    channel1_.initial_volume = data[offset++];
+    channel1_.envelope_direction = data[offset++];
+    channel1_.envelope_period = data[offset++];
+    channel1_.frequency = deserialize_u16(data, offset);
+    channel1_.length_enable = data[offset++] != 0;
+    channel1_.dac_enabled = data[offset++] != 0;
+    channel1_.on = data[offset++] != 0;
+    channel1_.pos = deserialize_i32(data, offset);
+    channel1_.freq = deserialize_i32(data, offset);
+    channel1_.cnt = deserialize_i32(data, offset);
+    channel1_.len = deserialize_i32(data, offset);
+    channel1_.encnt = deserialize_i32(data, offset);
+    channel1_.enlen = deserialize_i32(data, offset);
+    channel1_.endir = deserialize_i32(data, offset);
+    channel1_.envol = deserialize_i32(data, offset);
+    channel1_.swcnt = deserialize_i32(data, offset);
+    channel1_.swlen = deserialize_i32(data, offset);
+    channel1_.swfreq = deserialize_i32(data, offset);
+    
+    // Channel 2 state
+    channel2_.wave_duty = data[offset++];
+    channel2_.initial_volume = data[offset++];
+    channel2_.envelope_direction = data[offset++];
+    channel2_.envelope_period = data[offset++];
+    channel2_.frequency = deserialize_u16(data, offset);
+    channel2_.length_enable = data[offset++] != 0;
+    channel2_.dac_enabled = data[offset++] != 0;
+    channel2_.on = data[offset++] != 0;
+    channel2_.pos = deserialize_i32(data, offset);
+    channel2_.freq = deserialize_i32(data, offset);
+    channel2_.cnt = deserialize_i32(data, offset);
+    channel2_.len = deserialize_i32(data, offset);
+    channel2_.encnt = deserialize_i32(data, offset);
+    channel2_.enlen = deserialize_i32(data, offset);
+    channel2_.endir = deserialize_i32(data, offset);
+    channel2_.envol = deserialize_i32(data, offset);
+    
+    // Channel 3 state
+    channel3_.output_level = data[offset++];
+    channel3_.frequency = deserialize_u16(data, offset);
+    channel3_.length_enable = data[offset++] != 0;
+    channel3_.dac_enabled = data[offset++] != 0;
+    channel3_.on = data[offset++] != 0;
+    channel3_.pos = deserialize_i32(data, offset);
+    channel3_.freq = deserialize_i32(data, offset);
+    channel3_.cnt = deserialize_i32(data, offset);
+    channel3_.len = deserialize_i32(data, offset);
+    
+    // Channel 4 state
+    channel4_.initial_volume = data[offset++];
+    channel4_.envelope_direction = data[offset++];
+    channel4_.envelope_period = data[offset++];
+    channel4_.clock_shift = data[offset++];
+    channel4_.width_mode = data[offset++];
+    channel4_.divisor_code = data[offset++];
+    channel4_.length_enable = data[offset++] != 0;
+    channel4_.dac_enabled = data[offset++] != 0;
+    channel4_.on = data[offset++] != 0;
+    channel4_.lfsr = deserialize_u16(data, offset);
+    channel4_.pos = deserialize_i32(data, offset);
+    channel4_.freq = deserialize_i32(data, offset);
+    channel4_.cnt = deserialize_i32(data, offset);
+    channel4_.len = deserialize_i32(data, offset);
+    channel4_.encnt = deserialize_i32(data, offset);
+    channel4_.enlen = deserialize_i32(data, offset);
+    channel4_.endir = deserialize_i32(data, offset);
+    channel4_.envol = deserialize_i32(data, offset);
+    
+    // Clear audio buffer on load
     audio_buffer_.clear();
 }
 
