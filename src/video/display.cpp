@@ -49,6 +49,9 @@ bool Display::initialize(const std::string& title, int scale_factor) {
         return false;
     }
     
+    // Hint: Don't throttle when window is unfocused (allows background execution)
+    SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
+    
     // Calculate window dimensions based on scale factor
     const int window_width = LCD_WIDTH * scale_factor_;
     const int window_height = LCD_HEIGHT * scale_factor_;
@@ -68,11 +71,12 @@ bool Display::initialize(const std::string& title, int scale_factor) {
         return false;
     }
     
-    // Create renderer with hardware acceleration
+    // Create renderer with hardware acceleration (no VSync - we use software timing)
+    // VSync would block the render loop when window is minimized/unfocused
     renderer_ = SDL_CreateRenderer(
         window_,
         -1,
-        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
+        SDL_RENDERER_ACCELERATED
     );
     
     if (!renderer_) {
@@ -107,7 +111,7 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     audio_spec.freq = 44100;              // 44.1 kHz sample rate
     audio_spec.format = AUDIO_S16SYS;     // 16-bit signed audio
     audio_spec.channels = 2;              // Stereo
-    audio_spec.samples = 1024;            // Buffer size (power of 2) for smooth audio
+    audio_spec.samples = 512;             // Smaller buffer for lower latency
     audio_spec.callback = nullptr;        // Use queue-based audio
     
     // Open audio device
@@ -307,6 +311,13 @@ void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
     
     // Queue audio data
     SDL_QueueAudio(audio_device_, interleaved.data(), interleaved.size() * sizeof(i16));
+}
+
+unsigned int Display::get_audio_queue_size() const {
+    if (audio_device_ == 0) {
+        return 0;
+    }
+    return SDL_GetQueuedAudioSize(audio_device_);
 }
 
 } // namespace emugbc
