@@ -16,11 +16,7 @@ Timer::Timer(Memory& memory)
 
 void Timer::step(Cycles cycles) {
     // Update DIV register - always increments regardless of timer enable
-    div_counter_ += cycles;
-    while (div_counter_ >= DIV_FREQUENCY) {
-        div_counter_ -= DIV_FREQUENCY;
-        div_++;
-    }
+    step_div_only(cycles);
     
     // Update TIMA register only if timer is enabled
     if (is_timer_enabled()) {
@@ -39,6 +35,18 @@ void Timer::step(Cycles cycles) {
                 tima_++;
             }
         }
+    }
+}
+
+void Timer::step_div_only(Cycles cycles) {
+    div_counter_ += cycles;
+    // Optimize: most CPU instructions are 4-24 cycles, DIV updates every 256
+    // Only check/update when threshold is actually reached
+    if (div_counter_ >= DIV_FREQUENCY) {
+        // Calculate increments (rarely more than 1)
+        u8 increments = div_counter_ / DIV_FREQUENCY;
+        div_ += increments;
+        div_counter_ %= DIV_FREQUENCY;
     }
 }
 

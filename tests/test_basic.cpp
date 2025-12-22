@@ -73,12 +73,14 @@ void test_cpu_basic() {
     
     // Execute LD A, 0x42
     Cycles cycles1 = cpu.step();
+    (void)cycles1;  // Used in assert which may be compiled out
     assert(cycles1 == 2);  // LD A,n takes 2 M-cycles
     assert(cpu.registers().a == 0x42);
     assert(cpu.registers().pc == 0xC002);
     
     // Execute HALT
     Cycles cycles2 = cpu.step();
+    (void)cycles2;  // Used in assert which may be compiled out
     assert(cycles2 == 1);
     assert(cpu.is_halted());
     

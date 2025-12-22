@@ -115,11 +115,18 @@ void APU::step(Cycles cycles) {
     // per-sample inside generate_sample() using RATE-based accumulators.
     // This eliminates the need for a separate 512Hz frame sequencer.
     
-    // Generate audio samples as CPU cycles accumulate
-    while (cycle_accumulator_ >= CYCLES_PER_SAMPLE) {
-        auto sample = generate_sample();
-        audio_buffer_.push_back(sample);
-        cycle_accumulator_ -= CYCLES_PER_SAMPLE;
+    // Optimized: Calculate number of samples to generate instead of looping
+    // Typical CPU instructions are 4-24 cycles, CYCLES_PER_SAMPLE is ~87
+    // Most calls generate 0 samples, some generate 1, rarely more
+    if (cycle_accumulator_ >= CYCLES_PER_SAMPLE) {
+        int samples_to_generate = cycle_accumulator_ / CYCLES_PER_SAMPLE;
+        cycle_accumulator_ %= CYCLES_PER_SAMPLE;
+        
+        // Generate all needed samples
+        for (int i = 0; i < samples_to_generate; i++) {
+            auto sample = generate_sample();
+            audio_buffer_.push_back(sample);
+        }
     }
 }
 

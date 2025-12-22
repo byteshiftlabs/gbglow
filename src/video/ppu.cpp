@@ -119,10 +119,38 @@ PPU::PPU(Memory& memory)
 }
 
 void PPU::step(Cycles cycles) {
-    // Each cycle advances the PPU by 1 dot
-    for (Cycles i = 0; i < cycles; i++) {
-        dots_++;
+    // Optimized: Process cycles in batches instead of one-by-one
+    // This reduces loop overhead from ~70k iterations to ~3k per frame
+    Cycles remaining = cycles;
+    
+    while (remaining > 0) {
+        // Calculate cycles until next state transition
+        Cycles cycles_to_next_event;
         
+        switch (mode_) {
+            case Mode::OAMSearch:
+                cycles_to_next_event = 80 - dots_;
+                break;
+            case Mode::Transfer:
+                cycles_to_next_event = 252 - dots_;
+                break;
+            case Mode::HBlank:
+                cycles_to_next_event = 456 - dots_;
+                break;
+            case Mode::VBlank:
+                cycles_to_next_event = 456 - dots_;
+                break;
+            default:
+                cycles_to_next_event = 1;
+                break;
+        }
+        
+        // Process cycles until next event or end of input cycles
+        Cycles cycles_to_process = (remaining < cycles_to_next_event) ? remaining : cycles_to_next_event;
+        dots_ += cycles_to_process;
+        remaining -= cycles_to_process;
+        
+        // Check for state transitions
         switch (mode_) {
             case Mode::OAMSearch:
                 if (dots_ >= 80) {
@@ -173,15 +201,15 @@ void PPU::step(Cycles cycles) {
                 }
                 break;
         }
-        
-        // Update LY register
-        memory_.write(REG_LY, ly_);
-        
-        // Update STAT register with current mode
-        u8 stat = memory_.read(REG_STAT);
-        stat = (stat & STAT_MODE_MASK) | static_cast<u8>(mode_);
-        memory_.write(REG_STAT, stat);
     }
+    
+    // Update LY register (once per step call instead of per cycle)
+    memory_.write(REG_LY, ly_);
+    
+    // Update STAT register with current mode (once per step call)
+    u8 stat = memory_.read(REG_STAT);
+    stat = (stat & STAT_MODE_MASK) | static_cast<u8>(mode_);
+    memory_.write(REG_STAT, stat);
 }
 
 void PPU::render_scanline() {

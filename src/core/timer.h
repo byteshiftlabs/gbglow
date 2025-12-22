@@ -32,6 +32,9 @@ public:
     // Update timer state with elapsed cycles
     void step(Cycles cycles);
     
+    // Update only DIV register (for RNG entropy without TIMA interrupts)
+    void step_div_only(Cycles cycles);
+    
     // Read timer registers
     u8 read_div() const;
     u8 read_tima() const;

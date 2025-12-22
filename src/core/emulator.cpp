@@ -1,4 +1,5 @@
 #include "emulator.h"
+#include "timer.h"
 #include "../audio/apu.h"
 #include <stdexcept>
 #include <iostream>
@@ -68,6 +69,10 @@ void Emulator::run_cycles(Cycles cycles) {
         
         // Run PPU for the same number of cycles
         ppu_->step(cpu_cycles);
+        
+        // Update DIV register for RNG (random encounters)
+        // Note: Only updating DIV, not TIMA, to avoid timing issues
+        memory_->timer().step_div_only(cpu_cycles);
         
         // Run APU for audio generation
         memory_->apu().step(cpu_cycles);

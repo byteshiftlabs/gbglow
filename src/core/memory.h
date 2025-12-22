@@ -57,7 +57,7 @@ public:
     // Get cartridge pointer (may be null)
     Cartridge* cartridge();
     
-    // Read/Write operations
+    // Read/Write operations - hot path functions, compiler will inline with optimizations
     u8 read(u16 address) const;
     void write(u16 address, u8 value);
     
