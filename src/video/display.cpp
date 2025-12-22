@@ -12,6 +12,7 @@ Display::Display()
     , texture_(nullptr)
     , audio_device_(0)
     , should_close_(false)
+    , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
 {
 }
@@ -161,6 +162,10 @@ bool Display::should_close() const {
     return should_close_;
 }
 
+bool Display::is_turbo_active() const {
+    return turbo_mode_;
+}
+
 void Display::poll_events(Joypad* joypad) {
     SDL_Event event;
     
@@ -188,6 +193,12 @@ void Display::handle_keydown(int key, Joypad* joypad) {
     // ESC key closes window
     if (key == SDLK_ESCAPE) {
         should_close_ = true;
+        return;
+    }
+    
+    // Space key activates turbo mode (fast-forward)
+    if (key == SDLK_SPACE) {
+        turbo_mode_ = true;
         return;
     }
     
@@ -236,6 +247,12 @@ void Display::handle_keydown(int key, Joypad* joypad) {
 }
 
 void Display::handle_keyup(int key, Joypad* joypad) {
+    // Space key deactivates turbo mode
+    if (key == SDLK_SPACE) {
+        turbo_mode_ = false;
+        return;
+    }
+    
     // Route keyboard input to joypad if available
     if (!joypad) {
         return;
@@ -318,6 +335,12 @@ unsigned int Display::get_audio_queue_size() const {
         return 0;
     }
     return SDL_GetQueuedAudioSize(audio_device_);
+}
+
+void Display::clear_audio_queue() {
+    if (audio_device_ != 0) {
+        SDL_ClearQueuedAudio(audio_device_);
+    }
 }
 
 } // namespace emugbc
