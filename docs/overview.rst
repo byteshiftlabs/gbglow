@@ -4,7 +4,7 @@ Project Overview
 Philosophy
 ----------
 
-EmuGBC prioritizes:
+GBCrush prioritizes:
 
 **Clarity**
    Every component is well-documented with references to hardware behavior.

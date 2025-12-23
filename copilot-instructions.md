@@ -1,6 +1,6 @@
-# EmuGBC Clean Code Standards
+# GBCrush Clean Code Standards
 
-This document defines the coding standards for EmuGBC. The primary goal is **crystal-clear, maintainable code** that serves as an educational reference.
+This document defines the coding standards for GBCrush. The primary goal is **crystal-clear, maintainable code** that serves as an educational reference.
 
 ## Core Principles
 
