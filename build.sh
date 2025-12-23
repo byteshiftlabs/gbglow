@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EmuGBC Build Script
+# GBCrush Build Script
 # Builds the Game Boy Color emulator
 
 set -e  # Exit on error
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== EmuGBC Build Script ===${NC}"
+echo -e "${GREEN}=== GBCrush Build Script ===${NC}"
 
 # Clean previous build
 if [ -d "build" ]; then
@@ -39,5 +39,5 @@ echo -e "${YELLOW}Running tests...${NC}"
 ctest --output-on-failure
 
 echo -e "${GREEN}=== Build Complete! ===${NC}"
-echo -e "${GREEN}Executable: build/emugbc${NC}"
-echo -e "${YELLOW}Usage: ./build/emugbc <rom_file>${NC}"
+echo -e "${GREEN}Executable: build/gbcrush${NC}"
+echo -e "${YELLOW}Usage: ./build/gbcrush <rom_file>${NC}"

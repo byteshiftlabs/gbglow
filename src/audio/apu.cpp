@@ -2,7 +2,7 @@
 #include "../core/memory.h"
 #include <algorithm>
 
-namespace emugbc {
+namespace gbcrush {
 
 // Noise table generation constants
 static constexpr int NOISE7_TABLE_SIZE = 16;      // 128 bits = 16 bytes
