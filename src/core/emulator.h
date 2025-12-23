@@ -96,6 +96,40 @@ public:
      */
     std::string get_save_path() const;
     
+    /**
+     * Save emulator state to file
+     * @param slot Slot number (0-9)
+     * @return true if saved successfully
+     */
+    bool save_state(int slot);
+    
+    /**
+     * Load emulator state from file
+     * @param slot Slot number (0-9)
+     * @return true if loaded successfully
+     */
+    bool load_state(int slot);
+    
+    /**
+     * Delete emulator state file
+     * @param slot Slot number (0-9)
+     * @return true if deleted successfully
+     */
+    bool delete_state(int slot);
+    
+    /**
+     * Get state file path for a slot
+     * @param slot Slot number (0-9)
+     * @return Path to state file
+     */
+    std::string get_state_path(int slot) const;
+    
+    /**
+     * Get ROM path
+     * @return Path to currently loaded ROM
+     */
+    const std::string& get_rom_path() const;
+    
 private:
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
