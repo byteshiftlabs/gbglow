@@ -3,11 +3,16 @@
 #include "../core/types.h"
 #include <vector>
 #include <string>
+#include <map>
+#include <ctime>
 
 // Forward declare SDL types to avoid including SDL in header
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
+
+// Forward declare ImGui context
+struct ImGuiContext;
 
 namespace emugbc {
 
@@ -51,6 +56,86 @@ public:
     void update(const std::vector<u8>& framebuffer);
     
     /**
+     * Check if a ROM should be loaded (from menu)
+     */
+    bool has_pending_rom() const;
+    
+    /**
+     * Get and clear pending ROM path
+     */
+    std::string get_pending_rom();
+    
+    /**
+     * Check if emulator should reset
+     */
+    bool should_reset() const;
+    
+    /**
+     * Clear reset flag
+     */
+    void clear_reset_flag();
+    
+    /**
+     * Check if emulator should pause
+     */
+    bool is_paused() const;
+    
+    /**
+     * Toggle pause state
+     */
+    void toggle_pause();
+    
+    /**
+     * Get current speed multiplier
+     */
+    float get_speed_multiplier() const;
+    
+    /**
+     * Check if save state was requested
+     */
+    int get_save_state_slot() const;
+    
+    /**
+     * Check if load state was requested
+     */
+    int get_load_state_slot() const;
+    
+    /**
+     * Check if delete state was requested
+     */
+    int get_delete_state_slot() const;
+    
+    /**
+     * Clear save/load/delete state request
+     */
+    void clear_state_request();
+    
+    /**
+     * Update slot metadata after save
+     */
+    void update_slot_metadata(int slot);
+    
+    /**
+     * Clear slot metadata after delete
+     */
+    void delete_slot_metadata(int slot);
+    
+    /**
+     * Check if slot file exists
+     */
+    bool check_slot_exists(const std::string& state_path) const;
+    
+    /**
+     * Get slot label with status
+     */
+    std::string get_slot_label(int slot, const std::string& rom_path) const;
+    
+    /**
+     * Set current ROM path for slot tracking
+     */
+    void set_rom_path(const std::string& rom_path);
+    
+    /**
      * Queue audio samples for playback
      * @param samples Vector of stereo samples (left, right) as 8-bit unsigned values (0-255)
      */
@@ -89,15 +174,70 @@ public:
     int width() const;
     int height() const;
     
+    /**
+     * Toggle audio mute
+     */
+    void toggle_mute();
+    
+    /**
+     * Check if audio is muted
+     */
+    bool is_muted() const;
+    
 private:
     SDL_Window* window_;
     SDL_Renderer* renderer_;
     SDL_Texture* texture_;
     unsigned int audio_device_;  // SDL_AudioDeviceID is typedef'd to Uint32
+    ImGuiContext* imgui_context_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup
     int scale_factor_;
+    bool is_muted_;  // Audio muted flag
+    
+    // Menu state
+    std::string pending_rom_path_;
+    bool should_reset_;
+    bool is_paused_;
+    bool show_about_dialog_;
+    bool show_controller_config_;
+    float speed_multiplier_;  // 0.5, 1.0, 2.0, 4.0
+    int save_state_slot_;  // -1 = none, 0-9 = save to slot
+    int load_state_slot_;  // -1 = none, 0-9 = load from slot
+    int delete_state_slot_;  // -1 = none, 0-9 = delete slot
+    
+    // Key bindings
+    struct KeyBindings {
+        int up;
+        int down;
+        int left;
+        int right;
+        int a;
+        int b;
+        int start;
+        int select;
+    };
+    KeyBindings key_bindings_;
+    int waiting_for_key_;  // -1 = not waiting, 0-9 = waiting for specific binding
+    enum WaitingKeyIndex {
+        KEY_UP = 0,
+        KEY_DOWN = 1,
+        KEY_LEFT = 2,
+        KEY_RIGHT = 3,
+        KEY_A = 4,
+        KEY_B = 5,
+        KEY_START = 6,
+        KEY_SELECT = 7
+    };
+    
+    // Slot metadata tracking
+    struct SlotMetadata {
+        bool used;
+        time_t timestamp;
+    };
+    std::map<int, SlotMetadata> slot_metadata_;
+    std::string current_rom_path_;  // Track current ROM path for slot labels
     
     // Game Boy LCD dimensions
     static constexpr int LCD_WIDTH = 160;
@@ -113,6 +253,26 @@ private:
     std::string get_sdl_error() const;
     
     /**
+     * Load key bindings from config file
+     */
+    void load_key_bindings();
+    
+    /**
+     * Save key bindings to config file
+     */
+    void save_key_bindings();
+    
+    /**
+     * Parse SDL keycode from string (e.g., "SDLK_a" -> SDLK_a)
+     */
+    int parse_sdl_keycode(const std::string& keyname);
+    
+    /**
+     * Convert SDL keycode to string (e.g., SDLK_a -> "SDLK_a")
+     */
+    std::string sdl_keycode_to_string(int keycode);
+    
+    /**
      * Handle keyboard press events
      */
     void handle_keydown(int key, Joypad* joypad);
@@ -121,6 +281,21 @@ private:
      * Handle keyboard release events
      */
     void handle_keyup(int key, Joypad* joypad);
+    
+    /**
+     * Render ImGui menu bar
+     */
+    void render_menu_bar();
+    
+    /**
+     * Render about dialog
+     */
+    void render_about_dialog();
+    
+    /**
+     * Render controller configuration dialog
+     */
+    void render_controller_config();
 };
 
 } // namespace emugbc
