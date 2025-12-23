@@ -26,3 +26,8 @@ docs/sphinx/_build/
 
 # Debug executables
 debug_test
+
+# Save files and runtime state
+*.sav
+*.state
+*.ini
