@@ -1,10 +1,10 @@
-# EmuGBC - A Game Boy Color Emulator
+# GBCrush - A Game Boy Color Emulator
 
-**EmuGBC** is a Game Boy Color emulator written in C++17, focusing on code clarity, comprehensive documentation, and educational value.
+**GBCrush** is a Game Boy Color emulator written in C++17, focusing on code clarity, comprehensive documentation, and educational value.
 
 ## Philosophy
 
-EmuGBC emphasizes:
+GBCrush emphasizes:
 
 - **Clear code**: Easy to understand and learn from
 - **Comprehensive documentation**: Every component fully documented
@@ -51,12 +51,12 @@ cmake --build .
 ## Running
 
 ```bash
-./emugbc <rom_file.gb> [num_frames]
+./gbcrush <rom_file.gb> [num_frames]
 ```
 
 ## Documentation
 
-Complete Sphinx documentation available in `docs/sphinx/`:
+Complete Sphinx documentation available in `docs/`:
 
 - **Architecture**: Detailed component documentation (CPU, Memory, PPU, etc.)
 - **API Reference**: Complete API with code examples
@@ -65,12 +65,12 @@ Complete Sphinx documentation available in `docs/sphinx/`:
 
 To build docs:
 ```bash
-cd docs/sphinx
+cd docs
 pip install -r requirements.txt
 make html
 ```
 
-View at `docs/sphinx/_build/html/index.html`
+View at `docs/_build/html/index.html`
 
 ## Testing
 

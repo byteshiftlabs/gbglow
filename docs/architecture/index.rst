@@ -1,10 +1,10 @@
 Architecture
 ============
 
-EmuGBC follows a modular architecture with clear component separation.
+GBCrush follows a modular architecture with clear component separation.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    cpu
    memory
@@ -18,8 +18,8 @@ System Overview
 
 .. code-block:: text
 
-   ┌─────────────────────────────────────────────────────┐
-   │                    Emulator                         │
+   ┌────────────────────────────────────────────────────┐
+   │                    Emulator                        │
    │  ┌────────┐  ┌────────┐  ┌────────┐  ┌──────────┐  │
    │  │  CPU   │  │  PPU   │  │  APU   │  │ Cartridge│  │
    │  │        │  │        │  │        │  │          │  │
