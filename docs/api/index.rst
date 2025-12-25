@@ -1,7 +1,7 @@
 API Reference
 =============
 
-This section documents the public API of EmuGBC's core components.
+This section documents the public API of GBCrush's core components.
 
 .. toctree::
    :maxdepth: 2
@@ -111,7 +111,7 @@ Basic usage example:
 Error Handling
 --------------
 
-EmuGBC uses exceptions for error handling:
+GBCrush uses exceptions for error handling:
 
 .. code-block:: cpp
 
@@ -133,7 +133,7 @@ Common exceptions:
 Thread Safety
 -------------
 
-EmuGBC is **not thread-safe**. All API calls should be made from a single thread.
+GBCrush is **not thread-safe**. All API calls should be made from a single thread.
 
 For multi-threaded applications:
 
