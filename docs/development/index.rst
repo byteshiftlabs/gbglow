@@ -1,7 +1,7 @@
 Development Guide
 =================
 
-How to build, test, and contribute to EmuGBC.
+How to build, test, and contribute to GBCrush.
 
 Building from Source
 --------------------
@@ -25,8 +25,8 @@ Clone Repository
 
 .. code-block:: bash
 
-   git clone https://github.com/cmelnu/emugbc.git
-   cd emugbc
+   git clone https://github.com/cmelnulabs/gbcrush.git
+   cd gbcrush
 
 Build Steps
 ~~~~~~~~~~~
@@ -43,7 +43,7 @@ Build Steps
    # Build
    cmake --build .
    
-   # The executable is at: build/emugbc
+   # The executable is at: build/gbcrush
 
 Build Types
 ~~~~~~~~~~~
@@ -425,12 +425,12 @@ Use Debugger
 .. code-block:: bash
 
    # GDB
-   gdb ./emugbc
+   gdb ./gbcrush
    (gdb) break CPU::step
    (gdb) run tetris.gb
    
    # LLDB
-   lldb ./emugbc
+   lldb ./gbcrush
    (lldb) breakpoint set --name CPU::step
    (lldb) run tetris.gb
 

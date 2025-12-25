@@ -4,9 +4,9 @@ import os
 import sys
 
 # -- Project information -----------------------------------------------------
-project = 'EmuGBC'
-copyright = '2025, EmuGBC Contributors'
-author = 'EmuGBC Contributors'
+project = 'GBCrush'
+copyright = '2025, GBCrush Contributors'
+author = 'GBCrush Contributors'
 release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
