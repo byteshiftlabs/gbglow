@@ -2,7 +2,7 @@
 
 #include "cartridge.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * MBC1 (Memory Bank Controller 1)
@@ -34,4 +34,4 @@ private:
     size_t get_rom_bank() const;
 };
 
-} // namespace emugbc
+} // namespace gbcrush

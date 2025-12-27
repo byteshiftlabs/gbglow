@@ -1045,4 +1045,4 @@ void APU::deserialize(const u8* data, size_t& offset)
     audio_buffer_.clear();
 }
 
-} // namespace emugbc
+} // namespace gbcrush
