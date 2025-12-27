@@ -8,7 +8,7 @@
 #include <thread>
 #include <cstdio>
 
-namespace emugbc {
+namespace gbcrush {
 
 Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
@@ -498,4 +498,4 @@ bool Emulator::delete_state(int slot) {
     return false;  // File doesn't exist or couldn't be deleted
 }
 
-} // namespace emugbc
+} // namespace gbcrush
