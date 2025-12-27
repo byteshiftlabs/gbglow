@@ -5,7 +5,7 @@
 #include <string>
 #include <memory>
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * Cartridge Base Class
@@ -97,4 +97,4 @@ public:
     void write(u16 address, u8 value) override;
 };
 
-} // namespace emugbc
+} // namespace gbcrush

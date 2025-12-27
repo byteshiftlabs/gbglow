@@ -9,7 +9,7 @@
 #include "../video/ppu.h"
 #include "timer.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 // Memory map boundaries
 namespace {
@@ -526,4 +526,4 @@ void Memory::deserialize(const u8* data, size_t& offset)
     interrupt_enable_ = data[offset++];
 }
 
-} // namespace emugbc
+} // namespace gbcrush
