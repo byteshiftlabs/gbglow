@@ -50,6 +50,7 @@ set(CORE_SOURCES
     src/core/instructions.cpp
     src/core/emulator.cpp
     src/core/timer.cpp
+    src/core/savestate.cpp
 )
 
 set(VIDEO_SOURCES
@@ -86,7 +87,7 @@ set(IMGUI_SOURCES
 )
 
 # Main executable
-add_executable(emugbc
+add_executable(gbcrush
     src/main.cpp
     ${CORE_SOURCES}
     ${VIDEO_SOURCES}
@@ -96,7 +97,7 @@ add_executable(emugbc
     ${IMGUI_SOURCES}
 )
 
-target_include_directories(emugbc PRIVATE
+target_include_directories(gbcrush PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
@@ -105,8 +106,8 @@ target_include_directories(emugbc PRIVATE
 # Find and link SDL2 for graphics output
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
-target_include_directories(emugbc PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(emugbc ${SDL2_LIBRARIES})
+target_include_directories(gbcrush PRIVATE ${SDL2_INCLUDE_DIRS})
+target_link_libraries(gbcrush ${SDL2_LIBRARIES})
 
 # Testing support
 enable_testing()
