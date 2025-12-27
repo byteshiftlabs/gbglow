@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
 #include <ctime>
 
 // Forward declare SDL types to avoid including SDL in header
@@ -17,6 +18,7 @@ struct ImGuiContext;
 namespace gbcrush {
 
 class Joypad;
+class Gamepad;
 
 /**
  * Display Output System
@@ -190,6 +192,9 @@ private:
     SDL_Texture* texture_;
     unsigned int audio_device_;  // SDL_AudioDeviceID is typedef'd to Uint32
     ImGuiContext* imgui_context_;
+    
+    // Gamepad support
+    std::unique_ptr<Gamepad> gamepad_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup
