@@ -2,7 +2,7 @@
 
 #include "cartridge.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * MBC5 (Memory Bank Controller 5)
@@ -42,4 +42,4 @@ private:
     bool rumble_enabled_;   // Rumble motor state (bit 3 of RAM bank register)
 };
 
-} // namespace emugbc
+} // namespace gbcrush

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <fstream>
 
-namespace emugbc {
+namespace gbcrush {
 
 MBC3::MBC3(std::vector<u8> rom_data, size_t ram_size, bool has_rtc)
     : Cartridge(std::move(rom_data), ram_size)
@@ -309,4 +309,4 @@ bool MBC3::load_ram_from_file(const std::string& path) {
     return true;
 }
 
-} // namespace emugbc
+} // namespace gbcrush
