@@ -1,5 +1,6 @@
 #include "display.h"
 #include "../input/joypad.h"
+#include "../input/gamepad.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -20,6 +21,7 @@ Display::Display()
     , texture_(nullptr)
     , audio_device_(0)
     , imgui_context_(nullptr)
+    , gamepad_(std::make_unique<Gamepad>())
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -46,6 +48,9 @@ Display::Display()
     
     // Load key bindings from config file (will override defaults if found)
     load_key_bindings();
+    
+    // Load gamepad configuration
+    gamepad_->load_config("config/keybindings.conf");
 }
 
 Display::~Display() {
@@ -84,10 +89,13 @@ Display::~Display() {
 bool Display::initialize(const std::string& title, int scale_factor) {
     scale_factor_ = scale_factor;
     
-    // Initialize SDL video and audio subsystems
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+    // Initialize SDL video, audio, and game controller subsystems
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
         return false;
     }
+    
+    // Initialize gamepad support
+    gamepad_->initialize();
     
     // Hint: Don't throttle when window is unfocused (allows background execution)
     SDL_SetHint(SDL_HINT_VIDEO_ALLOW_SCREENSAVER, "1");
@@ -286,6 +294,26 @@ void Display::poll_events(Joypad* joypad) {
                 if (!imgui_wants_keyboard) {
                     handle_keyup(event.key.keysym.sym, joypad);
                 }
+                break;
+                
+            case SDL_CONTROLLERDEVICEADDED:
+                gamepad_->on_controller_added(event.cdevice.which);
+                break;
+                
+            case SDL_CONTROLLERDEVICEREMOVED:
+                gamepad_->on_controller_removed(event.cdevice.which);
+                break;
+                
+            case SDL_CONTROLLERBUTTONDOWN:
+                gamepad_->on_button_down(event.cbutton.which, event.cbutton.button, joypad);
+                break;
+                
+            case SDL_CONTROLLERBUTTONUP:
+                gamepad_->on_button_up(event.cbutton.which, event.cbutton.button, joypad);
+                break;
+                
+            case SDL_CONTROLLERAXISMOTION:
+                gamepad_->on_axis_motion(event.caxis.which, event.caxis.axis, event.caxis.value, joypad);
                 break;
                 
             default:
