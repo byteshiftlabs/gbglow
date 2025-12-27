@@ -18,26 +18,90 @@ System Overview
 
 .. code-block:: text
 
-   ┌────────────────────────────────────────────────────┐
-   │                    Emulator                        │
-   │  ┌────────┐  ┌────────┐  ┌────────┐  ┌──────────┐  │
-   │  │  CPU   │  │  PPU   │  │  APU   │  │ Cartridge│  │
-   │  │        │  │        │  │        │  │          │  │
-   │  │ - Regs │  │ - LCD  │  │ - CH1  │  │ - ROM    │  │
-   │  │ - ALU  │  │ - Tile │  │ - CH2  │  │ - RAM    │  │
-   │  │ - Ctrl │  │ - BG   │  │ - CH3  │  │ - MBC    │  │
-   │  └────┬───┘  └────┬───┘  │ - CH4  │  └────┬─────┘  │
-   │       │           │      └────┬───┘       │        │
-   │       └───────────┼───────────┼───────────┘        │
-   │                   │           │                    │
-   │            ┌──────▼───────────▼──┐                 │
-   │            │       Memory        │                 │
-   │            │                     │                 │
-   │            │ - VRAM   - I/O      │                 │
-   │            │ - WRAM   - APU Regs │                 │
-   │            │ - OAM    - Wave RAM │                 │
-   │            └─────────────────────┘                 │
-   └────────────────────────────────────────────────────┘
+   ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+   │                              GAME BOY COLOR ARCHITECTURE                                │
+   ├─────────────────────────────────────────────────────────────────────────────────────────┤
+   │                                                                                         │
+   │  ┌─────────────────────┐      ┌─────────────────────┐      ┌─────────────────────────┐  │
+   │  │    CPU (LR35902)    │      │    PPU (Graphics)   │      │      CARTRIDGE          │  │
+   │  │    @ 4.19/8.38 MHz  │      │                     │      │                         │  │
+   │  │  ┌───────┬────────┐ │      │  ┌───────────────┐  │      │  ┌───────────────────┐  │  │
+   │  │  │ Regs  │  ALU   │ │      │  │  Pixel FIFO   │  │      │  │    ROM Banks      │  │  │
+   │  │  │ A,F   │ 8-bit  │ │      │  │  Background   │  │      │  │  (up to 8MB)      │  │  │
+   │  │  │ B,C   │ ops    │ │      │  │  Window       │  │      │  ├───────────────────┤  │  │
+   │  │  │ D,E   │        │ │      │  │  Sprites(OBJ) │  │      │  │    RAM Banks      │  │  │
+   │  │  │ H,L   ├────────┤ │      │  ├───────────────┤  │      │  │  (up to 128KB)    │  │  │
+   │  │  │ SP,PC │ Control│ │      │  │  Tile Data    │  │      │  ├───────────────────┤  │  │
+   │  │  ├───────┤ Unit   │ │      │  │  Tile Maps    │  │      │  │   MBC Controller  │  │  │
+   │  │  │ IME   │        │ │      │  │  OAM (40 spr) │  │      │  │  MBC1/MBC3/MBC5   │  │  │
+   │  │  │ IE/IF │ Decode │ │      │  │  Palettes     │  │      │  │  Bank Switching   │  │  │
+   │  │  └───────┴────────┘ │      │  └───────────────┘  │      │  │  RTC (MBC3)       │  │  │
+   │  └──────────┬──────────┘      └──────────┬──────────┘      └──────────┬──────────────┘  │
+   │             │                            │                            │                 │
+   │  ═══════════╪════════════════════════════╪════════════════════════════╪═════════════    │
+   │  ║          │      ADDRESS BUS (16-bit)  │                            │            ║    │
+   │  ═══════════╪════════════════════════════╪════════════════════════════╪═════════════    │
+   │             │                            │                            │                 │
+   │  ───────────┼────────────────────────────┼────────────────────────────┼─────────────    │
+   │  │          │        DATA BUS (8-bit)    │                            │            │    │
+   │  ───────────┼────────────────────────────┼────────────────────────────┼─────────────    │
+   │             │                            │                            │                 │
+   │  - - - - - -│- - - - - - - - - - - - - - │- - - - - - - - - - - - - - │- - - - - - -    │
+   │  :          │    CONTROL BUS (RD/WR/CLK) │                            │            :    │
+   │  - - - - - -│- - - - - - - - - - - - - - │- - - - - - - - - - - - - - │- - - - - - -    │
+   │             │                            │                            │                 │
+   │             ▼                            ▼                            ▼                 │
+   │  ┌──────────────────────────────────────────────────────────────────────────────────┐   │
+   │  │                              MEMORY MAP (64KB Address Space)                     │   │
+   │  ├────────────┬────────────┬────────────┬────────────┬────────────┬─────────────────┤   │
+   │  │ 0000-3FFF  │ 4000-7FFF  │ 8000-9FFF  │ A000-BFFF  │ C000-DFFF  │  E000-FFFF      │   │
+   │  │  ROM Bank  │  ROM Bank  │    VRAM    │  Ext RAM   │    WRAM    │  Echo/OAM/IO/   │   │
+   │  │     0      │    1-N     │  (2 banks) │ (Cartridge)│  (8 banks) │  HRAM/IE        │   │
+   │  │  (16 KB)   │  (16 KB)   │   (8 KB)   │   (8 KB)   │   (8 KB)   │                 │   │
+   │  └────────────┴────────────┴────────────┴────────────┴────────────┴─────────────────┘   │
+   │                                                                                         │
+   │  ┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐                  │
+   │  │   APU (Audio)     │   │   TIMER           │   │   JOYPAD/INPUT    │                  │
+   │  │  ┌─────┬─────┐    │   │  ┌─────────────┐  │   │  ┌─────────────┐  │                  │
+   │  │  │ CH1 │ CH2 │    │   │  │ DIV  (FF04) │  │   │  │ P1 (FF00)   │  │                  │
+   │  │  │Pulse│Pulse│    │   │  │ TIMA (FF05) │  │   │  │ Buttons:    │  │                  │
+   │  │  │+Swp │     │    │   │  │ TMA  (FF06) │  │   │  │ A,B,Start,  │  │                  │
+   │  │  ├─────┼─────┤    │   │  │ TAC  (FF07) │  │   │  │ Select,     │  │                  │
+   │  │  │ CH3 │ CH4 │    │   │  └─────────────┘  │   │  │ D-Pad       │  │                  │
+   │  │  │Wave │Noise│    │   │  Timer Interrupt  │   │  └─────────────┘  │                  │
+   │  │  │ RAM │LFSR │    │   │  @ 4/16/64/256 Hz │   │  Joypad Interrupt │                  │
+   │  │  └─────┴─────┘    │   └───────────────────┘   └───────────────────┘                  │
+   │  │  Mixer → DAC      │                                                                  │
+   │  └───────────────────┘   ┌───────────────────┐   ┌───────────────────┐                  │
+   │                          │   DMA             │   │   SERIAL I/O      │                  │
+   │  ┌───────────────────┐   │  ┌─────────────┐  │   │  ┌─────────────┐  │                  │
+   │  │  LCD CONTROLLER   │   │  │ OAM DMA     │  │   │  │ SB (FF01)   │  │                  │
+   │  │  ┌─────────────┐  │   │  │ (FF46)      │  │   │  │ SC (FF02)   │  │                  │
+   │  │  │ LCDC (FF40) │  │   │  │ 160 cycles  │  │   │  │ Link Cable  │  │                  │
+   │  │  │ STAT (FF41) │  │   │  ├─────────────┤  │   │  │ 8KB/s       │  │                  │
+   │  │  │ SCY  (FF42) │  │   │  │ HDMA/GDMA   │  │   │  └─────────────┘  │                  │
+   │  │  │ SCX  (FF43) │  │   │  │ (GBC only)  │  │   │  Serial Interrupt │                  │
+   │  │  │ LY   (FF44) │  │   │  │ VRAM DMA    │  │   └───────────────────┘                  │
+   │  │  │ LYC  (FF45) │  │   │  └─────────────┘  │                                          │
+   │  │  │ WY   (FF4A) │  │   └───────────────────┘   ┌───────────────────┐                  │
+   │  │  │ WX   (FF4B) │  │                           │   INTERRUPTS      │                  │
+   │  │  └─────────────┘  │                           │  ┌─────────────┐  │                  │
+   │  │  Mode: 0/1/2/3    │                           │  │ VBlank  $40 │  │                  │
+   │  │  144 lines + 10   │                           │  │ LCD     $48 │  │                  │
+   │  │  VBlank lines     │                           │  │ Timer   $50 │  │                  │
+   │  └───────────────────┘                           │  │ Serial  $58 │  │                  │
+   │                                                  │  │ Joypad  $60 │  │                  │
+   │                                                  │  └─────────────┘  │                  │
+   │                                                  └───────────────────┘                  │
+   │                                                                                         │
+   │  ┌──────────────────────────────────────────────────────────────────────────────────┐   │
+   │  │                           I/O REGISTERS (FF00-FF7F)                              │   │
+   │  ├──────────────┬──────────────┬──────────────┬──────────────┬──────────────────────┤   │
+   │  │   Joypad     │    Serial    │    Timer     │  Interrupt   │    Sound/LCD/DMA     │   │
+   │  │   FF00       │  FF01-FF02   │  FF04-FF07   │  FF0F, FFFF  │    FF10-FF4B         │   │
+   │  └──────────────┴──────────────┴──────────────┴──────────────┴──────────────────────┘   │
+   │                                                                                         │
+   └─────────────────────────────────────────────────────────────────────────────────────────┘
 
 Component Interaction
 ---------------------
@@ -50,37 +114,3 @@ Execution Flow
 3. **Cartridge** provides ROM data via memory bus
 4. **PPU** runs in parallel, consuming cycles
 5. **Interrupts** signal events (VBlank, etc.)
-
-Timing Synchronization
-~~~~~~~~~~~~~~~~~~~~~~
-
-All components run in lock-step based on M-cycles:
-
-* CPU executes instruction (1-6 M-cycles)
-* PPU advances by same number of cycles
-* Interrupts checked after each instruction
-
-Memory Access
-~~~~~~~~~~~~~
-
-Memory requests route through the central Memory bus:
-
-* CPU reads/writes go through Memory::read/write
-* Cartridge handles ROM/RAM banking transparently
-* PPU accesses VRAM directly via memory bus
-* I/O registers mapped at 0xFF00-0xFF7F
-
-Design Principles
------------------
-
-Single Responsibility
-   Each class has one clear purpose
-
-Clear Interfaces
-   Public APIs are minimal and well-documented
-
-Hardware Fidelity
-   Implementation matches actual GB hardware behavior
-
-Testability
-   Components can be tested in isolation

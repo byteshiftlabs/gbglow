@@ -10,35 +10,6 @@ GBCrush emphasizes:
 - **Comprehensive documentation**: Every component fully documented
 - **Educational value**: Reference implementation for learning GB emulation
 
-## Current Status
-
-✅ **Phase 1 Complete: CPU Core**
-- ~180 standard opcodes implemented
-- All 256 CB prefix instructions
-- Complete flag handling
-
-✅ **Phase 2 Complete: Basic PPU**
-- Background tile rendering
-- LCD timing (4 modes)
-- VBlank interrupt
-- 160x144 framebuffer
-
-✅ **Phase 3 Complete: Audio**
-- 4 sound channels (2 square, 1 wave, 1 noise)
-- APU implementation
-- Real-time SDL2 audio output
-- Sweep, envelope, and length support
-
-✅ **Phase 4 Complete: Graphics**
-- Sprite rendering (8x8 and 8x16 modes)
-- OAM DMA transfer for fast sprite updates
-- Window layer with position control
-- Sprite priority and transparency
-- 10 sprites per scanline limit
-
-⏳ **Phase 5: Optional Enhancements**
-- Game Boy Color palette support
-- Additional polish and optimization
 
 ## Building
 
@@ -84,9 +55,9 @@ cd build
 - Sharp LR35902 CPU emulation (~180 opcodes)
 - Complete memory system (64KB address space)
 - Background and window tile rendering
-- **Sprite rendering (8x8 and 8x16 modes)**
-- **OAM DMA transfer for sprite updates**
-- **Full audio emulation (4 channels)**
+- Sprite rendering (8x8 and 8x16 modes)
+- OAM DMA transfer for sprite updates
+- Full audio emulation (4 channels)
 - MBC1, MBC3, and MBC5 cartridge support
 - Battery-backed save file support
 - Complete interrupt handling (VBlank, Timer, Joypad, etc.)

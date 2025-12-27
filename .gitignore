@@ -31,3 +31,9 @@ debug_test
 *.sav
 *.state
 *.ini
+
+# Python virtual environment
+venv/
+
+# Sphinx build output
+docs/_build/
