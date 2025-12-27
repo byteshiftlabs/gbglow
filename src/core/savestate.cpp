@@ -2,6 +2,7 @@
 #include "cpu.h"
 #include "memory.h"
 #include "../video/ppu.h"
+#include "../cartridge/cartridge.h"
 #include <filesystem>
 
 namespace gbcrush {
@@ -43,20 +44,20 @@ bool SaveState::save(int slot, const std::string& rom_path,
     
     // Save CPU state
     const auto& regs = cpu.registers();
-    write_u8(file, regs.a());
-    write_u8(file, regs.f());
-    write_u8(file, regs.b());
-    write_u8(file, regs.c());
-    write_u8(file, regs.d());
-    write_u8(file, regs.e());
-    write_u8(file, regs.h());
-    write_u8(file, regs.l());
-    write_u16(file, regs.sp());
-    write_u16(file, regs.pc());
+    write_u8(file, regs.a);
+    write_u8(file, regs.f);
+    write_u8(file, regs.b);
+    write_u8(file, regs.c);
+    write_u8(file, regs.d);
+    write_u8(file, regs.e);
+    write_u8(file, regs.h);
+    write_u8(file, regs.l);
+    write_u16(file, regs.sp);
+    write_u16(file, regs.pc);
     
     // Save CPU flags
     write_u8(file, cpu.ime() ? 1 : 0);
-    write_u8(file, cpu.halted() ? 1 : 0);
+    write_u8(file, cpu.is_halted() ? 1 : 0);
     
     // Save Memory state
     // Work RAM (8KB)
@@ -132,16 +133,16 @@ bool SaveState::load(int slot, const std::string& rom_path,
     
     // Load CPU state
     auto& regs = cpu.registers();
-    regs.set_a(read_u8(file));
-    regs.set_f(read_u8(file));
-    regs.set_b(read_u8(file));
-    regs.set_c(read_u8(file));
-    regs.set_d(read_u8(file));
-    regs.set_e(read_u8(file));
-    regs.set_h(read_u8(file));
-    regs.set_l(read_u8(file));
-    regs.set_sp(read_u16(file));
-    regs.set_pc(read_u16(file));
+    regs.a = read_u8(file);
+    regs.f = read_u8(file);
+    regs.b = read_u8(file);
+    regs.c = read_u8(file);
+    regs.d = read_u8(file);
+    regs.e = read_u8(file);
+    regs.h = read_u8(file);
+    regs.l = read_u8(file);
+    regs.sp = read_u16(file);
+    regs.pc = read_u16(file);
     
     // Load CPU flags
     cpu.set_ime(read_u8(file) != 0);
