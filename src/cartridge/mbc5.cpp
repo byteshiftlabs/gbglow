@@ -1,6 +1,6 @@
 #include "mbc5.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * MBC5 Constructor
@@ -109,4 +109,4 @@ void MBC5::write(u16 address, u8 value) {
     }
 }
 
-} // namespace emugbc
+} // namespace gbcrush

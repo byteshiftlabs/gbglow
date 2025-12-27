@@ -2,7 +2,7 @@
 #include "cpu_constants.h"
 #include <stdexcept>
 
-namespace emugbc {
+namespace gbcrush {
 
 // CGB register addresses
 namespace {
@@ -1168,4 +1168,4 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     return CYCLES_MEMORY_READ;  // Shouldn't reach here
 }
 
-} // namespace emugbc
+} // namespace gbcrush
