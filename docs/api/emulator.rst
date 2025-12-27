@@ -1,426 +1,137 @@
-Emulator Class
-==============
+Emulator
+========
 
-The main coordinator class that ties all components together.
+Main emulator class that coordinates all Game Boy hardware components.
 
-Class Declaration
------------------
+Owns and manages the CPU, Memory, PPU, APU, Timer, and Joypad. Provides
+the primary interface for loading ROMs and controlling execution.
 
-.. code-block:: cpp
+**Header:** ``core/emulator.h``
 
-   class Emulator {
-   public:
-       Emulator();
-       ~Emulator();
-       
-       bool load_rom(const std::string& path);
-       void reset();
-       
-       void run_frame();
-       Cycles run_cycles(Cycles cycles);
-       
-       CPU& get_cpu();
-       PPU& get_ppu();
-       Memory& get_memory();
-       
-       const CPU& get_cpu() const;
-       const PPU& get_ppu() const;
-       const Memory& get_memory() const;
-       
-   private:
-       Memory memory_;
-       CPU cpu_;
-       PPU ppu_;
-   };
+**Namespace:** ``gbcrush``
 
-Constructor
------------
 
-.. code-block:: cpp
+Constructor & Destructor
+------------------------
 
-   Emulator::Emulator()
-       : cpu_(memory_),
-         ppu_(memory_)
-   {
-   }
+.. cpp:function:: Emulator::Emulator()
 
-Creates a new emulator instance with:
+   Creates a new emulator instance with all components initialized to
+   power-on state (post-boot ROM values).
 
-* 64KB memory system
-* Sharp LR35902 CPU
-* Picture Processing Unit
-* All components initialized to power-on state
+.. cpp:function:: Emulator::~Emulator()
 
-ROM Loading
------------
+   Destroys the emulator. Automatically saves battery-backed RAM if a
+   cartridge with save support is loaded.
 
-load_rom()
-~~~~~~~~~~
 
-.. code-block:: cpp
+ROM Management
+--------------
 
-   bool load_rom(const std::string& path);
+.. cpp:function:: bool Emulator::load_rom(const std::string& path)
 
-Loads a Game Boy ROM file.
+   Loads a Game Boy ROM file.
+   
+   :param path: Path to ROM file (``.gb`` or ``.gbc``)
+   :return: ``true`` on success, ``false`` on failure
+   :throws std::runtime_error: Unsupported cartridge type
+   :throws std::ios_base::failure: File I/O error
+   
+   Automatically loads the corresponding ``.sav`` file if the cartridge
+   has battery-backed RAM.
 
-**Parameters**
-   * ``path`` - Path to ROM file (.gb or .gbc)
+.. cpp:function:: void Emulator::reset()
 
-**Returns**
-   * ``true`` on success
-   * ``false`` on failure
+   Resets emulator to power-on state. Preserves loaded ROM and
+   battery-backed save data.
 
-**Example**
+.. cpp:function:: const std::string& Emulator::get_rom_path() const
 
-.. code-block:: cpp
+   :return: Path to currently loaded ROM file
 
-   Emulator emulator;
-   if (!emulator.load_rom("tetris.gb")) {
-       std::cerr << "Failed to load ROM\n";
-       return 1;
-   }
+.. cpp:function:: std::string Emulator::get_save_path() const
 
-**Supported Formats**
-   * ROM-only cartridges
-   * MBC1 cartridges
-   * Battery-backed RAM
+   :return: Path to ``.sav`` file for current ROM
 
-**Throws**
-   * ``std::runtime_error`` - Unsupported cartridge type
-   * ``std::ios_base::failure`` - File I/O error
 
-Execution Control
------------------
+Execution
+---------
 
-run_frame()
-~~~~~~~~~~~
+.. cpp:function:: void Emulator::run_frame()
 
-.. code-block:: cpp
+   Executes exactly one frame (70,224 M-cycles).
+   
+   After returning, the framebuffer contains a complete rendered frame.
 
-   void run_frame();
+.. cpp:function:: void Emulator::run_cycles(Cycles cycles)
 
-Executes exactly one frame (70224 cycles, ~16.67ms).
+   Executes approximately the specified number of M-cycles.
+   
+   :param cycles: Target number of cycles to execute
+   
+   Actual cycles may exceed target (instructions are atomic).
 
-**Frame Duration**
-   * 70224 M-cycles
-   * ~59.7 Hz (60 fps)
-   * Includes VBlank period
+.. cpp:function:: void Emulator::run(const std::string& window_title, int scale_factor = 4)
 
-**Example**
+   Main game loop with integrated display and input handling.
+   
+   :param window_title: Window title
+   :param scale_factor: Display scale (default 4x)
+   
+   Runs until window is closed.
 
-.. code-block:: cpp
-
-   // Main emulation loop
-   while (running) {
-       emulator.run_frame();
-       
-       // Render frame
-       const auto& framebuffer = emulator.get_ppu().get_framebuffer();
-       render_to_screen(framebuffer);
-       
-       // Cap to 60 fps
-       std::this_thread::sleep_until(next_frame_time);
-       next_frame_time += 16ms;
-   }
-
-run_cycles()
-~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   Cycles run_cycles(Cycles cycles);
-
-Executes a specific number of cycles.
-
-**Parameters**
-   * ``cycles`` - Number of M-cycles to execute
-
-**Returns**
-   * Actual cycles executed (may differ slightly)
-
-**Example**
-
-.. code-block:: cpp
-
-   // Run until next VBlank
-   Cycles cycles_until_vblank = calculate_vblank_cycles();
-   emulator.run_cycles(cycles_until_vblank);
-
-**Implementation**
-
-.. code-block:: cpp
-
-   Cycles Emulator::run_cycles(Cycles cycles) {
-       Cycles executed = 0;
-       
-       while (executed < cycles) {
-           // Execute one instruction
-           Cycles instruction_cycles = cpu_.step();
-           
-           // Update PPU with same timing
-           ppu_.step(instruction_cycles);
-           
-           executed += instruction_cycles;
-       }
-       
-       return executed;
-   }
-
-Reset
------
-
-reset()
-~~~~~~~
-
-.. code-block:: cpp
-
-   void reset();
-
-Resets emulator to power-on state.
-
-**Resets**
-   * All CPU registers
-   * Memory contents
-   * PPU state
-   * Cartridge state (if applicable)
-
-**Does Not Reset**
-   * Loaded ROM
-   * Battery-backed RAM
-
-**Example**
-
-.. code-block:: cpp
-
-   // Reset after game over
-   if (game_over) {
-       emulator.reset();
-   }
 
 Component Access
 ----------------
 
-get_cpu()
-~~~~~~~~~
+.. cpp:function:: CPU& Emulator::cpu()
+.. cpp:function:: const CPU& Emulator::cpu() const
 
-.. code-block:: cpp
+   :return: Reference to the CPU
 
-   CPU& get_cpu();
-   const CPU& get_cpu() const;
+.. cpp:function:: PPU& Emulator::ppu()
+.. cpp:function:: const PPU& Emulator::ppu() const
 
-Returns reference to CPU instance.
+   :return: Reference to the PPU
 
-**Use Cases**
-   * Read register values
-   * Inspect CPU state
-   * Debug support
+.. cpp:function:: Memory& Emulator::memory()
 
-**Example**
+   :return: Reference to Memory
 
-.. code-block:: cpp
+.. cpp:function:: Joypad& Emulator::joypad()
 
-   const auto& cpu = emulator.get_cpu();
-   const auto& regs = cpu.get_registers();
-   
-   std::cout << "PC: " << std::hex << regs.pc << '\n';
-   std::cout << "SP: " << std::hex << regs.sp << '\n';
+   :return: Reference to Joypad
 
-get_ppu()
-~~~~~~~~~
+.. cpp:function:: Cartridge* Emulator::cartridge()
 
-.. code-block:: cpp
+   :return: Pointer to loaded cartridge, or ``nullptr`` if none loaded
 
-   PPU& get_ppu();
-   const PPU& get_ppu() const;
-
-Returns reference to PPU instance.
-
-**Use Cases**
-   * Access framebuffer
-   * Render display
-   * Debug graphics
-
-**Example**
-
-.. code-block:: cpp
-
-   const auto& ppu = emulator.get_ppu();
-   const auto& fb = ppu.get_framebuffer();
-   
-   // Render to screen
-   for (int y = 0; y < 144; ++y) {
-       for (int x = 0; x < 160; ++x) {
-           u8 color = fb[y * 160 + x];
-           put_pixel(x, y, color);
-       }
-   }
-
-get_memory()
-~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   Memory& get_memory();
-   const Memory& get_memory() const;
-
-Returns reference to Memory instance.
-
-**Use Cases**
-   * Direct memory access
-   * Save states
-   * Memory debugging
-
-**Example**
-
-.. code-block:: cpp
-
-   const auto& memory = emulator.get_memory();
-   
-   // Read WRAM
-   u8 value = memory.read(0xC000);
-   
-   // Dump memory region
-   for (u16 addr = 0xC000; addr < 0xD000; ++addr) {
-       std::cout << std::hex << static_cast<int>(memory.read(addr)) << ' ';
-   }
-
-State Management
-----------------
 
 Save States
-~~~~~~~~~~~
-
-Not yet implemented. Future API:
-
-.. code-block:: cpp
-
-   class Emulator {
-   public:
-       // Save current state
-       std::vector<u8> save_state() const;
-       
-       // Restore saved state
-       void load_state(const std::vector<u8>& state);
-   };
-
-**Will Include**
-   * All CPU registers
-   * All memory
-   * PPU state
-   * Cartridge state
-
-Performance
 -----------
 
-Timing
-~~~~~~
+.. cpp:function:: bool Emulator::save_state(int slot)
 
-One frame execution:
-
-* 70224 M-cycles
-* ~180,000 instructions
-* ~10-20ms on modern CPU
-
-Optimization Tips
-~~~~~~~~~~~~~~~~~
-
-1. **Batch Execution**: Use ``run_frame()`` instead of ``run_cycles(1)``
-2. **Reduce Rendering**: Don't render every frame if not needed
-3. **Release Build**: Use -O3 optimization
-4. **Profile**: Focus on CPU instruction dispatch
-
-Example: Frame Skipping
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   constexpr int FRAME_SKIP = 2;  // Render every 3rd frame
+   Saves complete emulator state to a slot.
    
-   for (int frame = 0; frame < 180; ++frame) {
-       emulator.run_frame();
-       
-       if (frame % (FRAME_SKIP + 1) == 0) {
-           // Only render some frames
-           emulator.get_ppu().render_to_terminal();
-       }
-   }
+   :param slot: Slot number (0-9)
+   :return: ``true`` on success
 
-Thread Safety
--------------
+.. cpp:function:: bool Emulator::load_state(int slot)
 
-The ``Emulator`` class is **not thread-safe**.
-
-For multi-threaded use:
-
-.. code-block:: cpp
-
-   // Emulation thread
-   std::thread emu_thread([&emulator]() {
-       while (running) {
-           emulator.run_frame();
-       }
-   });
+   Loads emulator state from a slot.
    
-   // Render thread (needs synchronization!)
-   std::mutex frame_mutex;
-   std::thread render_thread([&emulator, &frame_mutex]() {
-       while (running) {
-           std::lock_guard lock(frame_mutex);
-           const auto& fb = emulator.get_ppu().get_framebuffer();
-           render(fb);
-       }
-   });
+   :param slot: Slot number (0-9)
+   :return: ``true`` on success
 
-Debugging
----------
+.. cpp:function:: bool Emulator::delete_state(int slot)
 
-Example: Breakpoint Support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Deletes a save state file.
+   
+   :param slot: Slot number (0-9)
+   :return: ``true`` on success
 
-.. code-block:: cpp
+.. cpp:function:: std::string Emulator::get_state_path(int slot) const
 
-   class DebuggingEmulator : public Emulator {
-   public:
-       void add_breakpoint(u16 address) {
-           breakpoints_.insert(address);
-       }
-       
-       void run_until_breakpoint() {
-           while (true) {
-               auto& cpu = get_cpu();
-               u16 pc = cpu.get_registers().pc;
-               
-               if (breakpoints_.count(pc)) {
-                   std::cout << "Breakpoint at " << std::hex << pc << '\n';
-                   break;
-               }
-               
-               run_cycles(1);
-           }
-       }
-       
-   private:
-       std::set<u16> breakpoints_;
-   };
-
-Example: Instruction Tracing
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   void trace_execution(Emulator& emulator, int num_instructions) {
-       auto& cpu = emulator.get_cpu();
-       auto& memory = emulator.get_memory();
-       
-       for (int i = 0; i < num_instructions; ++i) {
-           auto& regs = cpu.get_registers();
-           u8 opcode = memory.read(regs.pc);
-           
-           std::cout << std::hex 
-                     << "PC:" << regs.pc << " "
-                     << "OP:" << static_cast<int>(opcode) << " "
-                     << "A:" << static_cast<int>(regs.a) << '\n';
-           
-           emulator.run_cycles(1);
-       }
-   }
+   :param slot: Slot number (0-9)
+   :return: Path to state file for given slot

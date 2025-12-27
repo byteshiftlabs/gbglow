@@ -13,9 +13,6 @@ GBCrush follows a modular architecture with clear component separation.
    interrupts
    cartridge
 
-System Overview
----------------
-
 .. code-block:: text
 
    ┌─────────────────────────────────────────────────────────────────────────────────────────┐

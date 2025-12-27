@@ -38,7 +38,6 @@ references to actual Game Boy hardware behavior.
    overview
    architecture/index
    api/index
-   implementation/index
    development/index
 
 Quick Start
