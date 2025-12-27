@@ -3,7 +3,7 @@
 #include "cartridge.h"
 #include <ctime>
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * MBC3 (Memory Bank Controller 3)
@@ -149,4 +149,4 @@ private:
     void write_rtc_register(u8 value);
 };
 
-} // namespace emugbc
+} // namespace gbcrush

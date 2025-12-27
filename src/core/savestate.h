@@ -5,7 +5,7 @@
 #include <vector>
 #include <fstream>
 
-namespace emugbc {
+namespace gbcrush {
 
 // Forward declarations
 class CPU;
@@ -98,4 +98,4 @@ private:
     static void read_bytes(std::ifstream& file, u8* data, size_t size);
 };
 
-} // namespace emugbc
+} // namespace gbcrush

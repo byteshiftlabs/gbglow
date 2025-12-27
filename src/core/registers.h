@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * CPU Registers for the Sharp LR35902 (Game Boy CPU)
@@ -99,4 +99,4 @@ public:
     void reset();
 };
 
-} // namespace emugbc
+} // namespace gbcrush
