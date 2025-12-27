@@ -67,6 +67,7 @@ set(CARTRIDGE_SOURCES
 
 set(INPUT_SOURCES
     src/input/joypad.cpp
+    src/input/gamepad.cpp
 )
 
 set(AUDIO_SOURCES
