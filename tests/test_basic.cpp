@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cassert>
 
-using namespace emugbc;
+using namespace gbcrush;
 
 void test_registers() {
     std::cout << "Testing registers...\n";
