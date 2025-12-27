@@ -54,6 +54,16 @@ public:
     Mode mode() const;
     u8 scanline() const;
     
+    // Mutators for save state restoration
+    void set_mode(Mode m);
+    void set_scanline(u8 ly);
+    
+    // Save state accessors (return raw values for serialization)
+    u8 get_ly() const { return ly_; }
+    u8 get_mode() const { return static_cast<u8>(mode_); }
+    void set_ly(u8 ly) { ly_ = ly; }
+    void set_mode(u8 m) { mode_ = static_cast<Mode>(m); }
+    
     // Frame buffer access
     bool frame_ready() const;
     void clear_frame_ready();

@@ -462,11 +462,11 @@ Run same ROM in multiple emulators:
 .. code-block:: bash
 
    # Generate execution trace
-   ./emugbc --trace rom.gb > emugbc_trace.txt
+   ./gbcrush --trace rom.gb > gbcrush_trace.txt
    
    # Compare with reference emulator
    ./bgb --trace rom.gb > bgb_trace.txt
-   diff emugbc_trace.txt bgb_trace.txt
+   diff gbcrush_trace.txt bgb_trace.txt
 
 Contributing
 ------------
