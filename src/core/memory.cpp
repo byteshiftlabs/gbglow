@@ -133,6 +133,10 @@ Cartridge* Memory::cartridge() {
     return cartridge_.get();
 }
 
+const Cartridge* Memory::cartridge() const {
+    return cartridge_.get();
+}
+
 APU& Memory::apu() {
     return *apu_;
 }
