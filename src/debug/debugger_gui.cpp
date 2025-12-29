@@ -14,6 +14,7 @@ DebuggerGUI::DebuggerGUI()
     , paused_(false)
     , step_requested_(false)
     , continue_requested_(false)
+    , docking_mode_(false)
     , show_registers_(true)
     , show_disassembly_(true)
     , show_memory_(true)
@@ -81,12 +82,22 @@ void DebuggerGUI::clear_continue() {
     continue_requested_ = false;
 }
 
+void DebuggerGUI::set_docking_mode(bool enabled) {
+    docking_mode_ = enabled;
+}
+
 void DebuggerGUI::render() {
-    if (!visible_ || !debugger_ || !debugger_->is_attached()) {
+    if (!debugger_ || !debugger_->is_attached()) {
         return;
     }
     
-    render_menu_bar();
+    // In non-docking mode, check visibility and render menu bar
+    if (!docking_mode_) {
+        if (!visible_) {
+            return;
+        }
+        render_menu_bar();
+    }
     
     if (show_registers_) {
         render_registers_window();

@@ -82,12 +82,35 @@ public:
      */
     void clear_continue();
     
+    /**
+     * Set docking mode (when true, doesn't render its own menu bar)
+     */
+    void set_docking_mode(bool enabled);
+    
+    /**
+     * Expose window toggle methods for parent menu bar
+     */
+    bool& show_registers() { return show_registers_; }
+    bool& show_disassembly() { return show_disassembly_; }
+    bool& show_memory() { return show_memory_; }
+    bool& show_breakpoints() { return show_breakpoints_; }
+    bool& show_watches() { return show_watches_; }
+    bool& show_stack() { return show_stack_; }
+    bool& show_io_registers() { return show_io_registers_; }
+    
+    /**
+     * Get pause state
+     */
+    bool is_paused() const { return paused_; }
+    void set_paused(bool paused) { paused_ = paused; }
+    
 private:
     Debugger* debugger_;
     bool visible_;
     bool paused_;
     bool step_requested_;
     bool continue_requested_;
+    bool docking_mode_;
     
     // Window visibility flags
     bool show_registers_;
