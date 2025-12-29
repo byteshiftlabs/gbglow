@@ -311,7 +311,7 @@ void DebuggerGUI::render_disassembly_window() {
         (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
     
     if (ImGui::Begin("Disassembly", docking_mode_ ? nullptr : &show_disassembly_, flags)) {
-        // Controls
+        // Controls row 1
         ImGui::Checkbox("Follow PC", &follow_pc_);
         ImGui::SameLine();
         
@@ -323,10 +323,32 @@ void DebuggerGUI::render_disassembly_window() {
             follow_pc_ = false;
         }
         
+        // Quick jump buttons for common Game Boy code locations
+        ImGui::SameLine();
+        if (ImGui::Button("PC")) { follow_pc_ = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Jump to current PC");
+        
+        ImGui::SameLine();
+        if (ImGui::Button("Entry")) { disasm_address_ = 0x0100; follow_pc_ = false; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("ROM Entry Point ($0100)");
+        
+        ImGui::SameLine();
+        if (ImGui::Button("RST")) { disasm_address_ = 0x0000; follow_pc_ = false; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("RST vectors ($0000-$00FF)");
+        
+        ImGui::SameLine();
+        if (ImGui::Button("INT")) { disasm_address_ = 0x0040; follow_pc_ = false; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Interrupt vectors ($0040-$0060)");
+        
         ImGui::Separator();
         
-        // Get PC
+        // Show current PC for reference
         u16 pc = debugger_->get_pc();
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.5f, 1.0f), "PC: $%04X", pc);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(double-click to set breakpoint)");
+        
+        ImGui::Separator();
         
         // Determine view address
         u16 view_addr = follow_pc_ ? pc : disasm_address_;
