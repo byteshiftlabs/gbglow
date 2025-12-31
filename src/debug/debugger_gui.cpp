@@ -18,10 +18,11 @@ DebuggerGUI::DebuggerGUI()
     , show_registers_(true)
     , show_disassembly_(true)
     , show_memory_(true)
-    , show_breakpoints_(true)
+    , show_breakpoints_(false)
     , show_watches_(false)
     , show_stack_(false)
     , show_io_registers_(false)
+    , show_sprites_(true)
     , memory_view_address_(0x0000)
     , memory_view_columns_(16)
     , follow_pc_(true)
@@ -151,6 +152,9 @@ void DebuggerGUI::render() {
     if (show_io_registers_) {
         render_io_registers_window();
     }
+    if (show_sprites_) {
+        render_sprites_window();
+    }
 }
 
 void DebuggerGUI::render_menu_bar() {
@@ -176,6 +180,9 @@ void DebuggerGUI::render_menu_bar() {
             }
             if (ImGui::MenuItem("I/O Registers", nullptr, show_io_registers_)) {
                 show_io_registers_ = !show_io_registers_;
+            }
+            if (ImGui::MenuItem("Sprites (OAM)", nullptr, show_sprites_)) {
+                show_sprites_ = !show_sprites_;
             }
             
             ImGui::Separator();
@@ -834,6 +841,156 @@ void DebuggerGUI::render_io_registers_window() {
         }
         
         ImGui::EndChild();
+    }
+    ImGui::End();
+}
+
+void DebuggerGUI::render_sprites_window() {
+    // Fixed position: below emulator, right of breakpoints/watches
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(0, 455), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(480, 325), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    }
+    
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Sprites (OAM)", docking_mode_ ? nullptr : &show_sprites_, flags)) {
+        // LCDC register to check sprite settings
+        u8 lcdc = debugger_->read_memory(0xFF40);
+        bool sprites_enabled = (lcdc & 0x02) != 0;
+        bool large_sprites = (lcdc & 0x04) != 0;  // 8x16 mode
+        
+        // Display sprite mode info
+        if (sprites_enabled) {
+            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Sprites: ENABLED");
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Sprites: DISABLED");
+        }
+        ImGui::SameLine();
+        ImGui::Text("| Size: %s", large_sprites ? "8x16" : "8x8");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(OAM: $FE00-$FE9F)");
+        
+        ImGui::Separator();
+        
+        // Column headers
+        ImGui::BeginChild("SpriteList", ImVec2(0, 0), true);
+        
+        ImGui::Columns(7, "SpriteColumns", true);
+        ImGui::SetColumnWidth(0, 35);  // #
+        ImGui::SetColumnWidth(1, 55);  // Addr
+        ImGui::SetColumnWidth(2, 70);  // Position
+        ImGui::SetColumnWidth(3, 45);  // Tile
+        ImGui::SetColumnWidth(4, 50);  // Flags
+        ImGui::SetColumnWidth(5, 95);  // Attributes
+        ImGui::SetColumnWidth(6, 80);  // Status
+        
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "#");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Addr");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "X, Y");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Tile");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Attr");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Flags");
+        ImGui::NextColumn();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Status");
+        ImGui::NextColumn();
+        ImGui::Separator();
+        
+        // OAM is at $FE00-$FE9F, 40 sprites, 4 bytes each
+        const u16 OAM_START = 0xFE00;
+        const int NUM_SPRITES = 40;
+        
+        int visible_count = 0;
+        
+        for (int i = 0; i < NUM_SPRITES; ++i) {
+            u16 addr = OAM_START + (i * 4);
+            
+            u8 y_pos = debugger_->read_memory(addr);      // Y position + 16
+            u8 x_pos = debugger_->read_memory(addr + 1);  // X position + 8
+            u8 tile = debugger_->read_memory(addr + 2);   // Tile number
+            u8 attr = debugger_->read_memory(addr + 3);   // Attributes
+            
+            // Check if sprite is on screen (Y: 0-159 visible area is 16-160, X: 0-167 visible is 8-168)
+            bool on_screen = (y_pos > 0 && y_pos < 160) && (x_pos > 0 && x_pos < 168);
+            
+            // Parse attributes
+            bool priority = (attr & 0x80) != 0;  // 0=Above BG, 1=Behind BG colors 1-3
+            bool y_flip = (attr & 0x40) != 0;
+            bool x_flip = (attr & 0x20) != 0;
+            bool palette = (attr & 0x10) != 0;   // 0=OBP0, 1=OBP1 (DMG)
+            // CGB: bits 0-2 = palette, bit 3 = VRAM bank
+            
+            // Highlight visible sprites
+            if (on_screen) {
+                visible_count++;
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.5f, 1.0f));
+            }
+            
+            // Sprite number
+            ImGui::Text("%02d", i);
+            ImGui::NextColumn();
+            
+            // Address
+            ImGui::Text("$%04X", addr);
+            ImGui::NextColumn();
+            
+            // Screen position (adjusted from OAM values)
+            int screen_x = static_cast<int>(x_pos) - 8;
+            int screen_y = static_cast<int>(y_pos) - 16;
+            ImGui::Text("%3d,%3d", screen_x, screen_y);
+            ImGui::NextColumn();
+            
+            // Tile number
+            ImGui::Text("$%02X", tile);
+            ImGui::NextColumn();
+            
+            // Raw attributes
+            ImGui::Text("$%02X", attr);
+            ImGui::NextColumn();
+            
+            // Decoded flags
+            std::string flags_str;
+            if (x_flip) flags_str += "H";
+            if (y_flip) flags_str += "V";
+            if (priority) flags_str += "B";
+            flags_str += palette ? " OBP1" : " OBP0";
+            ImGui::Text("%s", flags_str.c_str());
+            ImGui::NextColumn();
+            
+            // Status
+            if (on_screen) {
+                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Visible");
+            } else if (y_pos == 0 || y_pos >= 160) {
+                ImGui::TextDisabled("Off-Y");
+            } else {
+                ImGui::TextDisabled("Off-X");
+            }
+            ImGui::NextColumn();
+            
+            if (on_screen) {
+                ImGui::PopStyleColor();
+            }
+        }
+        
+        ImGui::Columns(1);
+        ImGui::EndChild();
+        
+        // Status bar
+        ImGui::Separator();
+        ImGui::Text("Visible sprites: %d/40", visible_count);
+        if (visible_count > 10) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), 
+                "(Note: GB can only show 10 sprites per scanline)");
+        }
     }
     ImGui::End();
 }
