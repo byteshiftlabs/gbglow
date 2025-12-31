@@ -293,11 +293,17 @@ void Display::update(const std::vector<u8>& framebuffer) {
     
     // In debugger mode, render emulator as a panel
     if (debugger_mode_) {
-        // Left panel: Emulator view (fixed size)
-        ImGui::SetNextWindowPos(ImVec2(0, 20));  // Below menu bar
-        ImGui::SetNextWindowSize(ImVec2(480, 432));  // 160x144 * 3
+        // Apply debug theme
+        if (debugger_gui_) {
+            debugger_gui_->apply_debug_theme();
+        }
+        
+        // Left panel: Emulator view (fixed size, no move/resize)
+        ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Always);  // Below menu bar
+        ImGui::SetNextWindowSize(ImVec2(480, 432), ImGuiCond_Always);  // 160x144 * 3
         ImGui::Begin("Emulator", nullptr, 
-            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | 
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
         
         // Get available size and calculate aspect-correct scaling
         ImVec2 available = ImGui::GetContentRegionAvail();
