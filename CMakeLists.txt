@@ -82,6 +82,7 @@ set(DEBUG_SOURCES
 
 set(UI_SOURCES
     src/ui/recent_roms.cpp
+    src/ui/screenshot.cpp
 )
 
 # ImGui sources
