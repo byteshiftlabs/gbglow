@@ -21,6 +21,7 @@ class Joypad;
 class Gamepad;
 class Debugger;
 class DebuggerGUI;
+class RecentRoms;
 
 /**
  * Display Output System
@@ -160,6 +161,11 @@ public:
     void set_rom_path(const std::string& rom_path);
     
     /**
+     * Set recent ROMs manager
+     */
+    void set_recent_roms(RecentRoms* recent_roms);
+    
+    /**
      * Queue audio samples for playback
      * @param samples Vector of stereo samples (left, right) as 8-bit unsigned values (0-255)
      */
@@ -223,6 +229,9 @@ private:
     bool debugger_mode_;  // True when in full debugger view
     int original_width_;  // Store original window size
     int original_height_;
+    
+    // Recent ROMs (not owned, just a pointer)
+    RecentRoms* recent_roms_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup
