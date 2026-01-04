@@ -16,6 +16,7 @@ Emulator::Emulator() {
     cpu_ = std::make_unique<CPU>(*memory_);
     ppu_ = std::make_unique<PPU>(*memory_);
     debugger_ = std::make_unique<Debugger>();
+    recent_roms_ = std::make_unique<RecentRoms>();
     memory_->set_ppu(ppu_.get());
     
     // Attach debugger to CPU, Memory, and PPU
@@ -39,6 +40,9 @@ bool Emulator::load_rom(const std::string& path) {
         auto cartridge = Cartridge::load_rom_from_file(path);
         memory_->load_cartridge(std::move(cartridge));
         rom_path_ = path;
+        
+        // Add to recent ROMs list
+        recent_roms_->add_rom(path);
         
         // Load save file if it exists
         std::string save_path = get_save_path();
@@ -102,6 +106,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     
     // Set ROM path in display for slot tracking
     display.set_rom_path(rom_path_);
+    
+    // Pass recent ROMs manager to display
+    display.set_recent_roms(recent_roms_.get());
     
     std::cout << "Emulator running. Press ESC to exit, F12 to open debugger." << std::endl;
     std::cout << "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select" << std::endl;
@@ -557,4 +564,8 @@ bool Emulator::delete_state(int slot) {
     return false;  // File doesn't exist or couldn't be deleted
 }
 
-} // namespace gbcrush
+RecentRoms& Emulator::recent_roms() {
+    return *recent_roms_;
+}
+
+}  // namespace gbcrush
