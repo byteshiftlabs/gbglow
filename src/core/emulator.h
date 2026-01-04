@@ -7,6 +7,8 @@
 #include "../video/display.h"
 #include "../input/joypad.h"
 #include "../cartridge/cartridge.h"
+#include "../debug/debugger.h"
+#include "../ui/recent_roms.h"
 
 #include <memory>
 #include <string>
@@ -130,10 +132,24 @@ public:
      */
     const std::string& get_rom_path() const;
     
+    /**
+     * Get debugger instance
+     * @return Reference to the debugger
+     */
+    Debugger& debugger();
+    
+    /**
+     * Get recent ROMs list
+     * @return Reference to the recent ROMs manager
+     */
+    RecentRoms& recent_roms();
+    
 private:
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
+    std::unique_ptr<Debugger> debugger_;
+    std::unique_ptr<RecentRoms> recent_roms_;
     // Note: Joypad is owned by Memory, accessed via memory_->joypad()
     
     std::string rom_path_;  // Path to loaded ROM file
