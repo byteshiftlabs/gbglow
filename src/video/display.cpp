@@ -1,6 +1,7 @@
 #include "display.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
+#include "../ui/screenshot.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -22,6 +23,8 @@ Display::Display()
     , audio_device_(0)
     , imgui_context_(nullptr)
     , gamepad_(std::make_unique<Gamepad>())
+    , screenshot_(std::make_unique<Screenshot>())
+    , screenshot_requested_(false)
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -364,6 +367,12 @@ void Display::handle_keydown(int key, Joypad* joypad) {
         return;
     }
     
+    // F12 key captures screenshot
+    if (key == SDLK_F12) {
+        screenshot_requested_ = true;
+        return;
+    }
+    
     // Route keyboard input to joypad if available
     if (!joypad) {
         return;
@@ -527,6 +536,20 @@ void Display::toggle_mute() {
 
 bool Display::is_muted() const {
     return is_muted_;
+}
+
+bool Display::screenshot_requested() const {
+    return screenshot_requested_;
+}
+
+void Display::clear_screenshot_request() {
+    screenshot_requested_ = false;
+}
+
+void Display::capture_screenshot(const std::vector<u8>& framebuffer, const std::string& rom_path) {
+    if (screenshot_ && screenshot_->capture(framebuffer, rom_path)) {
+        std::cout << "Screenshot saved to: " << screenshot_->get_last_screenshot_path() << std::endl;
+    }
 }
 
 float Display::get_speed_multiplier() const {
