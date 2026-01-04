@@ -3,6 +3,7 @@
 #include "../input/gamepad.h"
 #include "../debug/debugger.h"
 #include "../debug/debugger_gui.h"
+#include "../ui/recent_roms.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -29,6 +30,7 @@ Display::Display()
     , debugger_mode_(false)
     , original_width_(0)
     , original_height_(0)
+    , recent_roms_(nullptr)
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -699,7 +701,21 @@ void Display::render_menu_bar() {
             ImGui::Separator();
             
             if (ImGui::BeginMenu("Recent ROMs")) {
-                ImGui::MenuItem("(No recent ROMs)", nullptr, false, false);
+                if (recent_roms_ && !recent_roms_->is_empty()) {
+                    const auto& roms = recent_roms_->get_roms();
+                    for (const auto& entry : roms) {
+                        if (ImGui::MenuItem(entry.display_name.c_str())) {
+                            pending_rom_path_ = entry.file_path;
+                        }
+                    }
+                    
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Clear Recent ROMs")) {
+                        recent_roms_->clear();
+                    }
+                } else {
+                    ImGui::MenuItem("(No recent ROMs)", nullptr, false, false);
+                }
                 ImGui::EndMenu();
             }
             
@@ -1074,6 +1090,10 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
 
 void Display::set_rom_path(const std::string& rom_path) {
     current_rom_path_ = rom_path;
+}
+
+void Display::set_recent_roms(RecentRoms* recent_roms) {
+    recent_roms_ = recent_roms;
 }
 
 void Display::load_key_bindings() {
