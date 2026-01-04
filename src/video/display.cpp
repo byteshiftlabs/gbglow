@@ -1,6 +1,9 @@
 #include "display.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
+#include "../debug/debugger.h"
+#include "../debug/debugger_gui.h"
+#include "../ui/recent_roms.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -11,6 +14,7 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <algorithm>
 #include <sys/stat.h>
 
 namespace gbcrush {
@@ -22,6 +26,11 @@ Display::Display()
     , audio_device_(0)
     , imgui_context_(nullptr)
     , gamepad_(std::make_unique<Gamepad>())
+    , debugger_gui_(std::make_unique<DebuggerGUI>())
+    , debugger_mode_(false)
+    , original_width_(0)
+    , original_height_(0)
+    , recent_roms_(nullptr)
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -84,6 +93,47 @@ Display::~Display() {
     }
     
     SDL_Quit();
+}
+
+void Display::attach_debugger(Debugger* debugger) {
+    if (debugger_gui_) {
+        debugger_gui_->attach(debugger);
+    }
+}
+
+DebuggerGUI* Display::get_debugger_gui() {
+    return debugger_gui_.get();
+}
+
+bool Display::is_debugger_mode() const {
+    return debugger_mode_;
+}
+
+void Display::set_debugger_mode(bool enabled) {
+    if (debugger_mode_ == enabled) {
+        return;
+    }
+    
+    debugger_mode_ = enabled;
+    
+    if (enabled) {
+        // Store original size
+        SDL_GetWindowSize(window_, &original_width_, &original_height_);
+        
+        // Resize to debugger mode (larger window for docking layout)
+        // 1280x800 gives good space for emulator + debug panels
+        SDL_SetWindowSize(window_, 1280, 800);
+        SDL_SetWindowPosition(window_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        
+        // Recreate texture at original emulator size (it will be rendered inside ImGui)
+        // Texture stays the same size - just the window is bigger
+    } else {
+        // Restore original size
+        if (original_width_ > 0 && original_height_ > 0) {
+            SDL_SetWindowSize(window_, original_width_, original_height_);
+            SDL_SetWindowPosition(window_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        }
+    }
 }
 
 bool Display::initialize(const std::string& title, int scale_factor) {
@@ -228,8 +278,12 @@ void Display::update(const std::vector<u8>& framebuffer) {
     SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
     SDL_RenderClear(renderer_);
     
-    // Copy texture to renderer (scales automatically)
-    SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
+    // In debugger mode, we use ImGui for the entire layout
+    // In normal mode, render framebuffer fullscreen then ImGui on top
+    if (!debugger_mode_) {
+        // Normal mode: render framebuffer fullscreen
+        SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
+    }
     
     // Start new ImGui frame
     ImGui_ImplSDLRenderer2_NewFrame();
@@ -238,6 +292,50 @@ void Display::update(const std::vector<u8>& framebuffer) {
     
     // Render menu bar
     render_menu_bar();
+    
+    // In debugger mode, render emulator as a panel
+    if (debugger_mode_) {
+        // Apply debug theme
+        if (debugger_gui_) {
+            debugger_gui_->apply_debug_theme();
+        }
+        
+        // Left panel: Emulator view (fixed size, no move/resize)
+        ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Always);  // Below menu bar
+        ImGui::SetNextWindowSize(ImVec2(480, 432), ImGuiCond_Always);  // 160x144 * 3
+        ImGui::Begin("Emulator", nullptr, 
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | 
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove);
+        
+        // Get available size and calculate aspect-correct scaling
+        ImVec2 available = ImGui::GetContentRegionAvail();
+        float scale_x = available.x / LCD_WIDTH;
+        float scale_y = available.y / LCD_HEIGHT;
+        float scale = std::min(scale_x, scale_y);
+        
+        ImVec2 size(LCD_WIDTH * scale, LCD_HEIGHT * scale);
+        
+        // Center the image
+        ImVec2 pos = ImGui::GetCursorPos();
+        pos.x += (available.x - size.x) * 0.5f;
+        pos.y += (available.y - size.y) * 0.5f;
+        ImGui::SetCursorPos(pos);
+        
+        // Render the framebuffer texture
+        ImGui::Image((ImTextureID)(intptr_t)texture_, size);
+        
+        ImGui::End();
+        
+        // Render debugger windows
+        if (debugger_gui_) {
+            debugger_gui_->render();
+        }
+    } else {
+        // Normal mode: render debugger GUI if visible (floating windows mode)
+        if (debugger_gui_ && debugger_gui_->is_visible()) {
+            debugger_gui_->render();
+        }
+    }
     
     // Render about dialog if open
     if (show_about_dialog_) {
@@ -361,6 +459,45 @@ void Display::handle_keydown(int key, Joypad* joypad) {
     // M key toggles mute
     if (key == SDLK_m) {
         toggle_mute();
+        return;
+    }
+    
+    // F12 key toggles debugger mode
+    if (key == SDLK_F12) {
+        if (debugger_gui_) {
+            if (debugger_mode_) {
+                // Exit debugger mode
+                set_debugger_mode(false);
+                debugger_gui_->set_visible(false);
+                debugger_gui_->set_docking_mode(false);
+            } else {
+                // Enter debugger mode
+                set_debugger_mode(true);
+                debugger_gui_->set_visible(true);
+                debugger_gui_->set_docking_mode(true);
+            }
+        }
+        return;
+    }
+    
+    // F5 key continues/pauses in debugger
+    if (key == SDLK_F5) {
+        if (debugger_gui_ && debugger_mode_) {
+            if (debugger_gui_->is_paused()) {
+                debugger_gui_->continue_execution();
+            } else {
+                debugger_gui_->set_paused(true);
+            }
+        }
+        return;
+    }
+    
+    // F10 key for step in debugger
+    if (key == SDLK_F10 || key == SDLK_F11) {
+        if (debugger_gui_ && debugger_mode_ && debugger_gui_->is_paused()) {
+            debugger_gui_->clear_step_request();
+            // The step request will be set by the GUI button
+        }
         return;
     }
     
@@ -564,7 +701,21 @@ void Display::render_menu_bar() {
             ImGui::Separator();
             
             if (ImGui::BeginMenu("Recent ROMs")) {
-                ImGui::MenuItem("(No recent ROMs)", nullptr, false, false);
+                if (recent_roms_ && !recent_roms_->is_empty()) {
+                    const auto& roms = recent_roms_->get_roms();
+                    for (const auto& entry : roms) {
+                        if (ImGui::MenuItem(entry.display_name.c_str())) {
+                            pending_rom_path_ = entry.file_path;
+                        }
+                    }
+                    
+                    ImGui::Separator();
+                    if (ImGui::MenuItem("Clear Recent ROMs")) {
+                        recent_roms_->clear();
+                    }
+                } else {
+                    ImGui::MenuItem("(No recent ROMs)", nullptr, false, false);
+                }
                 ImGui::EndMenu();
             }
             
@@ -636,7 +787,66 @@ void Display::render_menu_bar() {
                 toggle_mute();
             }
             
+            ImGui::Separator();
+            
+            bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
+            if (ImGui::MenuItem("Debugger", "F12", debugger_visible)) {
+                if (debugger_gui_) {
+                    if (debugger_mode_) {
+                        // In debugger mode, toggle exits debugger mode
+                        set_debugger_mode(false);
+                        debugger_gui_->set_visible(false);
+                    } else {
+                        // Not in debugger mode, enter it
+                        set_debugger_mode(true);
+                        debugger_gui_->set_visible(true);
+                        debugger_gui_->set_docking_mode(true);
+                    }
+                }
+            }
+            
             ImGui::EndMenu();
+        }
+        
+        // Debug Menu (only in debugger mode)
+        if (debugger_mode_ && debugger_gui_) {
+            if (ImGui::BeginMenu("Debug")) {
+                // Execution controls
+                bool paused = debugger_gui_->is_paused();
+                if (ImGui::MenuItem(paused ? "Continue" : "Pause", "F5")) {
+                    if (paused) {
+                        debugger_gui_->continue_execution();
+                    } else {
+                        debugger_gui_->set_paused(true);
+                    }
+                }
+                
+                if (ImGui::MenuItem("Step", "F10", false, paused)) {
+                    debugger_gui_->clear_step_request();
+                    // Request step through DebuggerGUI
+                }
+                
+                ImGui::Separator();
+                
+                // View toggles
+                ImGui::MenuItem("Registers", nullptr, &debugger_gui_->show_registers());
+                ImGui::MenuItem("Disassembly", nullptr, &debugger_gui_->show_disassembly());
+                ImGui::MenuItem("Memory", nullptr, &debugger_gui_->show_memory());
+                ImGui::MenuItem("Breakpoints", nullptr, &debugger_gui_->show_breakpoints());
+                ImGui::MenuItem("Watches", nullptr, &debugger_gui_->show_watches());
+                ImGui::MenuItem("Stack", nullptr, &debugger_gui_->show_stack());
+                ImGui::MenuItem("I/O Registers", nullptr, &debugger_gui_->show_io_registers());
+                ImGui::MenuItem("Sprites (OAM)", nullptr, &debugger_gui_->show_sprites());
+                
+                ImGui::Separator();
+                
+                if (ImGui::MenuItem("Exit Debugger", "F12")) {
+                    set_debugger_mode(false);
+                    debugger_gui_->set_visible(false);
+                }
+                
+                ImGui::EndMenu();
+            }
         }
         
         // Input Menu
@@ -880,6 +1090,10 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
 
 void Display::set_rom_path(const std::string& rom_path) {
     current_rom_path_ = rom_path;
+}
+
+void Display::set_recent_roms(RecentRoms* recent_roms) {
+    recent_roms_ = recent_roms;
 }
 
 void Display::load_key_bindings() {
