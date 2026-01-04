@@ -4,6 +4,7 @@
 #include "../debug/debugger.h"
 #include "../debug/debugger_gui.h"
 #include "../ui/recent_roms.h"
+#include "../ui/screenshot.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -31,6 +32,8 @@ Display::Display()
     , original_width_(0)
     , original_height_(0)
     , recent_roms_(nullptr)
+    , screenshot_(std::make_unique<Screenshot>())
+    , screenshot_requested_(false)
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -462,8 +465,8 @@ void Display::handle_keydown(int key, Joypad* joypad) {
         return;
     }
     
-    // F12 key toggles debugger mode
-    if (key == SDLK_F12) {
+    // F11 key toggles debugger mode
+    if (key == SDLK_F11) {
         if (debugger_gui_) {
             if (debugger_mode_) {
                 // Exit debugger mode
@@ -493,11 +496,17 @@ void Display::handle_keydown(int key, Joypad* joypad) {
     }
     
     // F10 key for step in debugger
-    if (key == SDLK_F10 || key == SDLK_F11) {
+    if (key == SDLK_F10) {
         if (debugger_gui_ && debugger_mode_ && debugger_gui_->is_paused()) {
             debugger_gui_->clear_step_request();
             // The step request will be set by the GUI button
         }
+        return;
+    }
+    
+    // F12 key captures screenshot
+    if (key == SDLK_F12) {
+        screenshot_requested_ = true;
         return;
     }
     
@@ -664,6 +673,20 @@ void Display::toggle_mute() {
 
 bool Display::is_muted() const {
     return is_muted_;
+}
+
+bool Display::screenshot_requested() const {
+    return screenshot_requested_;
+}
+
+void Display::clear_screenshot_request() {
+    screenshot_requested_ = false;
+}
+
+void Display::capture_screenshot(const std::vector<u8>& framebuffer, const std::string& rom_path) {
+    if (screenshot_ && screenshot_->capture(framebuffer, rom_path)) {
+        std::cout << "Screenshot saved to: " << screenshot_->get_last_screenshot_path() << std::endl;
+    }
 }
 
 float Display::get_speed_multiplier() const {
