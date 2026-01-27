@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "cpu_constants.h"
 
 namespace emugbc {
 
@@ -13,10 +14,13 @@ CPU::CPU(Memory& memory)
 
 Cycles CPU::step()
 {
+    // Check and handle interrupts before executing next instruction
+    handle_interrupts();
+    
     // If CPU is halted, don't execute instructions but still consume cycles
     if (halted_)
     {
-        return 4;
+        return CYCLES_REGISTER_OP;
     }
     
     // Fetch opcode from memory at current PC
@@ -28,18 +32,76 @@ Cycles CPU::step()
 
 void CPU::handle_interrupts()
 {
-    // TODO: Implement interrupt handling mechanism
-    // Priority order (highest to lowest):
-    // 1. VBlank  (INT 0x40) - triggered when entering VBlank period
-    // 2. LCD STAT (INT 0x48) - LCD controller status triggers
-    // 3. Timer   (INT 0x50) - timer overflow
-    // 4. Serial  (INT 0x58) - serial transfer complete
-    // 5. Joypad  (INT 0x60) - button press
-    //
-    // Process:
-    // - Check IME (Interrupt Master Enable)
-    // - Read IF (0xFF0F) and IE (0xFFFF) registers
-    // - If interrupt enabled and pending: push PC, jump to handler, clear IME
+    // Interrupts are only handled if IME (Interrupt Master Enable) is set
+    // Exception: HALT mode is exited even if IME is disabled
+    
+    // Read interrupt flags (IF) and interrupt enable (IE) registers
+    u8 interrupt_flags = memory_.read(REG_INTERRUPT_FLAG);
+    u8 interrupt_enable = memory_.read(REG_INTERRUPT_ENABLE);
+    
+    // Calculate which interrupts are both pending (IF) and enabled (IE)
+    u8 triggered_interrupts = interrupt_flags & interrupt_enable;
+    
+    // If any interrupt is triggered, wake from HALT even if IME is disabled
+    if (triggered_interrupts != 0 && halted_)
+    {
+        halted_ = false;
+    }
+    
+    // Only service interrupts if IME is enabled
+    if (!ime_ || triggered_interrupts == 0)
+    {
+        return;
+    }
+    
+    // Check interrupts in priority order (bit 0 = highest priority)
+    // Service the highest priority interrupt that is both flagged and enabled
+    
+    u8 interrupt_bit = 0;
+    u16 interrupt_vector = 0;
+    
+    if (triggered_interrupts & INT_VBLANK_BIT)
+    {
+        interrupt_bit = INT_VBLANK_BIT;
+        interrupt_vector = INT_VBLANK_VECTOR;
+    }
+    else if (triggered_interrupts & INT_LCD_STAT_BIT)
+    {
+        interrupt_bit = INT_LCD_STAT_BIT;
+        interrupt_vector = INT_LCD_STAT_VECTOR;
+    }
+    else if (triggered_interrupts & INT_TIMER_BIT)
+    {
+        interrupt_bit = INT_TIMER_BIT;
+        interrupt_vector = INT_TIMER_VECTOR;
+    }
+    else if (triggered_interrupts & INT_SERIAL_BIT)
+    {
+        interrupt_bit = INT_SERIAL_BIT;
+        interrupt_vector = INT_SERIAL_VECTOR;
+    }
+    else if (triggered_interrupts & INT_JOYPAD_BIT)
+    {
+        interrupt_bit = INT_JOYPAD_BIT;
+        interrupt_vector = INT_JOYPAD_VECTOR;
+    }
+    else
+    {
+        return;  // No interrupt to service
+    }
+    
+    // Service the interrupt:
+    // 1. Disable IME to prevent nested interrupts
+    ime_ = false;
+    
+    // 2. Clear the interrupt flag for the serviced interrupt
+    memory_.write(REG_INTERRUPT_FLAG, interrupt_flags & ~interrupt_bit);
+    
+    // 3. Push current PC onto stack
+    push_stack(regs_.pc);
+    
+    // 4. Jump to interrupt vector
+    regs_.pc = interrupt_vector;
 }
 
 void CPU::reset()
@@ -73,6 +135,13 @@ void CPU::set_ime(bool value)
 bool CPU::is_halted() const
 {
     return halted_;
+}
+
+void CPU::request_interrupt(u8 interrupt_bit)
+{
+    // Set the corresponding bit in the IF register to request an interrupt
+    u8 interrupt_flags = memory_.read(REG_INTERRUPT_FLAG);
+    memory_.write(REG_INTERRUPT_FLAG, interrupt_flags | interrupt_bit);
 }
 
 // ============================================================================
