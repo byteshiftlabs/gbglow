@@ -1,0 +1,28 @@
+# Build directories
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test ROMs (users should download themselves)
+*.gb
+*.gbc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sphinx documentation build
+docs/sphinx/_build/
+
+# Debug executables
+debug_test
