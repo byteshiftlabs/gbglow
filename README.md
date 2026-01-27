@@ -1,4 +1,4 @@
-# EmuGBC - A Crystal-Clear Game Boy Color Emulator
+# EmuGBC - A Game Boy Color Emulator
 
 **EmuGBC** is a Game Boy Color emulator written in C++17, focusing on code clarity, comprehensive documentation, and educational value.
 
@@ -6,7 +6,7 @@
 
 Unlike existing emulators (gnuboy, etc.) that prioritize performance or features, EmuGBC emphasizes:
 
-- **Crystal-clear code**: Easy to understand and learn from
+- **Clear code**: Easy to understand and learn from
 - **Comprehensive documentation**: Every component fully documented
 - **Educational value**: Reference implementation for learning GB emulation
 - **Cycle accuracy**: Matches hardware timing behavior
