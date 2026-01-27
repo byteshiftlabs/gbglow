@@ -1,9 +1,20 @@
 #include "ppu.h"
-#include "../core/memory.h"
+
 #include <iostream>
 #include <iomanip>
 
+#include "../core/memory.h"
+
 namespace emugbc {
+
+// Hardware constants
+namespace {
+    constexpr int SCREEN_WIDTH = 160;
+    constexpr int SCREEN_HEIGHT = 144;
+    constexpr int TILE_SIZE = 8;
+    constexpr int TILEMAP_WIDTH = 32;  // Background map is 32x32 tiles
+    constexpr int BYTES_PER_TILE = 16; // Each tile is 16 bytes (8x8 pixels, 2bpp)
+}
 
 PPU::PPU(Memory& memory) 
     : memory_(memory)
@@ -92,40 +103,65 @@ void PPU::render_scanline() {
         return;
     }
     
-    // Get scroll positions
-    u8 scy = memory_.read(0xFF42);  // Scroll Y
-    u8 scx = memory_.read(0xFF43);  // Scroll X
+    // Hardware scroll registers allow background to pan
+    u8 scy = memory_.read(0xFF42);
+    u8 scx = memory_.read(0xFF43);
     
-    // Background tile map: 0x9800 or 0x9C00
+    // LCDC bit 3 selects which of two tile maps to use
     u16 bg_map = (lcdc & 0x08) ? 0x9C00 : 0x9800;
     
-    // Tile data: 0x8000 (unsigned) or 0x8800 (signed)
+    // LCDC bit 4 selects tile data addressing mode (signed vs unsigned)
     u16 tile_data = (lcdc & 0x10) ? 0x8000 : 0x8800;
     
-    // Calculate Y position in background map
+    // Background wraps at 256x256 pixels using modulo arithmetic
     u8 y_pos = ly_ + scy;
-    u8 tile_y = y_pos / 8;
-    u8 pixel_y = y_pos % 8;
+    u8 tile_y = y_pos / TILE_SIZE;
+    u8 pixel_y = y_pos % TILE_SIZE;
     
     // Render each pixel in the scanline
-    for (int x = 0; x < 160; x++) {
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
         u8 x_pos = x + scx;
-        u8 tile_x = x_pos / 8;
-        u8 pixel_x = x_pos % 8;
+        u8 tile_x = x_pos / TILE_SIZE;
+        u8 pixel_x = x_pos % TILE_SIZE;
         
-        // Get tile number from background map
-        u16 map_addr = bg_map + (tile_y * 32) + tile_x;
+        // Tile map is 32x32 tiles, each byte is a tile index
+        u16 map_addr = bg_map + (tile_y * TILEMAP_WIDTH) + tile_x;
         u8 tile_num = memory_.read(map_addr);
         
-        // Get pixel from tile
+        // Decode 2-bit pixel from tile pattern data
         u8 pixel = get_tile_pixel(tile_data, tile_num, pixel_x, pixel_y);
         
-        // Apply palette (0xFF47)
+        // Background palette maps 2-bit color to 2-bit shade
         u8 palette = memory_.read(0xFF47);
         u8 color = (palette >> (pixel * 2)) & 0x03;
         
-        framebuffer_[ly_ * 160 + x] = color;
+        framebuffer_[ly_ * SCREEN_WIDTH + x] = color;
     }
+}
+
+PPU::Mode PPU::mode() const
+{
+    return mode_;
+}
+
+u8 PPU::scanline() const
+{
+    return ly_;
+}
+
+bool PPU::frame_ready() const
+{
+    return frame_ready_;
+}
+
+void PPU::clear_frame_ready()
+{
+    frame_ready_ = false;
+}
+
+const std::array<u8, 160 * 144>& PPU::framebuffer() const
+{
+    return framebuffer_;
 }
 
 u8 PPU::get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) {
@@ -134,11 +170,11 @@ u8 PPU::get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) {
     u16 tile_addr;
     if (tile_data_addr == 0x8000) {
         // Unsigned mode: tiles 0-255
-        tile_addr = 0x8000 + (tile_num * 16);
+        tile_addr = 0x8000 + (tile_num * BYTES_PER_TILE);
     } else {
         // Signed mode: tiles -128 to 127, base at 0x9000
         i8 signed_tile = static_cast<i8>(tile_num);
-        tile_addr = 0x9000 + (signed_tile * 16);
+        tile_addr = 0x9000 + (signed_tile * BYTES_PER_TILE);
     }
     
     // Each row of the tile is 2 bytes

@@ -38,17 +38,9 @@ public:
     u8 read(u16 address) const;
     void write(u16 address, u8 value);
     
-    // 16-bit read/write helpers
-    u16 read16(u16 address) const {
-        u8 low = read(address);
-        u8 high = read(address + 1);
-        return (static_cast<u16>(high) << 8) | low;
-    }
-    
-    void write16(u16 address, u16 value) {
-        write(address, value & 0xFF);
-        write(address + 1, value >> 8);
-    }
+    // 16-bit read/write helpers (little-endian)
+    u16 read16(u16 address) const;
+    void write16(u16 address, u16 value);
     
 private:
     // Internal memory regions

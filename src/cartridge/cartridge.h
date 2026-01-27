@@ -37,9 +37,9 @@ public:
     virtual void write(u16 address, u8 value) = 0;
     
     // Cartridge info
-    const std::string& title() const { return title_; }
-    u8 cartridge_type() const { return cartridge_type_; }
-    bool has_battery() const { return has_battery_; }
+    const std::string& title() const;
+    u8 cartridge_type() const;
+    bool has_battery() const;
     
 protected:
     std::vector<u8> rom_;
