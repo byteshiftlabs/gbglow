@@ -42,6 +42,20 @@ public:
     bool has_battery() const;
     
 protected:
+    /**
+     * Constructor for derived cartridge types
+     * Initializes ROM and RAM
+     */
+    Cartridge(std::vector<u8> rom_data, size_t ram_size)
+        : rom_(std::move(rom_data))
+        , ram_(ram_size)
+        , title_()
+        , cartridge_type_(0)
+        , has_battery_(false)
+    {
+        parse_header();
+    }
+    
     std::vector<u8> rom_;
     std::vector<u8> ram_;
     

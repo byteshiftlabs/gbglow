@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "mbc1.h"
+#include "mbc3.h"
 
 namespace emugbc {
 
@@ -12,7 +13,37 @@ namespace emugbc {
 namespace {
     constexpr u16 HEADER_TITLE_OFFSET = 0x0134;
     constexpr u16 HEADER_CARTRIDGE_TYPE_OFFSET = 0x0147;
+    constexpr u16 HEADER_RAM_SIZE_OFFSET = 0x0149;
     constexpr int TITLE_MAX_LENGTH = 16;
+    
+    // RAM size codes from cartridge header
+    constexpr size_t RAM_SIZE_NONE = 0;
+    constexpr size_t RAM_SIZE_2KB = 2 * 1024;
+    constexpr size_t RAM_SIZE_8KB = 8 * 1024;
+    constexpr size_t RAM_SIZE_32KB = 32 * 1024;
+    constexpr size_t RAM_SIZE_128KB = 128 * 1024;
+    constexpr size_t RAM_SIZE_64KB = 64 * 1024;
+    
+    /**
+     * Get RAM size from header byte
+     * 0x00: No RAM
+     * 0x01: 2 KB (unused in MBC1/3)
+     * 0x02: 8 KB (1 bank)
+     * 0x03: 32 KB (4 banks)
+     * 0x04: 128 KB (16 banks)
+     * 0x05: 64 KB (8 banks)
+     */
+    size_t get_ram_size(u8 ram_size_code) {
+        switch (ram_size_code) {
+            case 0x00: return RAM_SIZE_NONE;
+            case 0x01: return RAM_SIZE_2KB;
+            case 0x02: return RAM_SIZE_8KB;
+            case 0x03: return RAM_SIZE_32KB;
+            case 0x04: return RAM_SIZE_128KB;
+            case 0x05: return RAM_SIZE_64KB;
+            default: return RAM_SIZE_NONE;
+        }
+    }
 }
 
 void Cartridge::parse_header() {
@@ -64,16 +95,33 @@ std::unique_ptr<Cartridge> Cartridge::load_from_file(const std::string& path) {
         throw std::runtime_error("ROM file too small (invalid header)");
     }
     
-    // Check cartridge type and create appropriate cartridge
-    u8 cartridge_type = rom_data[0x0147];
+    // Read cartridge type and RAM size from header
+    const u8 cartridge_type = rom_data[HEADER_CARTRIDGE_TYPE_OFFSET];
+    const u8 ram_size_code = rom_data[HEADER_RAM_SIZE_OFFSET];
+    const size_t ram_size = get_ram_size(ram_size_code);
     
-    if (cartridge_type == 0x00) {
-        // ROM only
-        return std::make_unique<ROMOnly>(std::move(rom_data));
-    } else {
-        // TODO: Implement other cartridge types (MBC1, MBC3, MBC5, etc.)
-        throw std::runtime_error("Cartridge type not yet implemented: " + 
-                                std::to_string(cartridge_type));
+    // Create appropriate cartridge type based on header
+    switch (cartridge_type) {
+        case 0x00: // ROM ONLY
+            return std::make_unique<ROMOnly>(std::move(rom_data));
+            
+        case 0x01: // MBC1
+        case 0x02: // MBC1+RAM
+        case 0x03: // MBC1+RAM+BATTERY
+            return std::make_unique<MBC1>(std::move(rom_data), ram_size);
+            
+        case 0x0F: // MBC3+TIMER+BATTERY
+        case 0x10: // MBC3+TIMER+RAM+BATTERY
+            return std::make_unique<MBC3>(std::move(rom_data), ram_size, true);
+            
+        case 0x11: // MBC3
+        case 0x12: // MBC3+RAM
+        case 0x13: // MBC3+RAM+BATTERY
+            return std::make_unique<MBC3>(std::move(rom_data), ram_size, false);
+            
+        default:
+            throw std::runtime_error("Unsupported cartridge type: 0x" + 
+                                    std::to_string(cartridge_type));
     }
 }
 
@@ -93,9 +141,9 @@ bool Cartridge::has_battery() const
 }
 
 // ROM-only cartridge implementation
-ROMOnly::ROMOnly(std::vector<u8> rom_data) {
-    rom_ = std::move(rom_data);
-    parse_header();
+ROMOnly::ROMOnly(std::vector<u8> rom_data)
+    : Cartridge(std::move(rom_data), 0)
+{
 }
 
 u8 ROMOnly::read(u16 address) const {

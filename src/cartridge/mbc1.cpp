@@ -3,14 +3,12 @@
 namespace emugbc {
 
 MBC1::MBC1(std::vector<u8> rom_data, size_t ram_size)
-    : ram_enabled_(false)
+    : Cartridge(std::move(rom_data), ram_size)
+    , ram_enabled_(false)
     , rom_bank_(1)
     , ram_bank_(0)
-    , banking_mode_(false) {
-    
-    rom_ = std::move(rom_data);
-    ram_.resize(ram_size, 0);
-    parse_header();
+    , banking_mode_(false)
+{
 }
 
 size_t MBC1::get_rom_bank() const {
