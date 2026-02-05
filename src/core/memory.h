@@ -6,8 +6,9 @@
 
 namespace emugbc {
 
-// Forward declaration
+// Forward declarations
 class Cartridge;
+class Joypad;
 
 /**
  * Memory Management Unit (MMU)
@@ -34,6 +35,9 @@ public:
     // Load a cartridge into memory
     void load_cartridge(std::unique_ptr<Cartridge> cart);
     
+    // Get joypad reference for input handling
+    Joypad& joypad();
+    
     // Read/Write operations
     u8 read(u16 address) const;
     void write(u16 address, u8 value);
@@ -53,6 +57,7 @@ private:
     u8 interrupt_enable_;  // 0xFFFF register
     
     std::unique_ptr<Cartridge> cartridge_;
+    std::unique_ptr<Joypad> joypad_;
 };
 
 } // namespace emugbc

@@ -8,6 +8,7 @@ add_executable(test_basic
     ../src/cartridge/cartridge.cpp
     ../src/cartridge/mbc1.cpp
     ../src/cartridge/mbc3.cpp
+    ../src/input/joypad.cpp
 )
 
 target_include_directories(test_basic PRIVATE
