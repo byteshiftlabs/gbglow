@@ -76,7 +76,7 @@ void Cartridge::parse_header() {
     );
 }
 
-std::unique_ptr<Cartridge> Cartridge::load_from_file(const std::string& path) {
+std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
         throw std::runtime_error("Failed to open ROM file: " + path);
@@ -138,6 +138,46 @@ u8 Cartridge::cartridge_type() const
 bool Cartridge::has_battery() const
 {
     return has_battery_;
+}
+
+bool Cartridge::save_ram_to_file(const std::string& path) {
+    // Only save if cartridge has battery-backed RAM
+    if (!has_battery_ || ram_.empty()) {
+        return false;
+    }
+    
+    std::ofstream file(path, std::ios::binary);
+    if (!file) {
+        return false;
+    }
+    
+    // Write RAM data to file
+    if (!file.write(reinterpret_cast<const char*>(ram_.data()), ram_.size())) {
+        return false;
+    }
+    
+    return true;
+}
+
+bool Cartridge::load_ram_from_file(const std::string& path) {
+    // Only load if cartridge has battery-backed RAM
+    if (!has_battery_ || ram_.empty()) {
+        return false;
+    }
+    
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        // File doesn't exist - not an error, just no save data yet
+        return false;
+    }
+    
+    // Read RAM data from file
+    if (!file.read(reinterpret_cast<char*>(ram_.data()), ram_.size())) {
+        // File exists but wrong size or read error
+        return false;
+    }
+    
+    return true;
 }
 
 // ROM-only cartridge implementation

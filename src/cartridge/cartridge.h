@@ -24,7 +24,7 @@ public:
     /**
      * Load ROM from file
      */
-    static std::unique_ptr<Cartridge> load_from_file(const std::string& path);
+    static std::unique_ptr<Cartridge> load_rom_from_file(const std::string& path);
     
     /**
      * Read from cartridge address space (0x0000-0x7FFF ROM, 0xA000-0xBFFF RAM)
@@ -35,6 +35,18 @@ public:
      * Write to cartridge (typically for MBC control or RAM)
      */
     virtual void write(u16 address, u8 value) = 0;
+    
+    /**
+     * Save RAM to file (for battery-backed saves)
+     * Returns true on success, false on failure
+     */
+    virtual bool save_ram_to_file(const std::string& path);
+    
+    /**
+     * Load RAM from file (for battery-backed saves)
+     * Returns true on success, false if file doesn't exist or error
+     */
+    virtual bool load_ram_from_file(const std::string& path);
     
     // Cartridge info
     const std::string& title() const;

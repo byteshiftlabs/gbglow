@@ -1,5 +1,6 @@
 #include "mbc3.h"
 #include <algorithm>
+#include <fstream>
 
 namespace emugbc {
 
@@ -209,6 +210,103 @@ void MBC3::update_rtc()
 {
     // RTC update is handled during latching
     // This function exists for future frame-based updates if needed
+}
+
+bool MBC3::save_ram_to_file(const std::string& path) {
+    // Only save if cartridge has battery
+    if (!has_battery_) {
+        return false;
+    }
+    
+    std::ofstream file(path, std::ios::binary);
+    if (!file) {
+        return false;
+    }
+    
+    // Write RAM data first
+    if (!ram_.empty()) {
+        if (!file.write(reinterpret_cast<const char*>(ram_.data()), ram_.size())) {
+            return false;
+        }
+    }
+    
+    // Write RTC state if present
+    if (has_rtc_) {
+        // Save latched RTC registers
+        file.put(rtc_seconds_);
+        file.put(rtc_minutes_);
+        file.put(rtc_hours_);
+        file.put(rtc_days_low_);
+        file.put(rtc_days_high_);
+        
+        // Save base time for calculations
+        const auto base_time_value = static_cast<int64_t>(rtc_base_time_);
+        file.write(reinterpret_cast<const char*>(&base_time_value), sizeof(base_time_value));
+        
+        // Save base days
+        file.write(reinterpret_cast<const char*>(&rtc_base_days_), sizeof(rtc_base_days_));
+        
+        if (!file) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool MBC3::load_ram_from_file(const std::string& path) {
+    // Only load if cartridge has battery
+    if (!has_battery_) {
+        return false;
+    }
+    
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        // File doesn't exist - not an error, just no save data yet
+        return false;
+    }
+    
+    // Read RAM data first
+    if (!ram_.empty()) {
+        if (!file.read(reinterpret_cast<char*>(ram_.data()), ram_.size())) {
+            // File exists but wrong size or read error
+            return false;
+        }
+    }
+    
+    // Read RTC state if present
+    if (has_rtc_) {
+        // Read latched RTC registers
+        int c;
+        if ((c = file.get()) == EOF) return true;  // Partial save file (RAM only)
+        rtc_seconds_ = static_cast<u8>(c);
+        
+        if ((c = file.get()) == EOF) return true;
+        rtc_minutes_ = static_cast<u8>(c);
+        
+        if ((c = file.get()) == EOF) return true;
+        rtc_hours_ = static_cast<u8>(c);
+        
+        if ((c = file.get()) == EOF) return true;
+        rtc_days_low_ = static_cast<u8>(c);
+        
+        if ((c = file.get()) == EOF) return true;
+        rtc_days_high_ = static_cast<u8>(c);
+        
+        // Read base time
+        int64_t base_time_value = 0;
+        if (!file.read(reinterpret_cast<char*>(&base_time_value), sizeof(base_time_value))) {
+            return true;  // Partial save (no timestamp)
+        }
+        rtc_base_time_ = static_cast<std::time_t>(base_time_value);
+        
+        // Read base days
+        if (!file.read(reinterpret_cast<char*>(&rtc_base_days_), sizeof(rtc_base_days_))) {
+            return true;  // Partial save (no base days)
+        }
+    }
+    
+    return true;
 }
 
 } // namespace emugbc
