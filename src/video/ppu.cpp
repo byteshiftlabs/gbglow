@@ -415,4 +415,33 @@ void PPU::render_to_terminal() const {
     std::cout << "╝\n";
 }
 
+std::vector<u8> PPU::get_rgba_framebuffer() const {
+    // DMG palette: 4 shades of gray
+    // Each shade maps to RGB value
+    const u8 palette[4][3] = {
+        {0xFF, 0xFF, 0xFF},  // Shade 0: White
+        {0xAA, 0xAA, 0xAA},  // Shade 1: Light gray
+        {0x55, 0x55, 0x55},  // Shade 2: Dark gray
+        {0x00, 0x00, 0x00}   // Shade 3: Black
+    };
+    
+    // Allocate RGBA framebuffer (160×144×4 bytes)
+    const size_t pixel_count = 160 * 144;
+    const size_t rgba_size = pixel_count * 4;
+    std::vector<u8> rgba_framebuffer(rgba_size);
+    
+    // Convert each grayscale pixel to RGBA
+    for (size_t i = 0; i < pixel_count; i++) {
+        u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+        
+        // Write RGBA components
+        rgba_framebuffer[i * 4 + 0] = palette[shade][0];  // R
+        rgba_framebuffer[i * 4 + 1] = palette[shade][1];  // G
+        rgba_framebuffer[i * 4 + 2] = palette[shade][2];  // B
+        rgba_framebuffer[i * 4 + 3] = 0xFF;                // A (opaque)
+    }
+    
+    return rgba_framebuffer;
+}
+
 } // namespace emugbc

@@ -1,0 +1,89 @@
+#pragma once
+
+#include "../core/types.h"
+#include <vector>
+#include <string>
+
+// Forward declare SDL types to avoid including SDL in header
+struct SDL_Window;
+struct SDL_Renderer;
+struct SDL_Texture;
+
+namespace emugbc {
+
+/**
+ * Display Output System
+ * 
+ * Handles rendering Game Boy LCD output to window using SDL2
+ * 
+ * Game Boy LCD specifications:
+ * - Resolution: 160×144 pixels
+ * - Refresh rate: ~59.73 Hz
+ * - 4 shades of gray (DMG mode)
+ * 
+ * This class:
+ * - Creates SDL window and renderer
+ * - Scales Game Boy framebuffer to window
+ * - Handles display refresh
+ * - Manages window events
+ */
+class Display {
+public:
+    Display();
+    ~Display();
+    
+    // Disable copy/move
+    Display(const Display&) = delete;
+    Display& operator=(const Display&) = delete;
+    
+    /**
+     * Initialize SDL and create window
+     * Returns true on success, false on failure
+     */
+    bool initialize(const std::string& title, int scale_factor);
+    
+    /**
+     * Update display with framebuffer data
+     * Framebuffer is 160×144 RGBA pixels
+     */
+    void update(const std::vector<u8>& framebuffer);
+    
+    /**
+     * Check if window should close
+     */
+    bool should_close() const;
+    
+    /**
+     * Process window events (must be called each frame)
+     */
+    void poll_events();
+    
+    /**
+     * Get window dimensions
+     */
+    int width() const;
+    int height() const;
+    
+private:
+    SDL_Window* window_;
+    SDL_Renderer* renderer_;
+    SDL_Texture* texture_;
+    
+    bool should_close_;
+    int scale_factor_;
+    
+    // Game Boy LCD dimensions
+    static constexpr int LCD_WIDTH = 160;
+    static constexpr int LCD_HEIGHT = 144;
+    static constexpr int BYTES_PER_PIXEL = 4;  // RGBA
+    
+    // Default scale factor
+    static constexpr int DEFAULT_SCALE = 4;
+    
+    /**
+     * Convert SDL error to readable message
+     */
+    std::string get_sdl_error() const;
+};
+
+} // namespace emugbc
