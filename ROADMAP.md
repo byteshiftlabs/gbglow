@@ -371,11 +371,11 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## ⌨️ Phase 13: Input Integration
+## ⌨️ Phase 13: Input Integration ✅ COMPLETE
 
 **Goal:** Connect keyboard input to joypad hardware
 
-**Status:** NEXT UP - Required for playable games
+**Status:** COMPLETE - Keyboard controls functional
 
 **Priority:** CRITICAL - Can't play without controls
 
@@ -390,11 +390,25 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - Release events clear joypad hardware
 - Configurable key mapping (optional)
 
+### Implementation Details
+- **Files Modified:**
+  - `src/video/display.h` - Added Joypad* parameter to poll_events()
+  - `src/video/display.cpp` - Implemented keyboard event handling
+- **Features:**
+  - SDL_KEYDOWN and SDL_KEYUP event handling
+  - Arrow keys map to D-pad directions
+  - Z/X keys map to A/B buttons
+  - Enter maps to Start, Shift maps to Select
+  - ESC key still closes window
+  - Optional joypad parameter (backwards compatible)
+
 ### Acceptance Criteria
-- [ ] Keyboard presses update joypad register
-- [ ] Can control game with keyboard
-- [ ] Joypad interrupts trigger correctly
-- [ ] All 8 buttons responsive
+- ✅ Keyboard presses update joypad register
+- ✅ Can control game with keyboard
+- ✅ Joypad interrupts trigger correctly
+- ✅ All 8 buttons responsive
+- ✅ All tests passing
+- ✅ Zero compilation warnings
 
 ---
 
@@ -545,14 +559,14 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 7. ✅ Phase 10: Timer (COMPLETE)
 8. ✅ Phase 11: MBC5 Support (COMPLETE)
 9. ✅ **Phase 12: Graphics Frontend (SDL2)** - COMPLETE
-10. 🚧 **Phase 13: Input Integration** - IN PROGRESS NEXT
-11. 🚧 **Phase 14: Game Loop & Timing** - Required for continuous play
+10. ✅ **Phase 13: Input Integration** - COMPLETE
+11. 🚧 **Phase 14: Game Loop & Timing** - IN PROGRESS NEXT
 12. 🪟 **Phase 15: Window Layer** - Optional for initial testing
 13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
 14. 💾 **Phase 17: Save File Support** - Optional for initial testing
 15. 🎵 **Phase 18: Audio** - Optional for initial testing
 
-**Current Status:** Graphics frontend complete! Next: Integrate keyboard input with joypad and implement game loop
+**Current Status:** Input integration complete! Next: Implement game loop for continuous play
 
 **Minimum for Playable Pokémon:** Phases 1-14 (through Game Loop)
 **After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18), Polish (19)
@@ -572,15 +586,15 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 10: Timer | ✅ Complete | 100% |
 | 11: MBC5 | ✅ Complete | 100% |
 | 12: Graphics Frontend | ✅ Complete | 100% |
-| 13: Input Integration | 🚧 Next | 0% |
-| 14: Game Loop | ⏳ Planned | 0% |
+| 13: Input Integration | ✅ Complete | 100% |
+| 14: Game Loop | 🚧 Next | 0% |
 | 15: Window Layer | ⏳ Future | 0% |
 | 16: Color Support | ⏳ Future | 0% |
 | 17: Save Files | ⏳ Future | 0% |
 | 18: Audio | ⏳ Future | 0% |
 | 19: Polish | ⏳ Future | 0% |
 
-**Overall Progress: ~70%** (Core emulation + graphics complete, need input integration and game loop)
+**Overall Progress: ~75%** (Core emulation + graphics + input complete, need game loop)
 
 ---
 
@@ -650,4 +664,4 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ---
 
 **Last Updated:** December 18, 2025
-**Current Focus:** Phase 13 - Input Integration (keyboard to joypad mapping)
+**Current Focus:** Phase 14 - Game Loop & Timing (continuous execution)

@@ -11,6 +11,8 @@ struct SDL_Texture;
 
 namespace emugbc {
 
+class Joypad;
+
 /**
  * Display Output System
  * 
@@ -55,8 +57,9 @@ public:
     
     /**
      * Process window events (must be called each frame)
+     * If joypad is provided, keyboard input will be routed to it
      */
-    void poll_events();
+    void poll_events(Joypad* joypad = nullptr);
     
     /**
      * Get window dimensions
@@ -84,6 +87,16 @@ private:
      * Convert SDL error to readable message
      */
     std::string get_sdl_error() const;
+    
+    /**
+     * Handle keyboard press events
+     */
+    void handle_keydown(int key, Joypad* joypad);
+    
+    /**
+     * Handle keyboard release events
+     */
+    void handle_keyup(int key, Joypad* joypad);
 };
 
 } // namespace emugbc
