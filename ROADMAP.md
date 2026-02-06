@@ -282,27 +282,43 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 💾 Phase 11: Save File Support ✅ COMPLETE
+## 💾 Phase 11: MBC5 Cartridge Support ✅ COMPLETE
 
-**Goal:** Persistent storage for battery-backed RAM
+**Goal:** Support MBC5 cartridges used by many Game Boy Color games including Pokémon Red/Blue (Spanish version)
 
-**Status:** COMPLETE - Save file system implemented
+**Status:** COMPLETE - MBC5 implementation finished
 
-**Priority:** HIGH - Required to save Pokémon progress
+**Priority:** HIGH - Required for Pokémon Red Spanish version and many GBC games
 
 ### Requirements
-- .sav file format
-- Load RAM from .sav on startup
-- Save RAM to .sav periodically
-- Save on emulator shutdown
-- Handle missing .sav files (initialize)
-- RTC state persistence (for MBC3)
+- ROM banking (up to 512 banks × 16KB = 8MB)
+- RAM banking (up to 16 banks × 8KB = 128KB)
+- 9-bit ROM bank register (unlike 5-7 bit in MBC1/MBC3)
+- 4-bit RAM bank register
+- Rumble support (optional, for cartridge types 0x1C-0x1E)
+- Straightforward linear banking (no banking modes)
+
+### Implementation Details
+- **Files Created:**
+  - `src/cartridge/mbc5.h` - MBC5 class interface
+  - `src/cartridge/mbc5.cpp` - ROM/RAM banking implementation
+- **Files Modified:**
+  - `src/cartridge/cartridge.cpp` - Added MBC5 recognition (types 0x19-0x1E)
+  - `CMakeLists.txt` - Added mbc5.cpp to build
+  - `tests/CMakeLists.txt` - Added mbc5.cpp to tests
+- **Features:**
+  - 9-bit ROM banking (0x000-0x1FF, 512 banks)
+  - 4-bit RAM banking (0x0-0xF, 16 banks)
+  - Rumble bit support (bit 3 of RAM bank register)
+  - Split ROM bank register (lower 8 bits at 0x2000-0x2FFF, 9th bit at 0x3000-0x3FFF)
+  - Battery-backed RAM recognition
+  - Zero magic numbers (all constants properly named)
 
 ### Acceptance Criteria
-- ✅ Can save Pokémon game
-- ✅ Saves persist across runs
-- ✅ RTC state persists (for Gold/Silver/Crystal)
-- ✅ No data corruption
+- ✅ ROM banking functional (512 banks)
+- ✅ RAM banking functional (16 banks)
+- ✅ Pokémon Red Spanish version loads successfully
+- ✅ All cartridge types 0x19-0x1E supported
 - ✅ All tests passing
 - ✅ Zero compilation warnings
 - ✅ Clean code compliance (zero magic numbers)
@@ -397,15 +413,21 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 To run Pokémon Red/Blue/Yellow at a basic playable level:
 
 1. ✅ Phase 1-4: Foundation (COMPLETE)
-2. 🚧 Phase 5: CPU Instructions (IN PROGRESS)
-3. Phase 6: Interrupts
-4. Phase 7: MBC3 Support
-5. Phase 8: Sprite Rendering
-6. Phase 9: Input System
-7. Phase 10: Timer
-8. Phase 11: Save Files
+2. ✅ Phase 5: CPU Instructions (COMPLETE)
+3. ✅ Phase 6: Interrupts (COMPLETE)
+4. ✅ Phase 7: MBC3 Support (COMPLETE)
+5. ✅ Phase 8: Sprite Rendering (COMPLETE)
+6. ✅ Phase 9: Input System (COMPLETE)
+7. ✅ Phase 10: Timer (COMPLETE)
+8. ✅ Phase 11: MBC5 Support (COMPLETE)
+9. 🚧 **Phase 12: Graphics Frontend (SDL/OpenGL)** - IN PROGRESS NEXT
+10. 🚧 **Phase 13: Input Integration** - Required for gameplay
+11. 🚧 **Phase 14: Game Loop & Timing** - Required for continuous play
+12. 📦 **Phase 15: Save File Support** - Required to save progress
 
-**After MVP:** Phases 12-15 are enhancements for better accuracy and features.
+**Current Blocker:** Need graphical frontend to display actual game graphics (not just terminal ASCII art)
+
+**After MVP:** Audio (Phase 16), Window Layer (Phase 17), Color Support (Phase 18), Polish (Phase 19)
 
 ---
 
@@ -414,19 +436,23 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | Phase | Status | Completion |
 |-------|--------|------------|
 | 1-4: Foundation | ✅ Complete | 100% |
-| 5: CPU Instructions | 🚧 In Progress | 5% |
-| 6: Interrupts | ⏳ Planned | 0% |
-| 7: MBC3 | ⏳ Planned | 0% |
-| 8: Sprites | ⏳ Planned | 0% |
-| 9: Input | ⏳ Planned | 0% |
-| 10: Timer | ⏳ Planned | 0% |
-| 11: Save Files | ⏳ Planned | 0% |
-| 12: Window | ⏳ Future | 0% |
-| 13: Audio | ⏳ Future | 0% |
-| 14: Color | ⏳ Future | 0% |
-| 15: Polish | ⏳ Future | 0% |
+| 5: CPU Instructions | ✅ Complete | 100% |
+| 6: Interrupts | ✅ Complete | 100% |
+| 7: MBC3 | ✅ Complete | 100% |
+| 8: Sprites | ✅ Complete | 100% |
+| 9: Input (Hardware) | ✅ Complete | 100% |
+| 10: Timer | ✅ Complete | 100% |
+| 11: MBC5 | ✅ Complete | 100% |
+| 12: Graphics Frontend | 🚧 Next | 0% |
+| 13: Input Integration | ⏳ Planned | 0% |
+| 14: Game Loop | ⏳ Planned | 0% |
+| 15: Save Files | ⏳ Planned | 0% |
+| 16: Audio | ⏳ Future | 0% |
+| 17: Window Layer | ⏳ Future | 0% |
+| 18: Color Support | ⏳ Future | 0% |
+| 19: Polish | ⏳ Future | 0% |
 
-**Overall Progress: ~20%** (Foundation complete, CPU in progress)
+**Overall Progress: ~65%** (Core emulation complete, need frontend for gameplay)
 
 ---
 
@@ -495,5 +521,5 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 
 ---
 
-**Last Updated:** December 17, 2025
-**Current Focus:** Phase 5 - CPU Instruction Execution
+**Last Updated:** December 18, 2025
+**Current Focus:** Phase 12 - Graphics Frontend (SDL/OpenGL) for playable games
