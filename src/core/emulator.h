@@ -4,6 +4,8 @@
 #include "cpu.h"
 #include "memory.h"
 #include "../video/ppu.h"
+#include "../video/display.h"
+#include "../input/joypad.h"
 #include "../cartridge/cartridge.h"
 
 #include <memory>
@@ -49,6 +51,14 @@ public:
     void run_cycles(Cycles cycles);
     
     /**
+     * Run the emulator with display and input
+     * This is the main game loop - runs until window is closed
+     * @param window_title Title for the display window
+     * @param scale_factor Window scale factor (default 4x)
+     */
+    void run(const std::string& window_title, int scale_factor = 4);
+    
+    /**
      * Access to PPU for rendering
      * @return Reference to the PPU component
      */
@@ -62,10 +72,24 @@ public:
     const CPU& cpu() const;
     CPU& cpu();
     
+    /**
+     * Access to Joypad for input
+     * @return Reference to the Joypad component
+     */
+    Joypad& joypad();
+    
 private:
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
+    std::unique_ptr<Joypad> joypad_;
+    
+    // Game Boy refresh rate: ~59.73 Hz
+    static constexpr double FRAME_RATE = 59.73;
+    static constexpr double FRAME_TIME_MS = 1000.0 / FRAME_RATE;  // ~16.74 ms
+    
+    // Cycles per frame
+    static constexpr Cycles CYCLES_PER_FRAME = 70224;  // 154 scanlines × 456 dots
 };
 
 } // namespace emugbc
