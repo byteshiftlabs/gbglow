@@ -51,6 +51,12 @@ public:
     void update(const std::vector<u8>& framebuffer);
     
     /**
+     * Queue audio samples for playback
+     * @param samples Vector of stereo samples (left, right) as 8-bit unsigned values (0-255)
+     */
+    void queue_audio(const std::vector<std::pair<u8, u8>>& samples);
+    
+    /**
      * Check if window should close
      */
     bool should_close() const;
@@ -71,6 +77,7 @@ private:
     SDL_Window* window_;
     SDL_Renderer* renderer_;
     SDL_Texture* texture_;
+    unsigned int audio_device_;  // SDL_AudioDeviceID is typedef'd to Uint32
     
     bool should_close_;
     int scale_factor_;

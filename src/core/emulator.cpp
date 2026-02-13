@@ -1,4 +1,5 @@
 #include "emulator.h"
+#include "../audio/apu.h"
 #include <stdexcept>
 #include <iostream>
 #include <chrono>
@@ -27,6 +28,16 @@ bool Emulator::load_rom(const std::string& path) {
     try {
         auto cartridge = Cartridge::load_rom_from_file(path);
         memory_->load_cartridge(std::move(cartridge));
+        rom_path_ = path;
+        
+        // Load save file if it exists
+        std::string save_path = get_save_path();
+        if (auto* cart = memory_->cartridge()) {
+            if (cart->load_ram_from_file(save_path)) {
+                std::cout << "Loaded save file: " << save_path << std::endl;
+            }
+        }
+        
         reset();
         return true;
     } catch (const std::exception& e) {
@@ -56,6 +67,9 @@ void Emulator::run_cycles(Cycles cycles) {
         
         // Run PPU for the same number of cycles
         ppu_->step(cpu_cycles);
+        
+        // Run APU for audio generation
+        memory_->apu().step(cpu_cycles);
         
         remaining = (remaining > cpu_cycles) ? (remaining - cpu_cycles) : 0;
     }
@@ -94,6 +108,13 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             ppu_->clear_frame_ready();
         }
         
+        // Queue audio samples
+        const auto& audio_samples = memory_->apu().get_audio_buffer();
+        if (!audio_samples.empty()) {
+            display.queue_audio(audio_samples);
+            memory_->apu().clear_audio_buffer();
+        }
+        
         // Frame timing - maintain ~59.73 Hz
         auto frame_end = Clock::now();
         Duration frame_duration = frame_end - frame_start;
@@ -105,6 +126,14 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         }
         
         last_frame_time = Clock::now();
+    }
+    
+    // Save RAM to file on exit
+    if (auto* cart = memory_->cartridge()) {
+        std::string save_path = get_save_path();
+        if (cart->save_ram_to_file(save_path)) {
+            std::cout << "Saved game data to: " << save_path << std::endl;
+        }
     }
     
     std::cout << "Emulator stopped." << std::endl;
@@ -133,6 +162,26 @@ CPU& Emulator::cpu()
 Joypad& Emulator::joypad()
 {
     return memory_->joypad();
+}
+
+Cartridge* Emulator::cartridge()
+{
+    return memory_->cartridge();
+}
+
+std::string Emulator::get_save_path() const
+{
+    // Replace .gb, .gbc extension with .sav
+    std::string save_path = rom_path_;
+    
+    // Find last dot
+    size_t dot_pos = save_path.rfind('.');
+    if (dot_pos != std::string::npos) {
+        save_path = save_path.substr(0, dot_pos);
+    }
+    
+    save_path += ".sav";
+    return save_path;
 }
 
 } // namespace emugbc
