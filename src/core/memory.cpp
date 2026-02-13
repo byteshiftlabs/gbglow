@@ -5,6 +5,7 @@
 
 #include "../cartridge/cartridge.h"
 #include "../input/joypad.h"
+#include "../audio/apu.h"
 #include "timer.h"
 
 namespace emugbc {
@@ -83,6 +84,9 @@ Memory::Memory()
     
     // Create timer system
     timer_ = std::make_unique<Timer>(*this);
+    
+    // Create APU (audio)
+    apu_ = std::make_unique<APU>(*this);
 }
 
 Memory::~Memory() {
@@ -178,6 +182,11 @@ u8 Memory::read(u16 address) const {
             return timer_->read_tac();
         }
         
+        // Sound registers (0xFF10-0xFF3F) - route through APU
+        if (address >= 0xFF10 && address <= 0xFF3F) {
+            return apu_->read_register(address);
+        }
+        
         return io_regs_[address - IO_REGISTERS_START];
     }
     
@@ -266,6 +275,12 @@ void Memory::write(u16 address, u8 value) {
             return;
         }
         
+        // Sound registers (0xFF10-0xFF3F) - route through APU
+        if (address >= 0xFF10 && address <= 0xFF3F) {
+            apu_->write_register(address, value);
+            return;
+        }
+        
         // Boot ROM disable register - write any value to disable boot ROM
         if (address == BOOT_ROM_DISABLE_REG) {
             if (value != 0) {
@@ -313,6 +328,16 @@ Joypad& Memory::joypad()
 Timer& Memory::timer()
 {
     return *timer_;
+}
+
+APU& Memory::apu()
+{
+    return *apu_;
+}
+
+Cartridge* Memory::cartridge()
+{
+    return cartridge_.get();
 }
 
 } // namespace emugbc
