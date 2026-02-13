@@ -24,6 +24,9 @@ namespace {
     constexpr u8 LCDC_OBJ_SIZE_BIT = 0x04;
     constexpr u8 LCDC_BG_TILEMAP_BIT = 0x08;
     constexpr u8 LCDC_TILE_DATA_BIT = 0x10;
+    constexpr u8 LCDC_WINDOW_ENABLE_BIT = 0x20;
+    constexpr u8 LCDC_WINDOW_TILEMAP_BIT = 0x40;
+    constexpr u8 LCDC_LCD_ENABLE_BIT = 0x80;
     
     // Register addresses
     constexpr u16 REG_LCDC = 0xFF40;
@@ -34,6 +37,8 @@ namespace {
     constexpr u16 REG_BGP = 0xFF47;
     constexpr u16 REG_OBP0 = 0xFF48;
     constexpr u16 REG_OBP1 = 0xFF49;
+    constexpr u16 REG_WY = 0xFF4A;
+    constexpr u16 REG_WX = 0xFF4B;
     constexpr u16 REG_IF = 0xFF0F;
     
     // Palette manipulation
@@ -75,7 +80,8 @@ PPU::PPU(Memory& memory)
     , mode_(Mode::OAMSearch)
     , dots_(0)
     , ly_(0)
-    , frame_ready_(false) {
+    , frame_ready_(false)
+    , window_line_counter_(0) {
     framebuffer_.fill(0);
 }
 
@@ -128,6 +134,7 @@ void PPU::step(Cycles cycles) {
                     if (ly_ >= 154) {
                         // End of VBlank, restart frame
                         ly_ = 0;
+                        window_line_counter_ = 0;  // Reset window counter for new frame
                         mode_ = Mode::OAMSearch;
                     }
                 }
@@ -147,8 +154,9 @@ void PPU::step(Cycles cycles) {
 void PPU::render_scanline() {
     if (ly_ >= SCREEN_HEIGHT) return;  // Only render visible scanlines
     
-    // Render background first, then sprites on top
+    // Render background first, then window, then sprites on top
     render_background();
+    render_window();
     render_sprites();
 }
 
@@ -198,6 +206,80 @@ void PPU::render_background() {
         u8 color = (palette >> (pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
         
         framebuffer_[ly_ * SCREEN_WIDTH + x] = color;
+    }
+}
+
+void PPU::render_window() {
+    // Read LCD control register
+    u8 lcdc = memory_.read(REG_LCDC);
+    bool window_enabled = (lcdc & LCDC_WINDOW_ENABLE_BIT) != 0;
+    bool bg_enabled = (lcdc & LCDC_BG_ENABLE_BIT) != 0;  // Window requires BG enable on DMG
+    
+    if (!window_enabled || !bg_enabled) {
+        return;
+    }
+    
+    // Window position registers
+    u8 wy = memory_.read(REG_WY);  // Window Y position (0-143)
+    u8 wx = memory_.read(REG_WX);  // Window X position + 7 (7-166)
+    
+    // Window is only drawn when ly >= wy
+    if (ly_ < wy) {
+        return;
+    }
+    
+    // Window X=7 means window starts at screen X=0
+    int window_x_start = wx - 7;
+    
+    // If window is completely off screen to the right, skip
+    if (window_x_start >= SCREEN_WIDTH) {
+        return;
+    }
+    
+    // LCDC bit 6 selects which tile map to use for window
+    u16 window_map = (lcdc & LCDC_WINDOW_TILEMAP_BIT) ? TILE_MAP_1 : TILE_MAP_0;
+    
+    // LCDC bit 4 selects tile data addressing mode (shared with BG)
+    u16 tile_data = (lcdc & LCDC_TILE_DATA_BIT) ? TILE_DATA_UNSIGNED_BASE : TILE_DATA_SIGNED_BASE;
+    
+    // Window uses its own internal line counter, not ly_
+    u8 window_y = window_line_counter_;
+    u8 tile_y = window_y / TILE_SIZE;
+    u8 pixel_y = window_y % TILE_SIZE;
+    
+    bool window_drawn = false;
+    
+    // Render each pixel where window is visible
+    for (int x = 0; x < SCREEN_WIDTH; x++) {
+        // Window only draws where x >= window_x_start
+        if (x < window_x_start) {
+            continue;
+        }
+        
+        window_drawn = true;
+        
+        // Calculate position within window
+        int window_x = x - window_x_start;
+        u8 tile_x = window_x / TILE_SIZE;
+        u8 pixel_x = window_x % TILE_SIZE;
+        
+        // Get tile from window tile map
+        u16 map_addr = window_map + (tile_y * TILEMAP_WIDTH) + tile_x;
+        u8 tile_num = memory_.read(map_addr);
+        
+        // Decode 2-bit pixel from tile pattern data
+        u8 pixel = get_tile_pixel(tile_data, tile_num, pixel_x, pixel_y);
+        
+        // Window uses same palette as background (BGP)
+        u8 palette = memory_.read(REG_BGP);
+        u8 color = (palette >> (pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
+        
+        framebuffer_[ly_ * SCREEN_WIDTH + x] = color;
+    }
+    
+    // Only increment window line counter if window was actually drawn on this scanline
+    if (window_drawn) {
+        window_line_counter_++;
     }
 }
 

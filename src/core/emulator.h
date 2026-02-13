@@ -82,7 +82,7 @@ private:
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
-    std::unique_ptr<Joypad> joypad_;
+    // Note: Joypad is owned by Memory, accessed via memory_->joypad()
     
     // Game Boy refresh rate: ~59.73 Hz
     static constexpr double FRAME_RATE = 59.73;

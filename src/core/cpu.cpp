@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "cpu_constants.h"
+#include <iostream>
 
 namespace emugbc {
 

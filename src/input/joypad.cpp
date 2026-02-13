@@ -1,5 +1,6 @@
 #include "joypad.h"
 #include "../core/memory.h"
+#include <iostream>
 
 namespace emugbc {
 
@@ -110,44 +111,44 @@ u8 Joypad::read_register() const {
     // Start with all inputs not pressed (bits set to 1)
     u8 result = INPUT_MASK;
     
-    // If button keys are selected (bit 5 = 0)
-    if (!select_buttons_) {
+    // If button keys are selected (bit 5 = 0, so select_buttons_ = true)
+    if (select_buttons_) {
         if (button_a_) {
-            result &= ~(BIT_PRESSED << BIT_RIGHT_A);
+            result &= ~(1 << BIT_RIGHT_A);  // Clear bit 0 when A pressed
         }
         if (button_b_) {
-            result &= ~(BIT_PRESSED << BIT_LEFT_B);
+            result &= ~(1 << BIT_LEFT_B);   // Clear bit 1 when B pressed
         }
         if (button_select_) {
-            result &= ~(BIT_PRESSED << BIT_UP_SELECT);
+            result &= ~(1 << BIT_UP_SELECT); // Clear bit 2 when Select pressed
         }
         if (button_start_) {
-            result &= ~(BIT_PRESSED << BIT_DOWN_START);
+            result &= ~(1 << BIT_DOWN_START); // Clear bit 3 when Start pressed
         }
     }
     
-    // If direction keys are selected (bit 4 = 0)
-    if (!select_directions_) {
+    // If direction keys are selected (bit 4 = 0, so select_directions_ = true)
+    if (select_directions_) {
         if (dpad_right_) {
-            result &= ~(BIT_PRESSED << BIT_RIGHT_A);
+            result &= ~(1 << BIT_RIGHT_A);  // Clear bit 0 when Right pressed
         }
         if (dpad_left_) {
-            result &= ~(BIT_PRESSED << BIT_LEFT_B);
+            result &= ~(1 << BIT_LEFT_B);   // Clear bit 1 when Left pressed
         }
         if (dpad_up_) {
-            result &= ~(BIT_PRESSED << BIT_UP_SELECT);
+            result &= ~(1 << BIT_UP_SELECT); // Clear bit 2 when Up pressed
         }
         if (dpad_down_) {
-            result &= ~(BIT_PRESSED << BIT_DOWN_START);
+            result &= ~(1 << BIT_DOWN_START); // Clear bit 3 when Down pressed
         }
     }
     
-    // Add selection bits
-    if (select_buttons_) {
-        result |= (BIT_NOT_PRESSED << BIT_SELECT_BUTTONS);
+    // Add selection bits back - if NOT selected, set bit to 1
+    if (!select_buttons_) {
+        result |= (1 << BIT_SELECT_BUTTONS);
     }
-    if (select_directions_) {
-        result |= (BIT_NOT_PRESSED << BIT_SELECT_DIRECTIONS);
+    if (!select_directions_) {
+        result |= (1 << BIT_SELECT_DIRECTIONS);
     }
     
     // Unused bits are always set to 1
