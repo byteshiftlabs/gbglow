@@ -694,18 +694,18 @@ void APU::write_register(u16 address, u8 value) {
         return;
     }
     
-    // Wave RAM
+    // Wave RAM (0xFF30-0xFF3F)
     if (address >= WAVE_RAM_START && address <= WAVE_RAM_END) {
-        // IMPORTANTE: Wave RAM solo es escribible cuando Channel 3 está apagado o DAC deshabilitado
-        // Cuando está activo, las escrituras solo afectan al byte siendo reproducido actualmente
-        // Esto es crítico para sonidos como el de Game Freak en Pokemon
+        // Wave RAM access behavior when Channel 3 is active (CGB behavior):
+        // Writes go to the byte currently being read by the wave channel.
+        // This is critical for effects like Game Freak logo sound in Pokemon.
         if (channel3_.enabled && channel3_.dac_enabled) {
-            // Cuando está activo, solo escribir al byte que se está leyendo ahora
-            // gnuboy: bits 22-25 de phase contienen el índice del byte (0-15)
+            // Redirect write to current playback position
+            // gnuboy: bits 22-25 of phase contain the byte index (0-15)
             int current_byte_index = (channel3_.phase >> 22) & 0x0F;
             wave_ram_[current_byte_index] = value;
         } else {
-            // Cuando está inactivo, escritura normal
+            // Normal write when channel is inactive
             wave_ram_[address - WAVE_RAM_START] = value;
         }
         return;
