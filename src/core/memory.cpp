@@ -189,12 +189,7 @@ u8 Memory::read(u16 address) const {
         if (address == TIMER_TAC_REG) {
             return timer_->read_tac();
         }
-        
-<<<<<<< Updated upstream
-        // Sound registers (0xFF10-0xFF3F) - route through APU
-=======
         // Audio registers - route through APU
->>>>>>> Stashed changes
         if (address >= 0xFF10 && address <= 0xFF3F) {
             return apu_->read_register(address);
         }
@@ -286,12 +281,7 @@ void Memory::write(u16 address, u8 value) {
             timer_->write_tac(value);
             return;
         }
-        
-<<<<<<< Updated upstream
-        // Sound registers (0xFF10-0xFF3F) - route through APU
-=======
         // Audio registers - route through APU
->>>>>>> Stashed changes
         if (address >= 0xFF10 && address <= 0xFF3F) {
             apu_->write_register(address, value);
             return;
@@ -344,16 +334,6 @@ Joypad& Memory::joypad()
 Timer& Memory::timer()
 {
     return *timer_;
-}
-
-APU& Memory::apu()
-{
-    return *apu_;
-}
-
-Cartridge* Memory::cartridge()
-{
-    return cartridge_.get();
 }
 
 } // namespace emugbc

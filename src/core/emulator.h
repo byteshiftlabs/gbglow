@@ -83,6 +83,12 @@ public:
      * @return Pointer to cartridge (may be null)
      */
     Cartridge* cartridge();
+
+    /**
+     * Access to Memory for testing & diagnostics
+     * @return Reference to Memory
+     */
+    Memory& memory();
     
     /**
      * Get the save file path for current ROM
