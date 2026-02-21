@@ -25,7 +25,13 @@ Unlike existing emulators (gnuboy, etc.) that prioritize performance or features
 - VBlank interrupt
 - 160x144 framebuffer
 
-⏳ **Phase 3: In Progress**
+✅ **Phase 3 Complete: Audio**
+- 4 sound channels (2 square, 1 wave, 1 noise)
+- gnuboy-compatible APU implementation
+- Real-time SDL2 audio output
+- Sweep, envelope, and length support
+
+⏳ **Phase 4: In Progress**
 - Sprite rendering (OAM, priority)
 - Window layer
 - Additional interrupts
@@ -74,9 +80,11 @@ cd build
 - Sharp LR35902 CPU emulation (~180 opcodes)
 - Complete memory system (64KB address space)
 - Background tile rendering
+- **Full audio emulation (4 channels)**
 - ROM-only and MBC1 cartridge support
 - VBlank interrupt handling
 - Cycle-accurate timing
+- SDL2 video and audio output
 
 ## License
 

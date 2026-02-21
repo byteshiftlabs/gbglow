@@ -78,11 +78,31 @@ public:
      */
     Joypad& joypad();
     
+    /**
+     * Get cartridge from memory
+     * @return Pointer to cartridge (may be null)
+     */
+    Cartridge* cartridge();
+
+    /**
+     * Access to Memory for testing & diagnostics
+     * @return Reference to Memory
+     */
+    Memory& memory();
+    
+    /**
+     * Get the save file path for current ROM
+     * @return Path to .sav file based on loaded ROM path
+     */
+    std::string get_save_path() const;
+    
 private:
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
-    std::unique_ptr<Joypad> joypad_;
+    // Note: Joypad is owned by Memory, accessed via memory_->joypad()
+    
+    std::string rom_path_;  // Path to loaded ROM file
     
     // Game Boy refresh rate: ~59.73 Hz
     static constexpr double FRAME_RATE = 59.73;

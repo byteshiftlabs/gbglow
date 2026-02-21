@@ -79,6 +79,9 @@ private:
     // Sprites visible on current scanline
     std::vector<Sprite> scanline_sprites_;
     
+    // Window line counter (tracks which line of window is being drawn)
+    u8 window_line_counter_;
+    
     // OAM constants
     static constexpr u16 OAM_START = 0xFE00;
     static constexpr u16 OAM_END = 0xFEA0;
@@ -103,6 +106,7 @@ private:
     // Background rendering
     void render_scanline();
     void render_background();
+    void render_window();
     void render_sprites();
     
     // OAM search

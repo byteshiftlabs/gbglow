@@ -1,9 +1,11 @@
 #include "memory.h"
 
 #include <cstring>
+#include <fstream>
 
 #include "../cartridge/cartridge.h"
 #include "../input/joypad.h"
+#include "../audio/apu.h"
 #include "timer.h"
 
 namespace emugbc {
@@ -32,22 +34,59 @@ namespace {
     constexpr u16 TIMER_TIMA_REG = 0xFF05;
     constexpr u16 TIMER_TMA_REG = 0xFF06;
     constexpr u16 TIMER_TAC_REG = 0xFF07;
+    constexpr u16 BOOT_ROM_DISABLE_REG = 0xFF50;
+    constexpr u16 BOOT_ROM_SIZE = 0x0100;
+    
+    // Sound registers
+    constexpr u16 SOUND_NR52 = 0xFF26;  // Sound on/off
 }
 
 Memory::Memory() 
-    : interrupt_enable_(0) {
+    : boot_rom_loaded_(false)
+    , boot_rom_enabled_(false)
+    , interrupt_enable_(0) {
     // Initialize memory to zero
     vram_.fill(0);
     wram_.fill(0);
     oam_.fill(0);
     hram_.fill(0);
     io_regs_.fill(0);
+    boot_rom_.fill(0);
+    
+    // Initialize hardware registers to post-boot state
+    // These values match what the boot ROM sets before jumping to cartridge
+    
+    // LCD Control (0xFF40) - LCD enabled, all features on
+    io_regs_[0x40] = 0x91;  // LCDC: LCD on, BG on, window off
+    
+    // LCD Status (0xFF41) - Mode 1 (VBlank)
+    io_regs_[0x41] = 0x85;
+    
+    // Scroll registers
+    io_regs_[0x42] = 0x00;  // SCY
+    io_regs_[0x43] = 0x00;  // SCX
+    
+    // LY register (scanline)
+    io_regs_[0x44] = 0x00;
+    
+    // Background palette (0xFF47)
+    io_regs_[0x47] = 0xFC;
+    
+    // Object palettes
+    io_regs_[0x48] = 0xFF;  // OBP0
+    io_regs_[0x49] = 0xFF;  // OBP1
+    
+    // Sound control register (NR52) - bit 7 = sound enabled
+    io_regs_[SOUND_NR52 - IO_REGISTERS_START] = 0xF1;
     
     // Create joypad controller
     joypad_ = std::make_unique<Joypad>(*this);
     
     // Create timer system
     timer_ = std::make_unique<Timer>(*this);
+    
+    // Create audio system
+    apu_ = std::make_unique<APU>(*this);
 }
 
 Memory::~Memory() {
@@ -58,7 +97,37 @@ void Memory::load_cartridge(std::unique_ptr<Cartridge> cart) {
     cartridge_ = std::move(cart);
 }
 
+Cartridge* Memory::cartridge() {
+    return cartridge_.get();
+}
+
+APU& Memory::apu() {
+    return *apu_;
+}
+
+bool Memory::load_boot_rom(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) {
+        return false;
+    }
+    
+    // Read boot ROM (should be exactly 256 bytes)
+    file.read(reinterpret_cast<char*>(boot_rom_.data()), BOOT_ROM_SIZE);
+    if (!file || file.gcount() != BOOT_ROM_SIZE) {
+        return false;
+    }
+    
+    boot_rom_loaded_ = true;
+    boot_rom_enabled_ = true;  // Enable boot ROM on load
+    return true;
+}
+
 u8 Memory::read(u16 address) const {
+    // Boot ROM overlay - takes priority over cartridge ROM when enabled
+    if (boot_rom_enabled_ && boot_rom_loaded_ && address < BOOT_ROM_SIZE) {
+        return boot_rom_[address];
+    }
+    
     // Cartridge ROM space - delegate to MBC for bank switching
     if (address < ROM_END) {
         if (cartridge_) {
@@ -119,6 +188,10 @@ u8 Memory::read(u16 address) const {
         }
         if (address == TIMER_TAC_REG) {
             return timer_->read_tac();
+        }
+        // Audio registers - route through APU
+        if (address >= 0xFF10 && address <= 0xFF3F) {
+            return apu_->read_register(address);
         }
         
         return io_regs_[address - IO_REGISTERS_START];
@@ -206,6 +279,19 @@ void Memory::write(u16 address, u8 value) {
         }
         if (address == TIMER_TAC_REG) {
             timer_->write_tac(value);
+            return;
+        }
+        // Audio registers - route through APU
+        if (address >= 0xFF10 && address <= 0xFF3F) {
+            apu_->write_register(address, value);
+            return;
+        }
+        
+        // Boot ROM disable register - write any value to disable boot ROM
+        if (address == BOOT_ROM_DISABLE_REG) {
+            if (value != 0) {
+                boot_rom_enabled_ = false;  // Permanently disable until reset
+            }
             return;
         }
         

@@ -1,4 +1,5 @@
 #include "emulator.h"
+#include "../audio/apu.h"
 #include <stdexcept>
 #include <iostream>
 #include <chrono>
@@ -10,13 +11,33 @@ Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
     cpu_ = std::make_unique<CPU>(*memory_);
     ppu_ = std::make_unique<PPU>(*memory_);
-    joypad_ = std::make_unique<Joypad>(*memory_);
+    // Note: Joypad is owned by Memory, not Emulator
+    
+    // Try to load boot ROM (optional - emulator works without it)
+    // Common locations: dmg_boot.bin, boot.gb, etc.
+    if (memory_->load_boot_rom("dmg_boot.bin")) {
+        std::cout << "Boot ROM loaded" << std::endl;
+    } else if (memory_->load_boot_rom("boot.gb")) {
+        std::cout << "Boot ROM loaded" << std::endl;
+    } else {
+        std::cout << "No boot ROM found (emulator will skip boot sequence)" << std::endl;
+    }
 }
 
 bool Emulator::load_rom(const std::string& path) {
     try {
         auto cartridge = Cartridge::load_rom_from_file(path);
         memory_->load_cartridge(std::move(cartridge));
+        rom_path_ = path;
+        
+        // Load save file if it exists
+        std::string save_path = get_save_path();
+        if (auto* cart = memory_->cartridge()) {
+            if (cart->load_ram_from_file(save_path)) {
+                std::cout << "Loaded save file: " << save_path << std::endl;
+            }
+        }
+        
         reset();
         return true;
     } catch (const std::exception& e) {
@@ -47,6 +68,9 @@ void Emulator::run_cycles(Cycles cycles) {
         // Run PPU for the same number of cycles
         ppu_->step(cpu_cycles);
         
+        // Run APU for audio generation
+        memory_->apu().step(cpu_cycles);
+        
         remaining = (remaining > cpu_cycles) ? (remaining - cpu_cycles) : 0;
     }
 }
@@ -71,8 +95,8 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     while (!display.should_close()) {
         auto frame_start = Clock::now();
         
-        // Handle input events
-        display.poll_events(joypad_.get());
+        // Handle input events - get joypad from memory (single source of truth)
+        display.poll_events(&memory_->joypad());
         
         // Run one frame of emulation
         run_frame();
@@ -82,6 +106,13 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             const auto& framebuffer = ppu_->get_rgba_framebuffer();
             display.update(framebuffer);
             ppu_->clear_frame_ready();
+        }
+        
+        // Queue audio samples
+        const auto& audio_samples = memory_->apu().get_audio_buffer();
+        if (!audio_samples.empty()) {
+            display.queue_audio(audio_samples);
+            memory_->apu().clear_audio_buffer();
         }
         
         // Frame timing - maintain ~59.73 Hz
@@ -95,6 +126,14 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         }
         
         last_frame_time = Clock::now();
+    }
+    
+    // Save RAM to file on exit
+    if (auto* cart = memory_->cartridge()) {
+        std::string save_path = get_save_path();
+        if (cart->save_ram_to_file(save_path)) {
+            std::cout << "Saved game data to: " << save_path << std::endl;
+        }
     }
     
     std::cout << "Emulator stopped." << std::endl;
@@ -122,7 +161,32 @@ CPU& Emulator::cpu()
 
 Joypad& Emulator::joypad()
 {
-    return *joypad_;
+    return memory_->joypad();
+}
+
+Cartridge* Emulator::cartridge()
+{
+    return memory_->cartridge();
+}
+
+Memory& Emulator::memory()
+{
+    return *memory_;
+}
+
+std::string Emulator::get_save_path() const
+{
+    // Replace .gb, .gbc extension with .sav
+    std::string save_path = rom_path_;
+    
+    // Find last dot
+    size_t dot_pos = save_path.rfind('.');
+    if (dot_pos != std::string::npos) {
+        save_path = save_path.substr(0, dot_pos);
+    }
+    
+    save_path += ".sav";
+    return save_path;
 }
 
 } // namespace emugbc

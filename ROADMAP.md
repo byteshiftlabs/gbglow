@@ -454,9 +454,11 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 🪟 Phase 15: Window Layer
+## 🪟 Phase 15: Window Layer ✅ COMPLETE
 
 **Goal:** Implement window overlay for menus and text
+
+**Status:** COMPLETE - Window layer fully functional
 
 **Priority:** MEDIUM - Enhances graphics accuracy
 
@@ -468,10 +470,26 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - Window-background overlap handling
 - Window internal line counter
 
+### Implementation Details
+- **Files Modified:**
+  - `src/video/ppu.h` - Added window_line_counter_ member, render_window() method, window constants
+  - `src/video/ppu.cpp` - Implemented window rendering with position tracking and line counter
+- **Features:**
+  - Window enable check (LCDC bit 5)
+  - WX/WY position registers (0xFF4B, 0xFF4A)
+  - Window tile map selection (LCDC bit 6)
+  - Window line counter for proper scrolling
+  - Window-background overlap handling
+  - WX-7 offset for proper horizontal positioning
+  - Window rendering after background, before sprites
+
 ### Acceptance Criteria
-- [ ] Window renders correctly
-- [ ] Window position adjustable
-- [ ] Pokémon text boxes display properly
+- ✅ Window renders correctly
+- ✅ Window position adjustable via WX/WY
+- ✅ Pokémon text boxes display properly
+- ✅ Dialog windows and menus functional
+- ✅ All tests passing
+- ✅ Zero compilation warnings
 
 ---
 
@@ -497,13 +515,13 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 💾 Phase 17: Save File Support
+## 💾 Phase 17: Save File Support ✅ COMPLETE
 
 **Goal:** Persistent storage for battery-backed RAM
 
-**Priority:** HIGH - Required to save Pokémon progress
+**Status:** COMPLETE - Save file system fully functional
 
-**Status:** Can test without this initially
+**Priority:** HIGH - Required to save Pokémon progress
 
 ### Requirements
 - .sav file format
@@ -513,21 +531,41 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - Handle missing .sav files (initialize)
 - RTC state persistence (for MBC3)
 
+### Implementation Details
+- **Files Modified:**
+  - `src/cartridge/cartridge.h` - Added save_ram_to_file() and load_ram_from_file() virtual methods
+  - `src/cartridge/cartridge.cpp` - Implemented base class save/load for simple binary format
+  - `src/cartridge/mbc3.cpp` - Extended save/load to include RTC state (registers + timestamps)
+  - `src/core/memory.h` - Added cartridge() accessor method
+  - `src/core/memory.cpp` - Implemented cartridge() accessor
+  - `src/core/emulator.h` - Added rom_path_, cartridge(), and get_save_path() methods
+  - `src/core/emulator.cpp` - Integrated save/load on ROM load and emulator shutdown
+- **Features:**
+  - Simple binary .sav format (raw RAM dump)
+  - Automatic save path generation (rom.gb → rom.sav)
+  - Load save file on ROM load (if exists)
+  - Save RAM to file on emulator shutdown
+  - MBC3 RTC state persistence (5 registers + base time + base days)
+  - Battery-backed RAM detection from cartridge header
+  - Graceful handling of missing save files
+
 ### Acceptance Criteria
-- [ ] Can save Pokémon game
-- [ ] Saves persist across runs
-- [ ] RTC state persists (for Gold/Silver/Crystal)
-- [ ] No data corruption
+- ✅ Can save Pokémon game
+- ✅ Saves persist across runs
+- ✅ RTC state persists (for Gold/Silver/Crystal)
+- ✅ No data corruption
+- ✅ All tests passing
+- ✅ Zero compilation warnings
 
 ---
 
-## 🎵 Phase 18: Audio Processing Unit (APU)
+## 🎵 Phase 18: Audio Processing Unit (APU) ✅ COMPLETE
 
 **Goal:** Sound and music generation
 
-**Priority:** LOW - Enhances experience but optional
+**Status:** COMPLETE - Full APU with SDL2 audio output
 
-**Status:** Can test without this initially
+**Priority:** LOW - Enhances experience but optional
 
 ### Requirements
 - Channel 1: Square wave with sweep
@@ -540,11 +578,51 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - Audio mixing
 - Sample output (WAV or direct audio)
 
+### Implementation Details
+- **Files Created:**
+  - `src/audio/apu.h` - APU class with 4 channel structures (gnuboy-compatible naming)
+  - `src/audio/apu.cpp` - Sound register handling and sample generation (gnuboy algorithm)
+- **Files Modified:**
+  - `src/core/memory.h` - Added APU forward declaration and apu() accessor
+  - `src/core/memory.cpp` - Integrated APU, routed audio registers (0xFF10-0xFF3F)
+  - `src/core/emulator.cpp` - Added APU step() call in run_cycles()
+  - `src/video/display.h` - Added SDL audio device and audio callback
+  - `src/video/display.cpp` - Implemented SDL2 audio output with proper U8→S16 conversion
+  - `CMakeLists.txt` - Added audio source files
+  - `tests/CMakeLists.txt` - Added apu.cpp to test builds
+- **Features:**
+  - Full sound register address space (0xFF10-0xFF3F)
+  - Channel 1 (square + sweep): NR10-NR14 registers with frequency sweep
+  - Channel 2 (square): NR21-NR24 registers
+  - Channel 3 (wave): NR30-NR34 registers + wave RAM (0xFF30-0xFF3F)
+  - Channel 4 (noise): NR41-NR44 registers with LFSR
+  - Master control: NR50 (volume), NR51 (panning), NR52 (power)
+  - gnuboy-compatible sample generation algorithm
+  - 44.1kHz sample rate with RATE = (1<<21)/44100 timing
+  - SDL2 audio output with hardware callback
+  - Proper U8→S16 conversion (*128 amplification)
+  - 1024 sample buffer (gnuboy method: samplerate/60 rounded to power of 2)
+
+### Key Implementation Notes (gnuboy Compatibility)
+The APU was rewritten to exactly match gnuboy's `sound_mix()` function:
+- **RATE constant:** `(1<<21)/SAMPLE_RATE` for timing accumulation
+- **Phase-based generation:** Each channel has `pos` accumulator, advances by RATE
+- **Inline frequency calculation:** `(2048 - freq) << 13` for square waves
+- **Channel 3 scaling:** `(2048 - freq) << 13` (not <<20)
+- **Single `on` flag:** Instead of separate enabled/dac_enabled checks
+- **Envelope/sweep inline:** Applied during sample generation, not separate step()
+
+See `docs/architecture/apu.md` for detailed implementation notes and lessons learned.
+
 ### Acceptance Criteria
-- [ ] All 4 channels functional
-- [ ] Pokémon music plays
-- [ ] Sound effects work
-- [ ] Volume control responsive
+- ✅ All 4 channels have register support
+- ✅ Pokémon music plays correctly
+- ✅ Sound effects work (Game Freak logo jingle confirmed)
+- ✅ Volume control responsive
+- ✅ SDL2 audio output functional
+- ✅ All tests passing
+- ✅ Zero compilation warnings
+- ✅ gnuboy-compatible implementation
 
 ---
 
@@ -578,15 +656,15 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 9. ✅ **Phase 12: Graphics Frontend (SDL2)** - COMPLETE
 10. ✅ **Phase 13: Input Integration** - COMPLETE
 11. ✅ **Phase 14: Game Loop & Timing** - COMPLETE 🎉
-12. 🪟 **Phase 15: Window Layer** - Optional for initial testing
+12. ✅ **Phase 15: Window Layer** - COMPLETE 🎉
 13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
-14. 💾 **Phase 17: Save File Support** - Optional for initial testing
-15. 🎵 **Phase 18: Audio** - Optional for initial testing
+14. ✅ **Phase 17: Save File Support** - COMPLETE 🎉
+15. ✅ **Phase 18: Audio** - COMPLETE (gnuboy-compatible, SDL2 output) 🎉
 
 **Current Status:** 🎉 PLAYABLE! All core systems complete. Next: Optional enhancements
 
 **Minimum for Playable Pokémon:** ✅ COMPLETE (Phases 1-14)
-**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18), Polish (19)
+**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18) - ALL COMPLETE except Color (16)
 
 ---
 
@@ -605,13 +683,13 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 12: Graphics Frontend | ✅ Complete | 100% |
 | 13: Input Integration | ✅ Complete | 100% |
 | 14: Game Loop | ✅ Complete | 100% |
-| 15: Window Layer | ⏳ Future | 0% |
+| 15: Window Layer | ✅ Complete | 100% |
 | 16: Color Support | ⏳ Future | 0% |
-| 17: Save Files | ⏳ Future | 0% |
-| 18: Audio | ⏳ Future | 0% |
+| 17: Save Files | ✅ Complete | 100% |
+| 18: Audio | ✅ Complete | 100% |
 | 19: Polish | ⏳ Future | 0% |
 
-**Overall Progress: ~80%** 🎉 (MVP COMPLETE - Fully playable! Remaining phases are enhancements)
+**Overall Progress: ~95%** 🎉 (MVP+ Window, Saves, Audio COMPLETE - Fully playable with audio! Only Color GBC and Polish remain)
 
 ---
 
@@ -680,5 +758,5 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 
 ---
 
-**Last Updated:** December 18, 2025
-**Current Focus:** 🎮 PLAYABLE MVP COMPLETE! Optional phases: Window Layer, Color, Save Files, Audio
+**Last Updated:** December 19, 2025
+**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18) with full audio. Optional: Color GBC (16), Polish (19)
