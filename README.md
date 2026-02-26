@@ -31,10 +31,16 @@ Unlike existing emulators (gnuboy, etc.) that prioritize performance or features
 - Real-time SDL2 audio output
 - Sweep, envelope, and length support
 
-⏳ **Phase 4: In Progress**
-- Sprite rendering (OAM, priority)
-- Window layer
-- Additional interrupts
+✅ **Phase 4 Complete: Graphics**
+- Sprite rendering (8x8 and 8x16 modes)
+- OAM DMA transfer for fast sprite updates
+- Window layer with position control
+- Sprite priority and transparency
+- 10 sprites per scanline limit
+
+⏳ **Phase 5: Optional Enhancements**
+- Game Boy Color palette support
+- Additional polish and optimization
 
 ## Building
 
@@ -79,12 +85,16 @@ cd build
 
 - Sharp LR35902 CPU emulation (~180 opcodes)
 - Complete memory system (64KB address space)
-- Background tile rendering
+- Background and window tile rendering
+- **Sprite rendering (8x8 and 8x16 modes)**
+- **OAM DMA transfer for sprite updates**
 - **Full audio emulation (4 channels)**
-- ROM-only and MBC1 cartridge support
-- VBlank interrupt handling
+- MBC1, MBC3, and MBC5 cartridge support
+- Battery-backed save file support
+- Complete interrupt handling (VBlank, Timer, Joypad, etc.)
 - Cycle-accurate timing
 - SDL2 video and audio output
+- Joypad input with keyboard mapping
 
 ## License
 

@@ -160,10 +160,13 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 **Goal:** Render sprites for characters, items, and UI elements
 
+**Status:** COMPLETE - Sprites fully operational with OAM DMA
+
 **Priority:** HIGH - Required for visible game elements
 
 ### Requirements
 - OAM (Object Attribute Memory) parsing (0xFE00-0xFE9F)
+- OAM DMA transfer (register 0xFF46) for fast sprite updates
 - Sprite attributes:
   - Y position
   - X position
@@ -180,14 +183,19 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Implementation Details
 - **Files Modified:**
+  - `src/core/memory.cpp` - Added OAM DMA handler at 0xFF46
   - `src/video/ppu.h` - Added Sprite struct, OAM search, sprite rendering methods
   - `src/video/ppu.cpp` - Implemented OAM parsing and sprite rendering pipeline
+  - `tests/CMakeLists.txt` - Removed unused sound_capture test
 
 - **Features:**
+  - **OAM DMA:** Writing to 0xFF46 copies 160 bytes from (value << 8) to OAM
   - OAM search during Mode 2 (80 dots)
+  - gnuboy-compatible sprite visibility logic (raw Y coordinate checks)
   - Sprite data structure with position, tile, flags, OAM index
   - 10 sprites per scanline hardware limit enforced
-  - 8x8 and 8x16 sprite modes
+  - 8x8 and 8x16 sprite modes with proper tile selection
+  - 8x16 Y-flip swaps tiles (XOR with 1)
   - Horizontal and vertical flipping
   - Two sprite palettes (OBP0, OBP1)
   - Priority system (above/behind background)
@@ -196,20 +204,49 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
   - Zero magic numbers (all constants properly named)
 
 - **Technical Implementation:**
-  - `search_oam()` - Scans OAM for sprites visible on current scanline
-  - `render_sprites()` - Renders sprites after background
-  - `get_sprite_pixel()` - Extracts pixel with flip support
+  - `search_oam()` - Scans OAM for sprites visible on current scanline using gnuboy logic
+  - `render_sprites()` - Renders sprites after background with correct tile calculation
+  - `get_sprite_pixel(tile_num, flags, x, y)` - Extracts pixel with flip support (signature updated)
   - `is_sprite_priority()` - Determines if sprite should draw over background
+  - **OAM DMA constants:**
+    - `OAM_DMA_REG = 0xFF46`
+    - `OAM_SIZE = 160` (40 sprites × 4 bytes)
+    - `OAM_DMA_SOURCE_SHIFT = 8`
+  - **Sprite visibility constants:**
+    - `SPRITE_Y_VISIBILITY_OFFSET = 16`
+    - `SPRITE_8X8_HEIGHT_CHECK = 8`
+    - `SPRITE_8X16_ROW_THRESHOLD = 8`
+    - `SPRITE_ROW_MASK = 7`
+
+### Key Bug Fixes
+1. **Missing OAM DMA:** Games use DMA to copy sprite data to OAM, not direct writes
+2. **Incorrect visibility check:** Must use raw Y values with gnuboy's algorithm
+3. **Wrong 8x16 tile calculation:** Must use calculated tile_num, not sprite.tile
+4. **Function signature:** Updated get_sprite_pixel() to accept tile_num parameter
+
+### Documentation
+- Comprehensive Sphinx documentation added:
+  - Implementation guide in `docs/sphinx/implementation/index.rst`
+  - Architecture details in `docs/sphinx/architecture/ppu.rst`
+  - Memory architecture in `docs/sphinx/architecture/memory.rst`
+- Complete code examples with gnuboy algorithm explanation
+- Testing tips and debugging guidance
+- Common pitfalls documented
 
 ### Acceptance Criteria
-- ✅ Sprites render correctly
+- ✅ Sprites render correctly (Game Freak logo, Nidorino visible)
+- ✅ OAM DMA functional (0xFF46 register)
 - ✅ Priority system works
 - ✅ 10-sprite-per-line limit enforced
 - ✅ Flip operations work (X and Y flip)
-- ✅ Pokémon characters will be visible on screen
+- ✅ 8x16 sprite mode with correct tile selection
+- ✅ Pokémon characters visible on screen
 - ✅ All tests passing
 - ✅ Zero compilation warnings
 - ✅ Clean code compliance (zero magic numbers)
+- ✅ Comprehensive documentation
+
+**Test Results:** Pokémon Red confirmed working - Game Freak logo displays, Nidorino appears in fight scene
 
 ---
 
@@ -676,7 +713,7 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 5: CPU Instructions | ✅ Complete | 100% |
 | 6: Interrupts | ✅ Complete | 100% |
 | 7: MBC3 | ✅ Complete | 100% |
-| 8: Sprites | ✅ Complete | 100% |
+| 8: Sprites + OAM DMA | ✅ Complete | 100% |
 | 9: Input (Hardware) | ✅ Complete | 100% |
 | 10: Timer | ✅ Complete | 100% |
 | 11: MBC5 | ✅ Complete | 100% |
@@ -758,5 +795,5 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 
 ---
 
-**Last Updated:** December 19, 2025
-**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18) with full audio. Optional: Color GBC (16), Polish (19)
+**Last Updated:** December 21, 2025
+**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18) with full audio and sprites. Optional: Color GBC (16), Polish (19)
