@@ -478,6 +478,7 @@ Typical frame breakdown (Release build, modern CPU):
    Memory access:      8%
    Other:              2%
 
+
 Hot Spots
 ~~~~~~~~~
 
@@ -492,6 +493,301 @@ Target Performance
 * Real-time: 16.67ms per frame (60 fps)
 * Headroom: 16× for future features
 
+Sprite Rendering Implementation
+--------------------------------
+
+Overview
+~~~~~~~~
+
+The Game Boy supports up to 40 sprites (8x8 or 8x16 pixels) with up to 10 visible per scanline. Sprite data is stored in Object Attribute Memory (OAM) at 0xFE00-0xFE9F.
+
+OAM DMA Transfer
+~~~~~~~~~~~~~~~~
+
+**Problem**: Games need to quickly copy sprite data from RAM to OAM each frame.
+
+**Solution**: OAM DMA (Direct Memory Access) register at 0xFF46.
+
+Implementation Details
+^^^^^^^^^^^^^^^^^^^^^^
+
+When a game writes to register 0xFF46:
+
+.. code-block:: cpp
+
+   // Writing to 0xFF46 triggers DMA
+   if (address == OAM_DMA_REG) {
+       u16 source = static_cast<u16>(value) << OAM_DMA_SOURCE_SHIFT;
+       
+       for (u16 i = 0; i < OAM_SIZE; i++) {
+           oam_[i] = read(source + i);
+       }
+       io_regs_[address - IO_REGISTERS_START] = value;
+       return;
+   }
+
+**How it works**:
+
+1. Source address = value × 0x100 (value is high byte only)
+2. Copies 160 bytes (40 sprites × 4 bytes each) from source to OAM
+3. Common source addresses: 0xC000-0xDF00 (Work RAM)
+
+**Constants Used**:
+
+.. code-block:: cpp
+
+   constexpr u16 OAM_DMA_REG = 0xFF46;
+   constexpr u16 OAM_SIZE = 160;  // 40 sprites × 4 bytes each
+   constexpr u8 OAM_DMA_SOURCE_SHIFT = 8;  // Source address = value << 8
+
+**Example Game Usage**:
+
+.. code-block:: asm
+
+   ; Copy sprite data from 0xC300 to OAM
+   ld a, $C3      ; High byte of source address
+   ldh ($46), a   ; Write to DMA register
+   ; Hardware copies 160 bytes automatically
+
+Sprite Visibility Logic
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Challenge**: Determining which sprites are visible on the current scanline.
+
+**Solution**: gnuboy-compatible visibility checks using raw Y coordinates.
+
+Implementation
+^^^^^^^^^^^^^^
+
+.. code-block:: cpp
+
+   void PPU::search_oam() {
+       // Check all 40 sprites in OAM
+       for (u16 i = 0; i < OAM_SPRITE_COUNT; i++) {
+           Sprite sprite = read_sprite_from_oam(i);
+           
+           // gnuboy logic: Compare against RAW Y value (not screen-adjusted)
+           // Skip if: scanline >= Y OR scanline + 16 < Y
+           if (ly_ >= sprite.y || ly_ + SPRITE_Y_VISIBILITY_OFFSET < sprite.y) {
+               continue;
+           }
+           
+           // For 8x8 mode: additional check
+           // Skip if: scanline + 8 >= Y
+           if (sprite_height == SPRITE_HEIGHT_8X8 && 
+               ly_ + SPRITE_8X8_HEIGHT_CHECK >= sprite.y) {
+               continue;
+           }
+           
+           scanline_sprites_.push_back(sprite);
+           
+           // Hardware limit: max 10 sprites per scanline
+           if (scanline_sprites_.size() >= MAX_SPRITES_PER_SCANLINE) {
+               break;
+           }
+       }
+   }
+
+**Key Constants**:
+
+.. code-block:: cpp
+
+   constexpr u8 SPRITE_Y_VISIBILITY_OFFSET = 16;  // Sprites use Y+16 coordinate system
+   constexpr u8 SPRITE_8X8_HEIGHT_CHECK = 8;      // For 8x8 sprite visibility
+   constexpr u8 MAX_SPRITES_PER_SCANLINE = 10;    // Hardware limitation
+
+**Why Y+16?**
+
+Game Boy sprites use an offset coordinate system:
+
+* Screen Y position 0 corresponds to sprite.y = 16
+* Allows sprites to be partially off-screen at top
+* Visible range: Y ∈ [0, 160] → sprite.y ∈ [16, 176]
+
+8x16 Sprite Rendering
+~~~~~~~~~~~~~~~~~~~~~
+
+**Feature**: Sprites can be 8x8 or 8x16 pixels (LCDC bit 2).
+
+**Challenge**: 8x16 sprites use two consecutive tiles and handle Y-flip differently.
+
+Implementation
+^^^^^^^^^^^^^^
+
+.. code-block:: cpp
+
+   void PPU::render_sprites() {
+       for (const Sprite& sprite : scanline_sprites_) {
+           // Calculate sprite row within the sprite
+           int sprite_row = ly_ - static_cast<int>(sprite.y) + 
+                           SPRITE_Y_VISIBILITY_OFFSET;
+           
+           u8 tile_num = sprite.tile;
+           
+           // Handle 8x16 mode
+           if (sprite_height == SPRITE_HEIGHT_8X16) {
+               tile_num &= SPRITE_8X16_TILE_MASK;  // Clear bit 0
+               
+               if (sprite_row >= SPRITE_8X16_ROW_THRESHOLD) {
+                   sprite_row -= SPRITE_8X16_ROW_THRESHOLD;
+                   tile_num++;
+               }
+               
+               // gnuboy: Y-flip swaps tiles
+               if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
+                   tile_num ^= 1;
+               }
+           }
+           
+           // Apply Y-flip to row (for both 8x8 and within 8-pixel row for 8x16)
+           if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
+               sprite_row = SPRITE_ROW_MASK - sprite_row;
+           }
+           
+           render_sprite_scanline(sprite, tile_num, sprite_row);
+       }
+   }
+
+**8x16 Tile Selection**:
+
+* Bit 0 of tile number is ignored (always even)
+* Top tile: sprite.tile & 0xFE
+* Bottom tile: (sprite.tile & 0xFE) + 1
+* Y-flip: XOR tile number with 1 (swaps top/bottom)
+
+**Constants**:
+
+.. code-block:: cpp
+
+   constexpr u8 SPRITE_8X16_TILE_MASK = 0xFE;      // Mask to clear bit 0
+   constexpr u8 SPRITE_8X16_ROW_THRESHOLD = 8;     // Switch to bottom tile at row 8
+   constexpr u8 SPRITE_ROW_MASK = 7;               // Row within 8-pixel tile (0-7)
+
+Sprite Pixel Rendering
+~~~~~~~~~~~~~~~~~~~~~~
+
+**Function Signature Change**:
+
+.. code-block:: cpp
+
+   // Old (incorrect for 8x16):
+   u8 get_sprite_pixel(const Sprite& sprite, u8 pixel_x, u8 pixel_y);
+   
+   // New (correct):
+   u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y);
+
+**Why the change?**
+
+* 8x16 sprites need to use calculated tile number, not sprite.tile
+* Prevents using wrong tile for bottom half of 8x16 sprites
+* Makes function more reusable (doesn't need full sprite structure)
+
+**Implementation**:
+
+.. code-block:: cpp
+
+   u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, 
+                            u8 pixel_x, u8 pixel_y) const {
+       // Apply X-flip if needed
+       if (sprite_flags & (BIT_1 << SPRITE_FLAG_X_FLIP_BIT)) {
+           pixel_x = (TILE_SIZE - BIT_1) - pixel_x;
+       }
+       
+       // Sprites always use tile data at 0x8000-0x8FFF
+       u16 tile_addr = TILE_DATA_UNSIGNED_BASE + 
+                      (tile_num * BYTES_PER_TILE) + 
+                      (pixel_y * BYTES_PER_TILE_ROW);
+       
+       u8 byte1 = memory_.read(tile_addr);
+       u8 byte2 = memory_.read(tile_addr + BIT_1);
+       
+       // Extract 2-bit pixel value
+       u8 bit_pos = PIXEL_MSB_BIT - pixel_x;
+       u8 pixel = ((byte2 >> bit_pos) & BIT_1) << PIXEL_BIT_SHIFT | 
+                  ((byte1 >> bit_pos) & BIT_1);
+       
+       return pixel;
+   }
+
+Testing Sprite Rendering
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Test ROM**: Pokémon Red/Blue
+
+**Expected Results**:
+
+1. **Game Freak Logo**: Appears during boot sequence
+2. **Nidorino vs Gengar**: Fight scene sprites visible
+3. **Player Sprite**: Correctly rendered in game
+
+**Before Fix**: All sprites invisible (OAM remained zeros)
+
+**After Fix**: All sprites render correctly
+
+Debugging Tips
+^^^^^^^^^^^^^^
+
+If sprites don't appear:
+
+1. **Check LCDC register**: Bit 1 must be set (sprites enabled)
+2. **Verify OAM data**: Should not be all zeros after DMA
+3. **Check visibility logic**: Ensure Y coordinate checks are correct
+4. **Verify tile numbers**: 8x16 mode requires special handling
+5. **Test with debug output**: Log first few OAM entries
+
+Performance Considerations
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**OAM DMA**:
+
+* Currently: Instant copy (160 reads)
+* Real hardware: Takes 160 machine cycles
+* Future: Add cycle-accurate delay
+
+**Sprite Rendering**:
+
+* Pre-filters: Only checks 40 sprites once per scanline
+* Early exits: Skip off-screen sprites immediately
+* Cache locality: Scanline sprites stored contiguously
+
+Code Quality Improvements
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Magic Number Elimination**:
+
+All magic numbers replaced with named constants:
+
+.. code-block:: cpp
+
+   // Before:
+   if (ly_ >= sprite.y || ly_ + 16 < sprite.y)
+   
+   // After:
+   if (ly_ >= sprite.y || ly_ + SPRITE_Y_VISIBILITY_OFFSET < sprite.y)
+
+**Benefits**:
+
+* Self-documenting code
+* Easy to modify sprite behavior
+* Prevents typos and errors
+* Makes hardware constants explicit
+
+**Complete Constant List**:
+
+.. code-block:: cpp
+
+   // Memory (memory.cpp)
+   constexpr u16 OAM_DMA_REG = 0xFF46;
+   constexpr u16 OAM_SIZE = 160;
+   constexpr u8 OAM_DMA_SOURCE_SHIFT = 8;
+   
+   // PPU (ppu.cpp)
+   constexpr u8 SPRITE_Y_VISIBILITY_OFFSET = 16;
+   constexpr u8 SPRITE_8X8_HEIGHT_CHECK = 8;
+   constexpr u8 SPRITE_8X16_TILE_MASK = 0xFE;
+   constexpr u8 SPRITE_8X16_ROW_THRESHOLD = 8;
+   constexpr u8 SPRITE_ROW_MASK = 7;
+
 Lessons Learned
 ---------------
 
@@ -502,6 +798,8 @@ What Went Well
 * Modular design paid off
 * Comprehensive testing helped catch bugs
 * Documentation-first approach
+* **gnuboy reference code**: Invaluable for sprite visibility logic
+* **Incremental debugging**: Added logging to find OAM DMA issue
 
 What Could Be Better
 ~~~~~~~~~~~~~~~~~~~~
@@ -510,6 +808,17 @@ What Could Be Better
 * PPU could be more modular
 * Need better test ROM integration
 * Should profile earlier
+* **OAM DMA was missing**: Should have been implemented from start
+
+Common Pitfalls
+~~~~~~~~~~~~~~~
+
+**Sprite Rendering Issues**:
+
+1. **Forgetting OAM DMA**: Games don't write directly to OAM
+2. **Wrong Y coordinates**: Must use raw Y values, not screen-adjusted
+3. **8x16 tile calculation**: Must calculate tile_num, not use sprite.tile
+4. **Y-flip in 8x16 mode**: Swaps tiles, not just pixels
 
 Advice for Contributors
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -519,6 +828,8 @@ Advice for Contributors
 3. **Test thoroughly**: Add tests with code
 4. **Ask questions**: GitHub discussions
 5. **Be patient**: Emulation is complex
+6. **Use reference implementations**: gnuboy is well-tested
+7. **Debug with logging**: Temporary debug output catches issues
 
 References
 ----------
@@ -527,3 +838,5 @@ References
 * Game Boy CPU Manual: http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * Awesome GB Dev: https://github.com/gbdev/awesome-gbdev
 * The Cycle-Accurate GB Docs: https://github.com/AntonioND/giibiiadvance
+* gnuboy: Reference implementation for sprite logic
+

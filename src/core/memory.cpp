@@ -37,6 +37,11 @@ namespace {
     constexpr u16 BOOT_ROM_DISABLE_REG = 0xFF50;
     constexpr u16 BOOT_ROM_SIZE = 0x0100;
     
+    // OAM DMA register and constants
+    constexpr u16 OAM_DMA_REG = 0xFF46;
+    constexpr u16 OAM_SIZE = 160;  // 40 sprites × 4 bytes each
+    constexpr u8 OAM_DMA_SOURCE_SHIFT = 8;  // Source address = value << 8
+    
     // Sound registers
     constexpr u16 SOUND_NR52 = 0xFF26;  // Sound on/off
 }
@@ -281,6 +286,20 @@ void Memory::write(u16 address, u8 value) {
             timer_->write_tac(value);
             return;
         }
+        
+        // OAM DMA transfer register (0xFF46)
+        // Writing to this register starts a DMA transfer from address (value * 0x100) to OAM
+        // This copies 160 bytes (40 sprites × 4 bytes) to 0xFE00-0xFE9F
+        if (address == OAM_DMA_REG) {
+            u16 source = static_cast<u16>(value) << OAM_DMA_SOURCE_SHIFT;
+            
+            for (u16 i = 0; i < OAM_SIZE; i++) {
+                oam_[i] = read(source + i);
+            }
+            io_regs_[address - IO_REGISTERS_START] = value;
+            return;
+        }
+        
         // Audio registers - route through APU
         if (address >= 0xFF10 && address <= 0xFF3F) {
             apu_->write_register(address, value);
