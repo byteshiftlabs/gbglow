@@ -4,7 +4,7 @@
 #include <iostream>
 #include <cassert>
 
-using namespace gbcrush;
+using namespace gbglow;
 
 void test_registers() {
     std::cout << "Testing registers...\n";

@@ -5,7 +5,7 @@
 #include <string>
 #include <memory>
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * Cartridge Base Class
@@ -105,4 +105,4 @@ public:
     void write(u16 address, u8 value) override;
 };
 
-} // namespace gbcrush
+} // namespace gbglow

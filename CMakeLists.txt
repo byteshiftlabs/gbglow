@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(gbcrush VERSION 0.1.0 LANGUAGES CXX)
+project(gbglow VERSION 0.1.0 LANGUAGES CXX)
 
 # C++17 required for clean modern syntax
 set(CMAKE_CXX_STANDARD 17)
@@ -97,7 +97,7 @@ set(IMGUI_SOURCES
 )
 
 # Main executable
-add_executable(gbcrush
+add_executable(gbglow
     src/main.cpp
     ${CORE_SOURCES}
     ${VIDEO_SOURCES}
@@ -109,7 +109,7 @@ add_executable(gbcrush
     ${IMGUI_SOURCES}
 )
 
-target_include_directories(gbcrush PRIVATE
+target_include_directories(gbglow PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
@@ -118,8 +118,8 @@ target_include_directories(gbcrush PRIVATE
 # Find and link SDL2 for graphics output
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
-target_include_directories(gbcrush PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(gbcrush ${SDL2_LIBRARIES})
+target_include_directories(gbglow PRIVATE ${SDL2_INCLUDE_DIRS})
+target_link_libraries(gbglow ${SDL2_LIBRARIES})
 
 # Testing support
 enable_testing()

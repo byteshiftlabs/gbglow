@@ -9,7 +9,7 @@
 #include <thread>
 #include <cstdio>
 
-namespace gbcrush {
+namespace gbglow {
 
 Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
@@ -575,4 +575,4 @@ RecentRoms& Emulator::recent_roms() {
     return *recent_roms_;
 }
 
-}  // namespace gbcrush
+}  // namespace gbglow
