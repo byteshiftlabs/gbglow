@@ -39,5 +39,5 @@ echo -e "${YELLOW}Running tests...${NC}"
 ctest --output-on-failure
 
 echo -e "${GREEN}=== Build Complete! ===${NC}"
-echo -e "${GREEN}Executable: build/gbcrush${NC}"
-echo -e "${YELLOW}Usage: ./build/gbcrush <rom_file>${NC}"
+echo -e "${GREEN}Executable: build/gbglow${NC}"
+echo -e "${YELLOW}Usage: ./build/gbglow <rom_file>${NC}"

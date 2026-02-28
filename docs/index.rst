@@ -47,7 +47,7 @@ Running a ROM
 
 .. code-block:: bash
 
-   ./build/gbcrush <rom_file.gb>
+   ./build/gbglow <rom_file.gb>
 
 Features
 --------

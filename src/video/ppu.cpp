@@ -6,7 +6,7 @@
 #include "../core/memory.h"
 #include "../cartridge/cartridge.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 // Hardware constants
 namespace {
@@ -764,4 +764,4 @@ void PPU::deserialize(const u8* data, size_t& offset)
     scanline_sprites_.clear();
 }
 
-} // namespace gbcrush
+} // namespace gbglow

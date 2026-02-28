@@ -5,7 +5,7 @@
 #include "memory.h"
 #include <vector>
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * Sharp LR35902 CPU Emulation
@@ -87,4 +87,4 @@ private:
     void alu_dec(u8& reg);
 };
 
-} // namespace gbcrush
+} // namespace gbglow

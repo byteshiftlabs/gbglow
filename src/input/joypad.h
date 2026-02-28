@@ -2,7 +2,7 @@
 
 #include "../core/types.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 class Memory;
 
@@ -102,4 +102,4 @@ private:
     void request_interrupt();
 };
 
-} // namespace gbcrush
+} // namespace gbglow

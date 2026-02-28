@@ -2,7 +2,7 @@
  * Screenshot - Screen capture utility
  * 
  * Captures Game Boy framebuffer and saves as PNG file.
- * Files saved to ~/Pictures/gbcrush/ with timestamp naming.
+ * Files saved to ~/Pictures/gbglow/ with timestamp naming.
  * 
  * Design:
  * - Triggered by F12 key press
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * Screenshot capture utility
@@ -46,7 +46,7 @@ private:
     // Last saved screenshot path
     std::string last_screenshot_path_;
     
-    // Screenshot directory (~/Pictures/gbcrush/)
+    // Screenshot directory (~/Pictures/gbglow/)
     std::string screenshot_dir_;
     
     // Game Boy LCD dimensions
@@ -63,7 +63,7 @@ private:
     
     /**
      * Generate filename with timestamp
-     * Format: gbcrush_ROMNAME_YYYYMMDD_HHMMSS.png
+     * Format: gbglow_ROMNAME_YYYYMMDD_HHMMSS.png
      * @param rom_name Name of ROM for filename
      * @return Generated filename (not full path)
      */
@@ -78,4 +78,4 @@ private:
     std::string extract_rom_name(const std::string& rom_path) const;
 };
 
-} // namespace gbcrush
+} // namespace gbglow

@@ -32,7 +32,7 @@ std::string escape_json_string(const std::string& str) {
 
 } // anonymous namespace
 
-namespace gbcrush {
+namespace gbglow {
 
 RecentRomEntry::RecentRomEntry(const std::string& path, std::time_t time)
     : file_path(path)
@@ -199,7 +199,7 @@ std::string RecentRoms::get_config_dir() const
         }
     }
     
-    return base_dir + "/gbcrush";
+    return base_dir + "/gbglow";
 }
 
 std::string RecentRoms::extract_filename(const std::string& path) const
@@ -210,4 +210,4 @@ std::string RecentRoms::extract_filename(const std::string& path) const
         : path;
 }
 
-} // namespace gbcrush
+} // namespace gbglow
