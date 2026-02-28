@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 class Memory;
 
@@ -86,4 +86,4 @@ private:
     void request_timer_interrupt();
 };
 
-} // namespace gbcrush
+} // namespace gbglow

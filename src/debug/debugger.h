@@ -7,7 +7,7 @@
 #include <deque>
 #include <functional>
 
-namespace gbcrush {
+namespace gbglow {
 
 // Forward declarations
 class CPU;
@@ -275,4 +275,4 @@ private:
     std::string get_condition_name(u8 cond_index) const;
 };
 
-} // namespace gbcrush
+} // namespace gbglow

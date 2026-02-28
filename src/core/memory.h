@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace gbcrush {
+namespace gbglow {
 
 // Forward declarations
 class Cartridge;
@@ -99,4 +99,4 @@ private:
     PPU* ppu_;  // Non-owning pointer, set by Emulator
 };
 
-} // namespace gbcrush
+} // namespace gbglow

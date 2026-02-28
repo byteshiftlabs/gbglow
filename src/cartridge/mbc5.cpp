@@ -1,6 +1,6 @@
 #include "mbc5.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * MBC5 Constructor
@@ -109,4 +109,4 @@ void MBC5::write(u16 address, u8 value) {
     }
 }
 
-} // namespace gbcrush
+} // namespace gbglow

@@ -9,7 +9,7 @@
 struct _SDL_GameController;
 typedef struct _SDL_GameController SDL_GameController;
 
-namespace gbcrush {
+namespace gbglow {
 
 class Joypad;
 
@@ -171,4 +171,4 @@ private:
     static int string_to_button(const std::string& str);
 };
 
-} // namespace gbcrush
+} // namespace gbglow

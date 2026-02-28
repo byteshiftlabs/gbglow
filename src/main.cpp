@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     
     std::string rom_path = argv[1];
     
-    gbcrush::Emulator emulator;
+    gbglow::Emulator emulator;
     
     if (!emulator.load_rom(rom_path))
     {
