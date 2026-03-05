@@ -748,7 +748,7 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 - CPU instruction tests (Blargg's test ROMs)
 - Memory system tests
 - Cartridge type tests
-- PPU timing tests
+- PPU rendering tests
 
 ### Integration Tests
 - Full ROM execution tests
