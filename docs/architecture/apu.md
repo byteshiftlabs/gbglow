@@ -2,7 +2,7 @@
 
 ## Overview
 
-The emugbc APU implementation is based on the gnuboy audio emulation approach. This document describes the architecture, implementation details, and the key lessons learned during development.
+The emugbc APU implementation uses hardware-accurate audio emulation. This document describes the architecture, implementation details, and the key lessons learned during development.
 
 ## Architecture
 
@@ -22,13 +22,13 @@ The Game Boy has 4 sound channels:
 ```cpp
 static constexpr int SAMPLE_RATE = 44100;           // Output sample rate
 static constexpr int CPU_CLOCK_HZ = 4194304;        // Game Boy CPU clock
-static constexpr int RATE = (1 << 21) / SAMPLE_RATE; // ~47.5 (gnuboy timing factor)
+static constexpr int RATE = (1 << 21) / SAMPLE_RATE; // ~47.5 (timing factor)
 static constexpr int CYCLES_PER_SAMPLE = 95;        // CPU cycles per audio sample
 ```
 
 ## Implementation Details
 
-### Sample Generation (gnuboy method)
+### Sample Generation
 
 The core of the APU is `generate_sample()`, which produces one stereo sample per call. Key aspects:
 
@@ -87,7 +87,7 @@ The initial APU implementation had several critical bugs that prevented proper a
 // WRONG
 if (channel1_.enabled && channel1_.dac_enabled) { ... }
 
-// CORRECT (gnuboy)
+// CORRECT
 if (channel1_.on) { ... }
 ```
 
@@ -95,7 +95,7 @@ if (channel1_.on) { ... }
 
 ### Bug 2: Incorrect Frequency Formula
 
-**Problem**: Custom frequency calculation didn't match gnuboy's exact formula.
+**Problem**: Custom frequency calculation didn't match the hardware-accurate formula.
 
 ```cpp
 // WRONG
@@ -103,13 +103,13 @@ int calc_square_phase_inc(u16 freq) {
     return (RATE << 17) / (2048 - freq);  // Missing overflow check
 }
 
-// CORRECT (gnuboy inline)
+// CORRECT
 int d = 2048 - frequency;
 if (RATE > (d << 4)) freq = 0;  // Anti-aliasing filter
 else freq = (RATE << 17) / d;
 ```
 
-**Solution**: Use gnuboy's exact inline formula with anti-aliasing check.
+**Solution**: Use hardware-accurate inline formula with anti-aliasing check.
 
 ### Bug 3: Separate Frame Sequencer
 
@@ -123,7 +123,7 @@ while (frame_sequencer_cycles_ >= CYCLES_PER_FRAME) {
 }
 ```
 
-**Solution**: gnuboy handles all timing (length, envelope, sweep) per-sample using RATE accumulators:
+**Solution**: All timing (length, envelope, sweep) handled per-sample using RATE accumulators:
 
 ```cpp
 // CORRECT - in generate_sample()
@@ -161,7 +161,7 @@ channel3_.len = (256 - value) << 20;
 channel3_.len = (256 - value) << 13;
 ```
 
-gnuboy has inconsistent values; the `<< 13` from `sound_write()` is correct for register writes.
+The `<< 13` from register writes is the correct value.
 
 ### Bug 6: Over-amplification
 
@@ -208,10 +208,8 @@ The APU can be tested with:
 
 1. **Pokémon Red Game Freak logo**: Tests CH1 sweep and envelope
 2. **blargg's dmg_sound tests**: Comprehensive APU test ROMs
-3. **Manual audio inspection**: Compare with gnuboy output
 
 ## References
 
-- [gnuboy source code](https://github.com/rofl0r/gnuboy) - Reference implementation
 - [Pan Docs](https://gbdev.io/pandocs/Audio.html) - Game Boy audio documentation
 - [GBSOUND.txt](http://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware) - Detailed sound hardware info

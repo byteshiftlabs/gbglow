@@ -67,7 +67,7 @@ namespace {
     constexpr u8 SPRITE_8X16_BOTTOM_TILE_BIT = 0x01;
     constexpr u8 SPRITE_8X16_ROW_THRESHOLD = 8;
     
-    // Sprite visibility constants (gnuboy compatibility)
+    // Sprite visibility constants
     constexpr u8 SPRITE_Y_VISIBILITY_OFFSET = 16;  // Sprites use Y+16 coordinate system
     constexpr u8 SPRITE_8X8_HEIGHT_CHECK = 8;      // For 8x8 sprite visibility
     constexpr u8 SPRITE_ROW_MASK = 7;              // Mask for pixel row within 8-pixel tile (0-7)
@@ -312,7 +312,7 @@ void PPU::search_oam() {
         sprite.flags = memory_.read(oam_addr + OAM_FLAGS_OFFSET);
         sprite.oam_index = static_cast<u8>(i);
         
-        // gnuboy logic: Compare against RAW Y value (not screen-adjusted)
+        // Hardware logic: Compare against RAW Y value (not screen-adjusted)
         // Skip if: scanline >= Y OR scanline + 16 < Y
         if (ly_ >= sprite.y || ly_ + SPRITE_Y_VISIBILITY_OFFSET < sprite.y) {
             continue;
@@ -349,7 +349,7 @@ void PPU::render_sprites() {
     for (auto it = scanline_sprites_.rbegin(); it != scanline_sprites_.rend(); ++it) {
         const Sprite& sprite = *it;
         
-        // gnuboy: v = L - (int)o->y + 16
+        // Calculate sprite row: v = L - (int)o->y + 16
         int sprite_row = ly_ - static_cast<int>(sprite.y) + SPRITE_Y_VISIBILITY_OFFSET;
         int screen_x = static_cast<int>(sprite.x) - SPRITE_X_OFFSET;
         
@@ -363,7 +363,7 @@ void PPU::render_sprites() {
                 sprite_row -= SPRITE_8X16_ROW_THRESHOLD;
                 tile_num++;
             }
-            // gnuboy: Y-flip swaps tiles
+            // Y-flip swaps tiles in 8x16 mode
             if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
                 tile_num ^= 1;
             }

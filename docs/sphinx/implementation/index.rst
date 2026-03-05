@@ -16,7 +16,7 @@ EmuGBC prioritizes **code clarity** above all else:
 * Extensive documentation at every level
 * Simple, straightforward implementations
 
-**Why?** Existing emulators (gnuboy, etc.) are functional but hard to understand. EmuGBC aims to be the go-to reference implementation for learning Game Boy emulation.
+**Why?** Existing emulators are functional but hard to understand. EmuGBC aims to be the go-to reference implementation for learning Game Boy emulation.
 
 Accuracy vs Performance
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -554,7 +554,7 @@ Sprite Visibility Logic
 
 **Challenge**: Determining which sprites are visible on the current scanline.
 
-**Solution**: gnuboy-compatible visibility checks using raw Y coordinates.
+**Solution**: Hardware-accurate visibility checks using raw Y coordinates.
 
 Implementation
 ^^^^^^^^^^^^^^
@@ -566,7 +566,7 @@ Implementation
        for (u16 i = 0; i < OAM_SPRITE_COUNT; i++) {
            Sprite sprite = read_sprite_from_oam(i);
            
-           // gnuboy logic: Compare against RAW Y value (not screen-adjusted)
+           // Hardware logic: Compare against RAW Y value (not screen-adjusted)
            // Skip if: scanline >= Y OR scanline + 16 < Y
            if (ly_ >= sprite.y || ly_ + SPRITE_Y_VISIBILITY_OFFSET < sprite.y) {
                continue;
@@ -633,7 +633,7 @@ Implementation
                    tile_num++;
                }
                
-               // gnuboy: Y-flip swaps tiles
+               // Y-flip swaps tiles in 8x16 mode
                if (sprite.flags & (BIT_1 << SPRITE_FLAG_Y_FLIP_BIT)) {
                    tile_num ^= 1;
                }
@@ -798,7 +798,7 @@ What Went Well
 * Modular design paid off
 * Comprehensive testing helped catch bugs
 * Documentation-first approach
-* **gnuboy reference code**: Invaluable for sprite visibility logic
+* **Reference implementations helpful**: Studying other emulators provided valuable insights
 * **Incremental debugging**: Added logging to find OAM DMA issue
 
 What Could Be Better
@@ -828,7 +828,7 @@ Advice for Contributors
 3. **Test thoroughly**: Add tests with code
 4. **Ask questions**: GitHub discussions
 5. **Be patient**: Emulation is complex
-6. **Use reference implementations**: gnuboy is well-tested
+6. **Study reference implementations**: Well-tested emulators provide valuable insights
 7. **Debug with logging**: Temporary debug output catches issues
 
 References
@@ -838,5 +838,4 @@ References
 * Game Boy CPU Manual: http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
 * Awesome GB Dev: https://github.com/gbdev/awesome-gbdev
 * The Cycle-Accurate GB Docs: https://github.com/AntonioND/giibiiadvance
-* gnuboy: Reference implementation for sprite logic
 

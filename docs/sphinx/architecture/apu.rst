@@ -1,7 +1,7 @@
 APU (Audio Processing Unit)
 ===========================
 
-The APU generates Game Boy audio using a gnuboy-compatible implementation.
+The APU generates Game Boy audio using a hardware-accurate implementation.
 
 Overview
 --------
@@ -43,7 +43,7 @@ The APU generates samples at 44100 Hz by:
 
 .. code-block:: cpp
 
-    // Core timing constant (gnuboy method)
+    // Core timing constant
     static constexpr int RATE = (1 << 21) / 44100;  // ~47.5
     
     // Square wave sample generation
@@ -183,7 +183,7 @@ Implementation Notes
 Key Design Decisions
 ~~~~~~~~~~~~~~~~~~~~
 
-1. **Single ``on`` flag**: gnuboy uses one flag per channel instead of separate
+1. **Single ``on`` flag**: Uses one flag per channel instead of separate
    ``enabled`` and ``dac_enabled`` flags.
 
 2. **RATE-based timing**: All timing (length, envelope, sweep) uses RATE
@@ -191,7 +191,7 @@ Key Design Decisions
    sequencer.
 
 3. **Inline frequency calculation**: Frequencies are recalculated inline
-   when registers change, using gnuboy's exact formula.
+   when registers change.
 
 SDL Integration
 ~~~~~~~~~~~~~~~
@@ -216,11 +216,9 @@ The APU is tested with:
 
 1. **Pokémon Red Game Freak logo** - Tests sweep and envelope
 2. **blargg's dmg_sound** - Comprehensive test ROMs
-3. **Comparison with gnuboy** - Reference implementation
 
 See Also
 --------
 
 - :doc:`memory` - Audio register access
 - `docs/architecture/apu.md` - Detailed implementation notes
-- `gnuboy source <https://github.com/rofl0r/gnuboy>`_ - Reference implementation

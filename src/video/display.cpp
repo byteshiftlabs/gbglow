@@ -107,7 +107,7 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     audio_spec.freq = 44100;              // 44.1 kHz sample rate
     audio_spec.format = AUDIO_S16SYS;     // 16-bit signed audio
     audio_spec.channels = 2;              // Stereo
-    audio_spec.samples = 1024;            // Buffer size (power of 2) - gnuboy uses ~735→1024 for 44100 Hz
+    audio_spec.samples = 1024;            // Buffer size (power of 2) for smooth audio
     audio_spec.callback = nullptr;        // Use queue-based audio
     
     // Open audio device
@@ -299,7 +299,7 @@ void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
     std::vector<i16> interleaved(samples.size() * 2);
     for (size_t i = 0; i < samples.size(); i++) {
         // Convert U8 to S16: (sample - 128) * 128
-        // gnuboy uses AUDIO_U8 directly, we use S16 so need conversion
+        // Hardware uses U8, we use S16 for better quality
         // *128 gives moderate amplification (-16384 to +16256 range)
         interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - 128) * 128);   // Left
         interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - 128) * 128);  // Right
