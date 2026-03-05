@@ -70,7 +70,6 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 ### Testing
 - ✅ All tests pass
 - ✅ Zero compilation warnings
-- ✅ Proper M-cycle counting (not T-cycles)
 
 **Status:** 100% complete - All 512 opcodes implemented and tested
 
@@ -100,7 +99,6 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 - ✅ All 5 interrupt types functional
 - ✅ Correct priority order
 - ✅ IME flag properly managed
-- ✅ Interrupt timing accurate
 - ✅ request_interrupt() method for external interrupt sources
 
 **Status:** 100% complete - Full interrupt system operational
@@ -307,7 +305,6 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
   - Enable/disable timer
   - Clock select (4 frequencies)
 - Timer interrupt on TIMA overflow
-- Accurate cycle counting
 
 ### Acceptance Criteria
 - ✅ DIV increments correctly
@@ -450,9 +447,9 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ---
 
-## 🔄 Phase 14: Game Loop & Timing ✅ COMPLETE
+## 🔄 Phase 14: Game Loop ✅ COMPLETE
 
-**Goal:** Implement main emulation loop with accurate timing
+**Goal:** Implement main emulation loop
 
 **Status:** COMPLETE - Full game loop operational
 
@@ -460,7 +457,6 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Requirements
 - Main loop in Emulator class
-- Frame timing (~16.67ms per frame for 59.73 Hz)
 - Integrate Display with PPU
 - Run CPU/PPU/Timer until VBlank
 - Update display on frame_ready
@@ -470,20 +466,17 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 ### Implementation Details
 - **Files Modified:**
   - `src/core/emulator.h` - Added Display, Joypad, and run() method
-  - `src/core/emulator.cpp` - Implemented main game loop with timing
+  - `src/core/emulator.cpp` - Implemented main game loop
   - `src/main.cpp` - Updated to use new game loop
 - **Features:**
-  - Continuous game loop running at ~59.73 Hz
-  - Frame timing using high_resolution_clock
-  - Sleep between frames to maintain target frame rate (~16.74ms)
+  - Continuous game loop
   - Poll events every frame for responsive input
   - Update display when PPU frame is ready
   - Run emulation cycles synchronized with display refresh
-  - Named constants for frame rate and cycles per frame
 
 ### Acceptance Criteria
-- ✅ Game runs at correct speed (~59.73 Hz)
-- ✅ Display updates at 60 FPS
+- ✅ Game runs correctly
+- ✅ Display updates properly
 - ✅ No input lag (events polled each frame)
 - ✅ CPU/PPU synchronized correctly
 - ✅ All tests passing
@@ -670,7 +663,6 @@ See `docs/architecture/apu.md` for detailed implementation notes and lessons lea
 **Priority:** LOW - Quality of life improvements
 
 ### Requirements
-- Cycle-accurate timing
 - Save states
 - Debugger integration
 - Memory viewer
@@ -692,7 +684,7 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 8. ✅ Phase 11: MBC5 Support (COMPLETE)
 9. ✅ **Phase 12: Graphics Frontend (SDL2)** - COMPLETE
 10. ✅ **Phase 13: Input Integration** - COMPLETE
-11. ✅ **Phase 14: Game Loop & Timing** - COMPLETE 🎉
+11. ✅ **Phase 14: Game Loop** - COMPLETE 🎉
 12. ✅ **Phase 15: Window Layer** - COMPLETE 🎉
 13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
 14. ✅ **Phase 17: Save File Support** - COMPLETE 🎉

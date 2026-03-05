@@ -18,17 +18,6 @@ EmuGBC prioritizes **code clarity** above all else:
 
 **Why?** Existing emulators are functional but hard to understand. EmuGBC aims to be the go-to reference implementation for learning Game Boy emulation.
 
-Accuracy vs Performance
-~~~~~~~~~~~~~~~~~~~~~~~
-
-EmuGBC targets **cycle-accurate** emulation:
-
-* Each instruction returns exact cycle count
-* PPU timing matches hardware
-* Memory access delays are modeled
-
-Performance is important but secondary to accuracy and clarity.
-
 Modular Architecture
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -275,17 +264,6 @@ Game Boy tiles are 2-bit planar format:
 
 **Format**: Two bytes per row, one bit per pixel per byte.
 
-Performance Optimizations
--------------------------
-
-Applied Optimizations
-~~~~~~~~~~~~~~~~~~~~~
-
-1. **Inline Small Functions**: Compiler inlines getters/setters
-2. **Reuse Buffers**: PPU framebuffer allocated once
-3. **Fast Paths**: Common memory regions checked first
-4. **Constexpr**: Constants evaluated at compile time
-
 Not Yet Optimized
 ~~~~~~~~~~~~~~~~~
 
@@ -462,36 +440,6 @@ Resources managed via RAII:
            }
        }
    };
-
-Performance Notes
------------------
-
-Profiling Results
-~~~~~~~~~~~~~~~~~
-
-Typical frame breakdown (Release build, modern CPU):
-
-.. code-block:: text
-
-   CPU execution:     60%
-   PPU rendering:     30%
-   Memory access:      8%
-   Other:              2%
-
-
-Hot Spots
-~~~~~~~~~
-
-1. **CPU::execute_instruction()**: Switch dispatch
-2. **Memory::read()**: Address decoding
-3. **PPU::render_scanline()**: Tile lookups
-
-Target Performance
-~~~~~~~~~~~~~~~~~~
-
-* Single frame: < 1ms (1000+ fps possible)
-* Real-time: 16.67ms per frame (60 fps)
-* Headroom: 16× for future features
 
 Sprite Rendering Implementation
 --------------------------------
@@ -734,20 +682,6 @@ If sprites don't appear:
 3. **Check visibility logic**: Ensure Y coordinate checks are correct
 4. **Verify tile numbers**: 8x16 mode requires special handling
 5. **Test with debug output**: Log first few OAM entries
-
-Performance Considerations
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**OAM DMA**:
-
-* Currently: Instant copy (160 reads)
-* Real hardware: Takes 160 machine cycles
-* Future: Add cycle-accurate delay
-
-**Sprite Rendering**:
-
-* Pre-filters: Only checks 40 sprites once per scanline
-* Early exits: Skip off-screen sprites immediately
 * Cache locality: Scanline sprites stored contiguously
 
 Code Quality Improvements

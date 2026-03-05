@@ -51,12 +51,6 @@
 - **WY (0xFF4A)**: Window Y
 - **WX (0xFF4B)**: Window X
 
-## Memory Access Timing
-
-- ROM/RAM: 1 M-cycle per access
-- VRAM: 1 M-cycle (blocked during PPU mode 3)
-- OAM: 1 M-cycle (blocked during PPU modes 2-3)
-
 ## References
 - [Pan Docs - Memory Map](https://gbdev.io/pandocs/Memory_Map.html)
 - [Pan Docs - I/O Registers](https://gbdev.io/pandocs/Hardware_Reg_List.html)

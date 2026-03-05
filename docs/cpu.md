@@ -4,10 +4,6 @@
 
 The Game Boy uses a custom Sharp LR35902 CPU, which is similar to the Intel 8080 and Zilog Z80, but with some differences.
 
-### Clock Speed
-- **DMG (Original Game Boy)**: 4.194304 MHz
-- **CGB (Game Boy Color)**: 4.194304 MHz or 8.388608 MHz (double-speed mode)
-
 ### Registers
 
 #### 8-bit Registers
@@ -44,16 +40,6 @@ The CPU has 256 base instructions (0x00-0xFF) plus 256 CB-prefixed instructions 
 6. **Bit Operations**: BIT / SET / RES (CB-prefixed)
 7. **Jumps**: JP / JR / CALL / RET / RST
 8. **Control**: NOP / HALT / STOP / DI / EI
-
-### Timing
-
-Instructions take between 1-6 M-cycles:
-- 1 M-cycle = 4 clock cycles (T-states)
-- Example timings:
-  - NOP: 1 M-cycle (4 T-states)
-  - LD A, B: 1 M-cycle (4 T-states)
-  - LD A, (BC): 2 M-cycles (8 T-states)
-  - CALL nn: 6 M-cycles (24 T-states)
 
 ### Interrupts
 
