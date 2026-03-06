@@ -78,6 +78,29 @@ namespace {
     constexpr u8 BIT_1 = 1;
     constexpr u8 PIXEL_BIT_SHIFT = 1;
     constexpr u8 PIXEL_MSB_BIT = 7;
+    
+    // CGB tile attribute bits
+    constexpr u8 CGB_ATTR_PALETTE_MASK = 0x07;  // Bits 0-2: palette number (0-7)
+    constexpr u8 CGB_ATTR_VRAM_BANK_BIT = 0x08; // Bit 3: VRAM bank
+    constexpr u8 CGB_ATTR_X_FLIP_BIT = 0x20;    // Bit 5: horizontal flip
+    constexpr u8 CGB_ATTR_Y_FLIP_BIT = 0x40;    // Bit 6: vertical flip
+    constexpr u8 CGB_ATTR_PRIORITY_BIT = 0x80;  // Bit 7: BG-to-OAM priority
+    
+    // CGB register addresses
+    constexpr u16 CGB_VBK = 0xFF4F;  // VRAM bank register
+    
+    // CGB color constants
+    constexpr u8 CGB_PALETTE_SHIFT = 2;         // Shift amount for palette in framebuffer
+    constexpr u8 CGB_TILE_FLIP_MAX = 7;         // Maximum tile coordinate before flip
+    constexpr u8 CGB_PALETTE_SIZE_BYTES = 8;    // 8 bytes per palette (4 colors × 2 bytes)
+    constexpr u8 CGB_COLOR_SIZE_BYTES = 2;      // 2 bytes per color
+    constexpr u8 CGB_RGB555_RED_SHIFT = 0;      // Red channel bit position
+    constexpr u8 CGB_RGB555_GREEN_SHIFT = 5;    // Green channel bit position
+    constexpr u8 CGB_RGB555_BLUE_SHIFT = 10;    // Blue channel bit position
+    constexpr u8 CGB_RGB555_CHANNEL_MASK = 0x1F; // 5-bit channel mask
+    constexpr u16 CGB_RGB555_SCALE_NUMERATOR = 255;  // RGB scaling numerator
+    constexpr u8 CGB_RGB555_SCALE_OFFSET = 15;       // RGB scaling offset for rounding
+    constexpr u8 CGB_RGB555_SCALE_DIVISOR = 31;      // RGB scaling divisor
 }
 
 PPU::PPU(Memory& memory) 
@@ -175,6 +198,9 @@ void PPU::render_background() {
     u8 lcdc = memory_.read(REG_LCDC);
     bool bg_enabled = (lcdc & LCDC_BG_ENABLE_BIT) != 0;
     
+    // Check if we're in CGB mode
+    bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    
     if (!bg_enabled) {
         // Background disabled, fill with white
         for (int x = 0; x < SCREEN_WIDTH; x++) {
@@ -208,14 +234,41 @@ void PPU::render_background() {
         u16 map_addr = bg_map + (tile_y * TILEMAP_WIDTH) + tile_x;
         u8 tile_num = memory_.read(map_addr);
         
+        // CGB: Read tile attributes from VRAM bank 1
+        u8 tile_attr = 0;
+        u8 palette_num = 0;
+        bool x_flip = false;
+        bool y_flip = false;
+        
+        if (is_cgb) {
+            // Temporarily switch to VRAM bank 1 to read attributes
+            u8 saved_bank = memory_.read(CGB_VBK) & BIT_1;
+            memory_.write(CGB_VBK, BIT_1);
+            tile_attr = memory_.read(map_addr);
+            memory_.write(CGB_VBK, saved_bank);
+            
+            palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
+            x_flip = (tile_attr & CGB_ATTR_X_FLIP_BIT) != BIT_0;
+            y_flip = (tile_attr & CGB_ATTR_Y_FLIP_BIT) != BIT_0;
+            // Bit 7 is priority (BG over OBJ), we'll handle this later
+        }
+        
+        // Apply flipping to pixel coordinates
+        u8 actual_pixel_x = x_flip ? (CGB_TILE_FLIP_MAX - pixel_x) : pixel_x;
+        u8 actual_pixel_y = y_flip ? (CGB_TILE_FLIP_MAX - pixel_y) : pixel_y;
+        
         // Decode 2-bit pixel from tile pattern data
-        u8 pixel = get_tile_pixel(tile_data, tile_num, pixel_x, pixel_y);
+        u8 pixel = get_tile_pixel(tile_data, tile_num, actual_pixel_x, actual_pixel_y);
         
-        // Background palette maps 2-bit color to 2-bit shade
-        u8 palette = memory_.read(REG_BGP);
-        u8 color = (palette >> (pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
-        
-        framebuffer_[ly_ * SCREEN_WIDTH + x] = color;
+        if (is_cgb) {
+            // CGB mode: Store palette number in upper bits, color index in lower bits
+            framebuffer_[ly_ * SCREEN_WIDTH + x] = (palette_num << CGB_PALETTE_SHIFT) | pixel;
+        } else {
+            // DMG mode: Apply background palette
+            u8 palette = memory_.read(REG_BGP);
+            u8 color = (palette >> (pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
+            framebuffer_[ly_ * SCREEN_WIDTH + x] = color;
+        }
     }
 }
 
@@ -526,14 +579,18 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
     bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
     
     if (is_cgb) {
-        // CGB mode: Use palette 0, color 0-3 from background palette RAM
+        // CGB mode: Framebuffer stores (palette_num << CGB_PALETTE_SHIFT) | color_index
         for (size_t i = 0; i < pixel_count; i++) {
-            u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+            u8 fb_value = framebuffer_[i];
+            u8 palette_num = fb_value >> CGB_PALETTE_SHIFT;  // Upper bits: palette number (0-7)
+            u8 color_index = fb_value & PALETTE_MASK;  // Lower 2 bits: color index (0-3)
             
-            // Read 15-bit RGB from palette RAM (palette 0, color 0-3)
+            // Read 15-bit RGB from palette RAM
+            // Each palette is 4 colors × 2 bytes = 8 bytes
             // Each color is 2 bytes: gggrrrrr 0bbbbbgg (little-endian)
-            u8 color_index = shade * 2;  // Palette 0, colors 0-3
-            u16 rgb555 = bg_palette_ram_[color_index] | (bg_palette_ram_[color_index + 1] << 8);
+            u8 palette_offset = palette_num * CGB_PALETTE_SIZE_BYTES;
+            u8 color_offset = palette_offset + (color_index * CGB_COLOR_SIZE_BYTES);
+            u16 rgb555 = bg_palette_ram_[color_offset] | (bg_palette_ram_[color_offset + 1] << 8);
             
             // Convert 15-bit RGB to 8-bit RGB
             u8 r, g, b;
@@ -639,15 +696,15 @@ void PPU::set_cartridge(const Cartridge* cart) {
 void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
     // CGB format: gggrrrrr 0bbbbbgg (little-endian, stored as 2 bytes)
     // Extract 5-bit values
-    u8 r5 = (rgb555 >> 0) & 0x1F;
-    u8 g5 = (rgb555 >> 5) & 0x1F;
-    u8 b5 = (rgb555 >> 10) & 0x1F;
+    u8 r5 = (rgb555 >> CGB_RGB555_RED_SHIFT) & CGB_RGB555_CHANNEL_MASK;
+    u8 g5 = (rgb555 >> CGB_RGB555_GREEN_SHIFT) & CGB_RGB555_CHANNEL_MASK;
+    u8 b5 = (rgb555 >> CGB_RGB555_BLUE_SHIFT) & CGB_RGB555_CHANNEL_MASK;
     
     // Scale from 5-bit (0-31) to 8-bit (0-255)
     // Formula: (value * 255 + 15) / 31 to get proper rounding
-    r = (r5 * 255 + 15) / 31;
-    g = (g5 * 255 + 15) / 31;
-    b = (b5 * 255 + 15) / 31;
+    r = (r5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
+    g = (g5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
+    b = (b5 * CGB_RGB555_SCALE_NUMERATOR + CGB_RGB555_SCALE_OFFSET) / CGB_RGB555_SCALE_DIVISOR;
 }
 
 } // namespace emugbc

@@ -45,12 +45,30 @@ namespace {
     
     // Sound registers
     constexpr u16 SOUND_NR52 = 0xFF26;  // Sound on/off
+    
+    // CGB registers
+    constexpr u16 CGB_KEY1 = 0xFF4D;  // Speed switch register
+    constexpr u16 CGB_VBK = 0xFF4F;   // VRAM bank register
+    constexpr u16 CGB_BCPS = 0xFF68;  // Background palette specification
+    constexpr u16 CGB_BCPD = 0xFF69;  // Background palette data
+    constexpr u16 CGB_OCPS = 0xFF6A;  // Object palette specification
+    constexpr u16 CGB_OCPD = 0xFF6B;  // Object palette data
+    
+    // CGB constants
+    constexpr u16 VRAM_BANK_SIZE = 0x2000;  // 8KB per VRAM bank
+    constexpr u8 VRAM_BANK_MASK = 0x01;     // Only bit 0 selects bank
+    constexpr u8 CGB_SPEED_PREPARE_BIT = 0x01;  // KEY1 bit 0: prepare speed switch
+    constexpr u8 CGB_SPEED_CURRENT_BIT = 0x80;  // KEY1 bit 7: current speed
+    constexpr u8 CGB_VBK_READ_MASK = 0xFE;      // VBK bits 1-7 always read as 1
 }
 
 Memory::Memory() 
-    : boot_rom_loaded_(false)
+    : vram_bank_(0)
+    , speed_switch_(0)
+    , boot_rom_loaded_(false)
     , boot_rom_enabled_(false)
-    , interrupt_enable_(0) {
+    , interrupt_enable_(0)
+    , ppu_(nullptr) {
     // Initialize memory to zero
     vram_.fill(0);
     wram_.fill(0);
@@ -154,9 +172,10 @@ u8 Memory::read(u16 address) const {
         return 0xFF;  // Open bus behavior when no cartridge
     }
     
-    // Video RAM - accessed by PPU during rendering
+    // Video RAM - accessed by PPU during rendering (CGB: banked)
     if (address < VRAM_END) {
-        return vram_[address - VRAM_START];
+        u16 offset = (vram_bank_ * VRAM_BANK_SIZE) + (address - VRAM_START);
+        return vram_[offset];
     }
     
     // External RAM - cartridge SRAM/battery-backed save data
@@ -212,17 +231,27 @@ u8 Memory::read(u16 address) const {
             return apu_->read_register(address);
         }
         
+        // CGB Speed Switch register (KEY1)
+        if (address == CGB_KEY1) {
+            return speed_switch_;
+        }
+        
+        // CGB VRAM Bank register (VBK)
+        if (address == CGB_VBK) {
+            return CGB_VBK_READ_MASK | vram_bank_;  // Bit 0 = bank, bits 1-7 always read as 1
+        }
+        
         // CGB Palette registers - route through PPU
-        if (address == 0xFF68) {  // BCPS - Background Palette Specification
+        if (address == CGB_BCPS) {  // BCPS - Background Palette Specification
             return ppu_ ? ppu_->read_bcps() : 0xFF;
         }
-        if (address == 0xFF69) {  // BCPD - Background Palette Data
+        if (address == CGB_BCPD) {
             return ppu_ ? ppu_->read_bcpd() : 0xFF;
         }
-        if (address == 0xFF6A) {  // OCPS - Object Palette Specification
+        if (address == CGB_OCPS) {
             return ppu_ ? ppu_->read_ocps() : 0xFF;
         }
-        if (address == 0xFF6B) {  // OCPD - Object Palette Data
+        if (address == CGB_OCPD) {
             return ppu_ ? ppu_->read_ocpd() : 0xFF;
         }
         
@@ -251,9 +280,10 @@ void Memory::write(u16 address, u8 value) {
         return;
     }
     
-    // Video RAM - updated by game, read by PPU
+    // Video RAM - updated by game, read by PPU (CGB: banked)
     if (address < VRAM_END) {
-        vram_[address - VRAM_START] = value;
+        u16 offset = (vram_bank_ * VRAM_BANK_SIZE) + (address - VRAM_START);
+        vram_[offset] = value;
         return;
     }
     
@@ -333,20 +363,34 @@ void Memory::write(u16 address, u8 value) {
             return;
         }
         
+        // CGB Speed Switch register (KEY1)
+        if (address == CGB_KEY1) {
+            // Bit 0: Prepare switch (writable)
+            // Bit 7: Current speed (read-only, toggled by STOP instruction)
+            speed_switch_ = (speed_switch_ & CGB_SPEED_CURRENT_BIT) | (value & CGB_SPEED_PREPARE_BIT);
+            return;
+        }
+        
+        // CGB VRAM Bank register (VBK)
+        if (address == CGB_VBK) {
+            vram_bank_ = value & VRAM_BANK_MASK;  // Only bit 0 is used
+            return;
+        }
+        
         // CGB Palette registers - route through PPU
-        if (address == 0xFF68) {  // BCPS - Background Palette Specification
+        if (address == CGB_BCPS) {  // BCPS - Background Palette Specification
             if (ppu_) ppu_->write_bcps(value);
             return;
         }
-        if (address == 0xFF69) {  // BCPD - Background Palette Data
+        if (address == CGB_BCPD) {
             if (ppu_) ppu_->write_bcpd(value);
             return;
         }
-        if (address == 0xFF6A) {  // OCPS - Object Palette Specification
+        if (address == CGB_OCPS) {
             if (ppu_) ppu_->write_ocps(value);
             return;
         }
-        if (address == 0xFF6B) {  // OCPD - Object Palette Data
+        if (address == CGB_OCPD) {
             if (ppu_) ppu_->write_ocpd(value);
             return;
         }

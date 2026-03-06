@@ -4,6 +4,13 @@
 
 namespace emugbc {
 
+// CGB register addresses
+namespace {
+    constexpr u16 CGB_KEY1 = 0xFF4D;  // Speed switch register
+    constexpr u8 CGB_SPEED_PREPARE_BIT = 0x01;  // KEY1 bit 0: prepare speed switch
+    constexpr u8 CGB_SPEED_TOGGLE_BIT = 0x80;   // KEY1 bit 7: current speed (toggle)
+}
+
 /**
  * Execute a single CPU instruction
  * 
@@ -30,6 +37,17 @@ Cycles CPU::execute_instruction(u8 opcode)
         case 0x10:  // STOP
             stopped_ = true;
             fetch_byte();  // STOP is 2 bytes
+            
+            // CGB: Handle speed switch if KEY1 bit 0 is set
+            {
+                u8 key1 = memory_.read(CGB_KEY1);
+                if (key1 & CGB_SPEED_PREPARE_BIT) {
+                    // Toggle speed (bit 7) and clear prepare bit (bit 0)
+                    u8 new_speed = (key1 ^ CGB_SPEED_TOGGLE_BIT) & CGB_SPEED_TOGGLE_BIT;
+                    memory_.write(CGB_KEY1, new_speed);
+                }
+            }
+            
             return 1;
             
         case 0x76:  // HALT

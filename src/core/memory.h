@@ -65,9 +65,16 @@ public:
     void write16(u16 address, u16 value);
     
 private:
+    // CGB memory size constants
+    static constexpr u16 VRAM_TOTAL_SIZE = 0x4000;  // 16KB total (CGB)
+    static constexpr u16 VRAM_BANK_SIZE = 0x2000;   // 8KB per bank
+    static constexpr u16 WRAM_SIZE = 0x2000;        // 8KB Work RAM
+    
     // Internal memory regions
-    std::array<u8, 0x2000> vram_;      // 8KB Video RAM
-    std::array<u8, 0x2000> wram_;      // 8KB Work RAM
+    std::array<u8, VRAM_TOTAL_SIZE> vram_;  // 16KB Video RAM (CGB: 2 banks × 8KB)
+    u8 vram_bank_;                          // CGB VRAM bank select (VBK register 0xFF4F)
+    u8 speed_switch_;                       // CGB speed switch (KEY1 register 0xFF4D)
+    std::array<u8, WRAM_SIZE> wram_;        // 8KB Work RAM
     std::array<u8, 0x00A0> oam_;       // Object Attribute Memory
     std::array<u8, 0x0080> hram_;      // High RAM
     std::array<u8, 0x0080> io_regs_;   // I/O registers
