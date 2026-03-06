@@ -6,6 +6,7 @@
 #include "../cartridge/cartridge.h"
 #include "../input/joypad.h"
 #include "../audio/apu.h"
+#include "../video/ppu.h"
 #include "timer.h"
 
 namespace emugbc {
@@ -92,6 +93,9 @@ Memory::Memory()
     
     // Create audio system
     apu_ = std::make_unique<APU>(*this);
+    
+    // PPU pointer will be set later by Emulator
+    ppu_ = nullptr;
 }
 
 Memory::~Memory() {
@@ -100,6 +104,11 @@ Memory::~Memory() {
 
 void Memory::load_cartridge(std::unique_ptr<Cartridge> cart) {
     cartridge_ = std::move(cart);
+    
+    // Update PPU with cartridge pointer for CGB mode detection
+    if (ppu_) {
+        ppu_->set_cartridge(cartridge_.get());
+    }
 }
 
 Cartridge* Memory::cartridge() {
@@ -108,6 +117,10 @@ Cartridge* Memory::cartridge() {
 
 APU& Memory::apu() {
     return *apu_;
+}
+
+void Memory::set_ppu(PPU* ppu) {
+    ppu_ = ppu;
 }
 
 bool Memory::load_boot_rom(const std::string& path) {
@@ -197,6 +210,20 @@ u8 Memory::read(u16 address) const {
         // Audio registers - route through APU
         if (address >= 0xFF10 && address <= 0xFF3F) {
             return apu_->read_register(address);
+        }
+        
+        // CGB Palette registers - route through PPU
+        if (address == 0xFF68) {  // BCPS - Background Palette Specification
+            return ppu_ ? ppu_->read_bcps() : 0xFF;
+        }
+        if (address == 0xFF69) {  // BCPD - Background Palette Data
+            return ppu_ ? ppu_->read_bcpd() : 0xFF;
+        }
+        if (address == 0xFF6A) {  // OCPS - Object Palette Specification
+            return ppu_ ? ppu_->read_ocps() : 0xFF;
+        }
+        if (address == 0xFF6B) {  // OCPD - Object Palette Data
+            return ppu_ ? ppu_->read_ocpd() : 0xFF;
         }
         
         return io_regs_[address - IO_REGISTERS_START];
@@ -303,6 +330,24 @@ void Memory::write(u16 address, u8 value) {
         // Audio registers - route through APU
         if (address >= 0xFF10 && address <= 0xFF3F) {
             apu_->write_register(address, value);
+            return;
+        }
+        
+        // CGB Palette registers - route through PPU
+        if (address == 0xFF68) {  // BCPS - Background Palette Specification
+            if (ppu_) ppu_->write_bcps(value);
+            return;
+        }
+        if (address == 0xFF69) {  // BCPD - Background Palette Data
+            if (ppu_) ppu_->write_bcpd(value);
+            return;
+        }
+        if (address == 0xFF6A) {  // OCPS - Object Palette Specification
+            if (ppu_) ppu_->write_ocps(value);
+            return;
+        }
+        if (address == 0xFF6B) {  // OCPD - Object Palette Data
+            if (ppu_) ppu_->write_ocpd(value);
             return;
         }
         

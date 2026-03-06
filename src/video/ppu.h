@@ -8,6 +8,7 @@
 namespace emugbc {
 
 class Memory;
+class Cartridge;
 
 /**
  * Picture Processing Unit (PPU)
@@ -62,11 +63,25 @@ public:
     // Get RGBA framebuffer for display (160x144x4 bytes)
     std::vector<u8> get_rgba_framebuffer() const;
     
+    // CGB Palette register access
+    u8 read_bcps() const;       // Read 0xFF68
+    void write_bcps(u8 value);  // Write 0xFF68
+    u8 read_bcpd() const;       // Read 0xFF69
+    void write_bcpd(u8 value);  // Write 0xFF69
+    u8 read_ocps() const;       // Read 0xFF6A
+    void write_ocps(u8 value);  // Write 0xFF6A
+    u8 read_ocpd() const;       // Read 0xFF6B
+    void write_ocpd(u8 value);  // Write 0xFF6B
+    
+    // Cartridge access for CGB mode detection
+    void set_cartridge(const Cartridge* cart);
+    
     // Render current frame to terminal as ASCII
     void render_to_terminal() const;
     
 private:
     Memory& memory_;
+    const Cartridge* cartridge_;  // Non-owning pointer for CGB mode detection
     
     Mode mode_;
     u16 dots_;           // Dot counter within current scanline
@@ -75,6 +90,12 @@ private:
     
     // Framebuffer: 160x144 pixels, each pixel is 0-3 (grayscale)
     std::array<u8, 160 * 144> framebuffer_;
+    
+    // CGB Color Palette Memory
+    std::array<u8, 64> bg_palette_ram_;   // 8 palettes × 4 colors × 2 bytes
+    std::array<u8, 64> obj_palette_ram_;  // 8 palettes × 4 colors × 2 bytes
+    u8 bcps_;  // Background Palette Specification (0xFF68)
+    u8 ocps_;  // Object Palette Specification (0xFF6A)
     
     // Sprites visible on current scanline
     std::vector<Sprite> scanline_sprites_;
@@ -118,6 +139,9 @@ private:
     
     // Tile data
     u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const;
+    
+    // CGB Color conversion
+    void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const;
 };
 
 } // namespace emugbc
