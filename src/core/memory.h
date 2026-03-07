@@ -3,6 +3,7 @@
 #include "types.h"
 #include <array>
 #include <memory>
+#include <vector>
 
 namespace emugbc {
 
@@ -63,6 +64,10 @@ public:
     // 16-bit read/write helpers (little-endian)
     u16 read16(u16 address) const;
     void write16(u16 address, u16 value);
+    
+    // Serialization for save states
+    void serialize(std::vector<u8>& data) const;
+    void deserialize(const u8* data, size_t& offset);
     
 private:
     // CGB memory size constants

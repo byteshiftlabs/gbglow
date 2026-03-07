@@ -2,6 +2,7 @@
 
 #include "../core/types.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -75,6 +76,10 @@ public:
     
     // Cartridge access for CGB mode detection
     void set_cartridge(const Cartridge* cart);
+    
+    // Serialization for save states
+    void serialize(std::vector<u8>& data) const;
+    void deserialize(const u8* data, size_t& offset);
     
     // Render current frame to terminal as ASCII
     void render_to_terminal() const;

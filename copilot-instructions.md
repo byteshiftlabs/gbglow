@@ -10,644 +10,287 @@ This document defines the coding standards for EmuGBC. The primary goal is **cry
 4. **Minimal complexity** - Simplest solution that works
 5. **Well-documented** - Explain WHY, not WHAT
 
-## Naming Conventions
+---
 
-### Classes and Structs
+## 1. Naming Conventions
 
-Use **PascalCase** for types:
-
-```cpp
-class CPU { };
-class MemoryBankController { };
-struct Registers { };
-class PPU { };
-```
+### Classes and Types
+- Use **PascalCase** for all class names, struct names, and type definitions
+- Names should clearly indicate the entity's purpose
 
 ### Functions and Methods
-
-Use **snake_case** for all functions:
-
-```cpp
-void execute_instruction();
-u8 read_byte(u16 address);
-void set_flag_z(bool value);
-Cycles run_frame();
-```
+- Use **snake_case** for all function and method names
+- Use verb phrases that describe what the function does
+- Boolean-returning functions should start with `is_`, `has_`, `can_`, or similar
 
 ### Variables
-
-Use **snake_case** for all variables:
-
-```cpp
-u16 program_counter;
-u8 opcode;
-bool vblank_occurred;
-int tile_index;
-```
+- Use **snake_case** for all local variables, parameters, and non-const members
+- Choose descriptive names that reveal intent, not implementation
+- Avoid abbreviations unless universally understood (like "addr" for address)
 
 ### Constants
-
-Use **UPPER_SNAKE_CASE** for compile-time constants:
-
-```cpp
-constexpr int SCREEN_WIDTH = 160;
-constexpr int SCREEN_HEIGHT = 144;
-constexpr Cycles CYCLES_PER_FRAME = 70224;
-constexpr u16 VRAM_START = 0x8000;
-```
+- Use **UPPER_SNAKE_CASE** for all compile-time constants
+- Define magic numbers as named constants
+- Use constexpr for compile-time values
 
 ### Private Members
-
-Add **trailing underscore** to private member variables:
-
-```cpp
-class Example {
-private:
-    int value_;
-    bool enabled_;
-    std::vector<u8> buffer_;
-};
-```
+- Add **trailing underscore** to all private and protected member variables
+- This clearly distinguishes members from local variables
 
 ### Type Aliases
+- Use consistent abbreviations: `u8`, `u16`, `u32`, `u64` for unsigned types
+- Use `i8`, `i16`, `i32`, `i64` for signed types
+- Create type aliases for domain concepts (like `Cycles`, `Address`)
 
-Use consistent abbreviations:
+---
 
-```cpp
-using u8 = std::uint8_t;    // unsigned 8-bit
-using u16 = std::uint16_t;  // unsigned 16-bit
-using i8 = std::int8_t;     // signed 8-bit
-```
+## 2. Code Organization
 
-## File Organization
+### Header Files
+- Use `#pragma once` instead of include guards
+- Order includes: system headers first, then project headers
+- Group class members: constructors/destructor, public interface, private helpers, private data
+- Declare data members last in classes
 
-### Header Files (.h)
+### Implementation Files
+- Include the corresponding header first
+- Implement constructors first, then public methods, then private methods
+- Keep related functions together
 
-```cpp
-#pragma once
+### File Structure
+- One class per file pair (header + implementation)
+- Name files after the primary class they contain
+- Use subdirectories to organize related components
 
-// System includes first
-#include <vector>
-#include <cstdint>
+### Dependencies
+- Minimize header dependencies, use forward declarations when possible
+- Avoid circular dependencies
+- Keep coupling loose between major components
 
-// Project includes second
-#include "types.h"
-#include "memory.h"
+### Separation of Concerns
+- Put large constant tables or lookup arrays in separate files
+- Keep hardware-specific constants grouped together
+- Separate interface definitions from implementations
 
-// Class declaration
-class Example {
-public:
-    // Constructors and destructor first
-    Example();
-    explicit Example(int value);
-    ~Example();
-    
-    // Public interface
-    void do_something();
-    int get_value() const;
-    void set_value(int value);
-    
-private:
-    // Private helpers
-    void helper_function();
-    
-    // Private data members last
-    int value_;
-    bool enabled_;
-};
-```
+---
 
-### Implementation Files (.cpp)
-
-```cpp
-#include "example.h"
-
-// Implementation constructors first
-Example::Example()
-    : value_(0)      // Initialize in declaration order
-    , enabled_(false)
-{
-}
-
-// Public methods
-void Example::do_something() {
-    // Implementation
-}
-
-// Private methods last
-void Example::helper_function() {
-    // Implementation
-}
-```
-
-## Function Design
-
-### Keep Functions Small
-
-Each function should do **one thing well**:
-
-```cpp
-// Good: Single responsibility
-void CPU::increment_program_counter() {
-    regs_.pc++;
-}
-
-// Good: Clear purpose
-u8 CPU::fetch_byte() {
-    return memory_.read(regs_.pc++);
-}
-
-// Bad: Too many responsibilities
-void CPU::execute_and_update_everything() {
-    // 200 lines of mixed logic
-}
-```
-
-### Clear Parameter Lists
-
-Use descriptive names and reasonable parameter counts:
-
-```cpp
-// Good: Clear what each parameter means
-void write_tile_pixel(u8 tile_index, u8 x, u8 y, u8 color);
-
-// Good: Few related parameters
-void set_position(u16 x, u16 y);
-
-// Bad: Unclear boolean
-void set_mode(bool flag);  // What does true mean?
-
-// Good: Named parameter
-void set_mode(Mode mode);
-enum class Mode { HBlank, VBlank };
-```
-
-### Return Values
-
-Prefer explicit return values over output parameters:
-
-```cpp
-// Good: Clear return value
-u16 calculate_address(u8 bank, u16 offset) {
-    return bank * 0x4000 + offset;
-}
-
-// Bad: Output parameter obscures intent
-void calculate_address(u8 bank, u16 offset, u16& result) {
-    result = bank * 0x4000 + offset;
-}
-```
-
-### Const Correctness
-
-Mark methods and parameters const when they don't modify state:
-
-```cpp
-class Memory {
-public:
-    u8 read(u16 address) const;     // Doesn't modify state
-    void write(u16 address, u8 value);  // Modifies state
-    
-    bool is_empty() const;          // Query method
-};
-```
-
-## Class Design
+## 3. Functions and Methods
 
 ### Single Responsibility
+- Each function should do one thing and do it well
+- If a function needs "and" in its name, consider splitting it
 
-Each class should have one clear purpose:
+### Function Size
+- Keep functions small - aim for less than 30 lines
+- Complex logic should be broken into helper functions
+- Extract nested loops and conditionals into named functions
 
-```cpp
-// Good: Focused responsibility
-class CPU {
-    // Only CPU execution logic
-};
+### Parameter Lists
+- Keep parameter counts low (ideally 3 or fewer)
+- Use descriptive parameter names
+- Avoid boolean parameters - use enums for clarity
 
-// Good: Focused responsibility
-class Memory {
-    // Only memory management
-};
+### Return Values
+- Prefer return values over output parameters
+- Use early returns to reduce nesting
+- Return const references for large objects that don't need copying
 
-// Bad: Mixed responsibilities
-class CPUAndMemoryManager {
-    // CPU logic + memory management + graphics?
-};
-```
+### Const Correctness
+- Mark methods const if they don't modify object state
+- Mark parameters const when they shouldn't be modified
+- Use const references for parameters you don't need to copy
 
-### Interface Design
+### Default Arguments
+- Avoid default arguments - they hide behavior
+- Make function calls explicit and clear
 
-Keep public interfaces minimal and clear:
+---
 
-```cpp
-class PPU {
-public:
-    // Clear public interface
-    void step(Cycles cycles);
-    void render_scanline();
-    const std::vector<u8>& get_framebuffer() const;
-    
-private:
-    // Hide implementation details
-    void fetch_tile_data();
-    void render_pixel(int x, int y);
-    u8 get_tile_color(u8 tile_index, u8 x, u8 y);
-};
-```
+## 4. Variables and State
 
 ### Initialization
+- Initialize all variables at declaration
+- Use constructor initialization lists in member initialization order
+- Initialize in the same order as member declaration
 
-Initialize members in declaration order:
+### Scope
+- Minimize variable scope - declare as close to use as possible
+- Avoid global variables
+- Prefer local variables over members when state doesn't need to persist
 
-```cpp
-class Example {
-public:
-    Example(int a, int b)
-        : first_(a)      // Declaration order
-        , second_(b)
-        , third_(0)
-    {
-    }
-    
-private:
-    int first_;   // Declared first
-    int second_;  // Then second
-    int third_;   // Then third
-};
-```
+### Mutability
+- Prefer const variables when values don't change
+- Minimize mutable state
+- Make data members private and provide controlled access
 
-## Comments and Documentation
+### Large Data Structures
+- Move large arrays and lookup tables to separate files
+- Use static const for compile-time data
+- Consider lazy initialization for expensive-to-compute data
 
-### Explain WHY, Not WHAT
+### Magic Numbers
+- Replace all magic numbers with named constants
+- Group related constants together
+- Document the meaning and source of hardware-specific values
 
-```cpp
-// Bad: States the obvious
-// Increment program counter
-regs_.pc++;
+---
 
-// Good: Explains reasoning
-// Skip two-byte instruction operand
-regs_.pc += 2;
+## 5. Comments and Documentation
 
-// Bad: Redundant
-// Read from memory at address
-u8 value = memory_.read(address);
-
-// Good: Explains non-obvious behavior
-// Hardware quirk: writes to DIV reset it to 0
-if (address == 0xFF04) {
-    div_register_ = 0;
-    return;
-}
-```
-
-### Document Complex Logic
-
-```cpp
-// Explain algorithm or hardware behavior
-// Game Boy tile format is 2-bit planar:
-// Each row takes 2 bytes, one bit per pixel per byte
-// Combine corresponding bits to get 2-bit color (0-3)
-u8 get_tile_pixel(u8 tile_index, u8 x, u8 y) const {
-    u16 tile_addr = 0x8000 + (tile_index * 16) + (y * 2);
-    u8 low = memory_.read(tile_addr);
-    u8 high = memory_.read(tile_addr + 1);
-    
-    u8 bit = 7 - x;
-    return ((high >> bit) & 1) << 1 | ((low >> bit) & 1);
-}
-```
+### Comment Purpose
+- Explain **WHY**, not **WHAT** - code should show what it does
+- Document hardware behavior, quirks, and timing requirements
+- Explain non-obvious algorithms or bit manipulations
 
 ### Class Documentation
+- Document the purpose and responsibility of each class
+- Explain memory maps, register layouts, or hardware behavior
+- Include relevant technical reference information
 
-Document class purpose at declaration:
+### Function Documentation
+- Document public API functions with their purpose and behavior
+- Explain preconditions, postconditions, and side effects
+- Document return values and parameters for complex functions
 
-```cpp
-// Manages the 64KB Game Boy address space with memory-mapped regions:
-// 0x0000-0x7FFF: Cartridge ROM (16KB banks)
-// 0x8000-0x9FFF: Video RAM (8KB)
-// 0xA000-0xBFFF: External RAM (cartridge)
-// 0xC000-0xDFFF: Work RAM (8KB)
-// 0xE000-0xFDFF: Echo RAM (mirrors 0xC000-0xDDFF)
-// 0xFE00-0xFE9F: Object Attribute Memory (sprite data)
-// 0xFF00-0xFF7F: I/O Registers
-// 0xFF80-0xFFFE: High RAM (fast internal RAM)
-// 0xFFFF: Interrupt Enable Register
-class Memory {
-    // ...
-};
-```
+### Implementation Comments
+- Comment complex algorithms or hardware-specific logic
+- Explain timing-critical operations
+- Note any deviations from standard behavior or workarounds
 
-### Function Headers
+---
 
-Document public API functions:
+## 6. Error Handling
 
-```cpp
-// Executes a single CPU instruction and returns cycle count.
-// Updates program counter, flags, and all affected registers.
-// Handles all 256 standard opcodes plus 256 CB prefix opcodes.
-Cycles execute_instruction(u8 opcode);
-```
+### Exceptions
+- Use exceptions for unrecoverable errors (programming bugs, invalid state)
+- Throw appropriate standard exceptions (out_of_range, runtime_error, logic_error)
+- Let exceptions propagate to appropriate handlers
 
-## Code Structure
+### Return Values
+- Use return values (bool, optional, expected) for expected failures
+- Return false/null/error codes when failure is part of normal operation
+- Document error conditions in function comments
 
-### Avoid Deep Nesting
+### Error Messages
+- Provide specific, actionable error messages
+- Include context: what failed, why, and what values were involved
+- Avoid generic messages like "Error" or "Failed"
 
-Keep nesting to 2-3 levels maximum:
+---
 
-```cpp
-// Bad: Deep nesting
-void process() {
-    if (condition1) {
-        if (condition2) {
-            if (condition3) {
-                if (condition4) {
-                    // Deep logic
-                }
-            }
-        }
-    }
-}
+## 7. Type Safety
 
-// Good: Early returns
-void process() {
-    if (!condition1) return;
-    if (!condition2) return;
-    if (!condition3) return;
-    if (!condition4) return;
-    
-    // Main logic at top level
-}
-```
+### Enums
+- Use `enum class` for type-safe enumerations
+- Give enums meaningful names that describe the concept
+- Use enums instead of boolean flags when meaning would be unclear
 
-### Use Meaningful Intermediate Variables
+### Strong Types
+- Create type aliases for domain concepts (Cycles, Address)
+- Use distinct types to prevent mixing incompatible values
+- Leverage the type system to catch errors at compile time
 
-```cpp
-// Bad: Complex expression
-if ((memory_.read(0xFF40) & 0x80) && scanline_ >= 144) {
-    // ...
-}
+### Explicit Conversions
+- Use explicit constructors to prevent implicit conversions
+- Be explicit about type conversions and casts
+- Avoid C-style casts, use static_cast when needed
 
-// Good: Named intermediate values
-bool lcd_enabled = (memory_.read(0xFF40) & 0x80) != 0;
-bool in_vblank = scanline_ >= 144;
+### Type Deduction
+- Use auto when the type is obvious from the right-hand side
+- Be explicit when the type is important for understanding
+- Don't use auto to hide important type information
 
-if (lcd_enabled && in_vblank) {
-    // ...
-}
-```
+---
 
-### Switch Statements
-
-Use switches for discrete cases, format consistently:
-
-```cpp
-Cycles CPU::execute_instruction(u8 opcode) {
-    switch (opcode) {
-        case 0x00:  // NOP
-            return 1;
-            
-        case 0x01:  // LD BC, nn
-            regs_.bc(read_word_pc());
-            return 3;
-            
-        case 0x02:  // LD (BC), A
-            memory_.write(regs_.bc(), regs_.a);
-            return 2;
-            
-        default:
-            throw std::runtime_error("Unknown opcode");
-    }
-}
-```
-
-## Error Handling
-
-### Use Exceptions for Unrecoverable Errors
-
-```cpp
-// Good: Exception for programming error
-if (address >= MEMORY_SIZE) {
-    throw std::out_of_range("Memory access out of bounds");
-}
-
-// Good: Exception for invalid state
-if (!cartridge_loaded_) {
-    throw std::runtime_error("No cartridge loaded");
-}
-```
-
-### Return Values for Expected Failures
-
-```cpp
-// Good: Boolean for expected failure cases
-bool Cartridge::load_save_file() {
-    std::ifstream file(save_path_);
-    if (!file) {
-        return false;  // No save file exists (normal)
-    }
-    // Load data...
-    return true;
-}
-```
-
-### Descriptive Error Messages
-
-```cpp
-// Bad: Generic message
-throw std::runtime_error("Error");
-
-// Good: Specific, actionable message
-throw std::runtime_error(
-    "Unsupported cartridge type 0x" + to_hex(type) +
-    ". Only ROM-only and MBC1 are currently supported."
-);
-```
-
-## Type Safety
-
-### Use Enums for Discrete States
-
-```cpp
-// Good: Type-safe states
-enum class PPUMode {
-    HBlank,
-    VBlank,
-    OAMSearch,
-    Transfer
-};
-
-PPUMode mode_ = PPUMode::HBlank;
-
-// Bad: Magic numbers
-int mode_ = 0;  // What do the values mean?
-```
-
-### Use Strong Types
-
-```cpp
-// Good: Distinct types prevent mixing
-using Cycles = u32;
-using Address = u16;
-
-Cycles cycles = 4;
-Address addr = 0xC000;
-
-// Compiler prevents: cycles = addr;  // Type error!
-```
-
-### Explicit Constructors
-
-Prevent implicit conversions:
-
-```cpp
-class CPU {
-public:
-    explicit CPU(Memory& memory);  // Must be explicit
-    
-    // Bad: Allows CPU cpu = memory;
-    // CPU(Memory& memory);
-};
-```
-
-## Modern C++ Features
-
-### Use auto for Obvious Types
-
-```cpp
-// Good: Type is obvious from right side
-auto cartridge = std::make_unique<MBC1>(rom_data);
-auto it = map.find(key);
-
-// Bad: Obscures type unnecessarily
-auto value = calculate();  // What type is returned?
-
-// Good: Explicit when not obvious
-u16 value = calculate();
-```
-
-### Range-Based For Loops
-
-```cpp
-// Good: Clear iteration
-for (u8 byte : rom_data) {
-    checksum += byte;
-}
-
-// Good: Reference to avoid copies
-for (const Sprite& sprite : sprites) {
-    render_sprite(sprite);
-}
-```
+## 8. Modern C++ Practices
 
 ### Smart Pointers
+- Use `unique_ptr` for exclusive ownership
+- Use `shared_ptr` only when shared ownership is needed
+- Use raw references or raw pointers for non-owning relationships
+- Never manually delete - let RAII handle cleanup
 
-```cpp
-// Good: Ownership is clear
-class Memory {
-private:
-    std::unique_ptr<Cartridge> cartridge_;  // Memory owns cartridge
-};
+### STL Containers
+- Use standard containers (vector, array, map) over raw arrays
+- Prefer vector for dynamic arrays
+- Use array for fixed-size arrays
+- Reserve capacity for vectors when size is known
 
-// Good: Non-owning reference
-class CPU {
-public:
-    explicit CPU(Memory& memory)  // CPU doesn't own memory
-        : memory_(memory) { }
-        
-private:
-    Memory& memory_;  // Reference, not owning
-};
-```
+### Range-Based Loops
+- Use range-based for loops for simple iteration
+- Use const references in loops to avoid copies
+- Use traditional loops when you need the index
 
-## Formatting
+### Lambdas
+- Use lambdas for short, local function objects
+- Capture by reference [&] when you need to modify external state
+- Capture by value [=] when you need a copy
+- Be explicit about captures when ownership matters
 
-### Indentation
+### Move Semantics
+- Return large objects by value and let the compiler optimize
+- Use std::move for transferring ownership
+- Don't use std::move on return values (prevents copy elision)
 
-- Use **4 spaces** (no tabs)
-- Align related code vertically when helpful
+### constexpr
+- Use constexpr for compile-time constants
+- Mark functions constexpr when they can be evaluated at compile time
+- Prefer constexpr over #define for constants
 
-```cpp
-void example() {
-    int first  = 1;
-    int second = 2;
-    int third  = 3;
-}
-```
+---
 
-### Braces
+## 9. Performance Considerations
 
-- Opening brace on same line for classes/functions
-- Control flow braces on next line (optional, be consistent)
+### Premature Optimization
+- Write clear code first, optimize only if needed
+- Profile before optimizing
+- Document why optimizations are necessary
 
-```cpp
-class Example {
-    void function() {
-        if (condition) {
-            action();
-        }
-    }
-};
-```
+### Copying
+- Pass large objects by const reference
+- Use move semantics for transferring ownership
+- Return by value and trust the compiler to optimize
 
-### Line Length
+### Allocation
+- Avoid frequent allocations in hot paths
+- Reuse buffers when possible
+- Pre-allocate collections when size is known
 
-- Aim for **80-100 characters**
-- Break long lines at logical points
+### Inlining
+- Let the compiler decide about inlining for most functions
+- Only force inline for proven hot spots
+- Keep inline functions small and simple
 
-```cpp
-// Good: Break at logical boundary
-bool result = complex_condition_one() &&
-              complex_condition_two() &&
-              complex_condition_three();
-```
+### Cache Locality
+- Keep hot data structures compact
+- Use structure-of-arrays for performance-critical data
+- Consider data access patterns in memory layout
 
-### Whitespace
+---
 
-```cpp
-// Good spacing around operators
-int result = a + b * c;
+## 10. Hardware Emulation Specific
 
-// Good spacing in function calls
-function(arg1, arg2, arg3);
+### Timing Accuracy
+- Document cycle counts for all operations
+- Make timing behavior explicit and verifiable
+- Use named constants for hardware timing values
 
-// No space before parentheses
-if (condition) { }
-while (condition) { }
+### State Management
+- Keep emulator state clearly organized
+- Separate logical components (CPU, PPU, APU, Memory)
+- Make state serializable for save states
 
-// Space after keywords
-if (test) { }
-for (int i = 0; i < 10; ++i) { }
-```
+### Hardware Registers
+- Document register addresses and bit meanings
+- Use named constants for register addresses
+- Use bit manipulation helpers for clarity
 
-## Code Examples
+### Testing
+- Write tests for CPU instructions
+- Test edge cases and hardware quirks
+- Verify timing-dependent behavior
 
-### Before (Bad Style)
-
-```cpp
-class c{public:void f(){int x=g(1,2);if(x>0){for(int i=0;i<x;i++){p(i);}}}};
-```
-
-### After (Good Style)
-
-```cpp
-class Counter {
-public:
-    void process() {
-        int value = calculate(1, 2);
-        
-        if (value > 0) {
-            for (int i = 0; i < value; ++i) {
-                print_value(i);
-            }
-        }
-    }
-    
-private:
-    int calculate(int a, int b);
-    void print_value(int value);
-};
-```
+---
 
 ## Summary
 
@@ -659,3 +302,6 @@ When in doubt:
 3. Use descriptive names
 4. Keep functions small and focused
 5. Follow consistent patterns
+6. Let the type system help you
+7. Document hardware behavior
+8. Write testable code

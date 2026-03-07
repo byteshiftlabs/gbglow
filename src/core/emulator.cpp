@@ -87,15 +87,16 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     std::cout << "Emulator running. Press ESC to exit." << std::endl;
     std::cout << "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select" << std::endl;
     
-    // Main game loop
-    using Clock = std::chrono::high_resolution_clock;
-    using Duration = std::chrono::duration<double, std::milli>;
+    // Main game loop - use audio-based synchronization for consistent timing
+    // This approach is immune to system load variations (unlike sleep-based timing)
+    // The audio subsystem acts as a natural clock: if audio queue is full, we wait
     
-    auto last_frame_time = Clock::now();
+    // Target audio queue size: ~2 frames worth of audio (~60ms)
+    // 44100 samples/sec * 2 channels * 2 bytes/sample * 2 frames / 60 fps ≈ 5880 bytes
+    constexpr unsigned int TARGET_AUDIO_QUEUE = 44100 * 2 * 2 * 2 / 60;
+    constexpr unsigned int MAX_AUDIO_QUEUE = TARGET_AUDIO_QUEUE * 2;  // Max ~4 frames
     
     while (!display.should_close()) {
-        auto frame_start = Clock::now();
-        
         // Handle input events - get joypad from memory (single source of truth)
         display.poll_events(&memory_->joypad());
         
@@ -116,17 +117,15 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             memory_->apu().clear_audio_buffer();
         }
         
-        // Frame timing - maintain ~59.73 Hz
-        auto frame_end = Clock::now();
-        Duration frame_duration = frame_end - frame_start;
-        
-        // Sleep if we finished early
-        double sleep_time = FRAME_TIME_MS - frame_duration.count();
-        if (sleep_time > 0.0) {
-            std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(sleep_time));
+        // Audio-based synchronization: wait if audio queue is too full
+        // This naturally throttles emulation to ~60fps based on audio playback rate
+        // Under system load, we might run slightly behind but audio stays smooth
+        unsigned int queue_size = display.get_audio_queue_size();
+        while (queue_size > MAX_AUDIO_QUEUE) {
+            // Small sleep to reduce CPU spinning while waiting
+            std::this_thread::sleep_for(std::chrono::microseconds(500));
+            queue_size = display.get_audio_queue_size();
         }
-        
-        last_frame_time = Clock::now();
     }
     
     // Save RAM to file on exit
