@@ -58,7 +58,6 @@ set(CORE_SOURCES
 
 set(VIDEO_SOURCES
     src/video/ppu.cpp
-    src/video/lcd.cpp
     src/video/display.cpp
 )
 

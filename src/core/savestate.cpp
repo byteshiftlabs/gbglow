@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "savestate.h"
@@ -32,7 +32,7 @@ std::string SaveState::get_path(int slot, const std::string& rom_path) {
     
     size_t dot_pos = save_path.rfind('.');
     if (dot_pos != std::string::npos) {
-        save_path = save_path.substr(0, dot_pos);
+        save_path.resize(dot_pos);
     }
     
     save_path += ".state" + std::to_string(slot);
