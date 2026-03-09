@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #pragma once
@@ -41,7 +41,7 @@ public:
     ~Memory();  // Defined in .cpp where Cartridge is complete
     
     // Load a cartridge into memory
-    void load_cartridge(std::unique_ptr<Cartridge> cart);
+    void load_cartridge(std::unique_ptr<Cartridge> cartridge);
     
     // Load boot ROM (256 bytes, optional)
     bool load_boot_rom(const std::string& path);
