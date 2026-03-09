@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 /**
@@ -204,14 +204,6 @@ std::string RecentRoms::get_config_dir() const
     }
     
     return base_dir + "/gbglow";
-}
-
-std::string RecentRoms::extract_filename(const std::string& path) const
-{
-    size_t last_slash = path.find_last_of("/\\");
-    return (last_slash != std::string::npos) 
-        ? path.substr(last_slash + 1) 
-        : path;
 }
 
 } // namespace gbglow

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "debugger_gui.h"
@@ -11,6 +11,90 @@
 #include <cstring>
 
 namespace gbglow {
+
+// IO register addresses
+namespace {
+    // LCD registers
+    constexpr u16 REG_LCDC = 0xFF40;
+    constexpr u16 REG_STAT = 0xFF41;
+    constexpr u16 REG_SCY  = 0xFF42;
+    constexpr u16 REG_SCX  = 0xFF43;
+    constexpr u16 REG_LY   = 0xFF44;
+    constexpr u16 REG_LYC  = 0xFF45;
+    constexpr u16 REG_BGP  = 0xFF47;
+    constexpr u16 REG_OBP0 = 0xFF48;
+    constexpr u16 REG_OBP1 = 0xFF49;
+    constexpr u16 REG_WY   = 0xFF4A;
+    constexpr u16 REG_WX   = 0xFF4B;
+    
+    // Sound registers
+    constexpr u16 REG_NR10 = 0xFF10;
+    constexpr u16 REG_NR11 = 0xFF11;
+    constexpr u16 REG_NR12 = 0xFF12;
+    constexpr u16 REG_NR13 = 0xFF13;
+    constexpr u16 REG_NR14 = 0xFF14;
+    constexpr u16 REG_NR50 = 0xFF24;
+    constexpr u16 REG_NR51 = 0xFF25;
+    constexpr u16 REG_NR52 = 0xFF26;
+    
+    // Timer registers
+    constexpr u16 REG_DIV  = 0xFF04;
+    constexpr u16 REG_TIMA = 0xFF05;
+    constexpr u16 REG_TMA  = 0xFF06;
+    constexpr u16 REG_TAC  = 0xFF07;
+    
+    // Interrupt registers
+    constexpr u16 REG_IF = 0xFF0F;
+    constexpr u16 REG_IE = 0xFFFF;
+    
+    // Input/Serial/DMA registers
+    constexpr u16 REG_JOYP = 0xFF00;
+    constexpr u16 REG_SB   = 0xFF01;
+    constexpr u16 REG_SC   = 0xFF02;
+    constexpr u16 REG_DMA  = 0xFF46;
+    
+    // Memory map regions (for quick-nav)
+    constexpr u16 REGION_ROM0 = 0x0000;
+    constexpr u16 REGION_VRAM = 0x8000;
+    constexpr u16 REGION_WRAM = 0xC000;
+    constexpr u16 REGION_OAM  = 0xFE00;
+    constexpr u16 REGION_IO   = 0xFF00;
+    constexpr u16 REGION_HRAM = 0xFF80;
+    
+    // Disassembly quick-jump addresses
+    constexpr u16 ENTRY_POINT      = 0x0100;
+    constexpr u16 RST_VECTORS      = 0x0000;
+    constexpr u16 INT_VECTORS      = 0x0040;
+    
+    // LCDC bit flags
+    constexpr u8 LCDC_OBJ_ENABLE = 0x02;   // Bit 1: OBJ display enable
+    constexpr u8 LCDC_OBJ_SIZE   = 0x04;   // Bit 2: OBJ size (0=8x8, 1=8x16)
+    
+    // Sprite attribute flags
+    constexpr u8 ATTR_Y_FLIP  = 0x40;   // Bit 6: Y flip
+    constexpr u8 ATTR_X_FLIP  = 0x20;   // Bit 5: X flip
+    constexpr u8 ATTR_PALETTE = 0x10;   // Bit 4: palette selection (0=OBP0, 1=OBP1)
+    constexpr u8 TILE_NUM_MASK_8x16 = 0xFE;  // In 8x16 mode, bit 0 of tile is ignored
+    
+    // DMG palette shade mask
+    constexpr u8 SHADE_MASK = 0x03;
+    
+    // Memory page size for navigation
+    constexpr u16 PAGE_SIZE = 0x100;
+    
+    // Address space limit
+    constexpr u16 ADDR_MAX = 0xFFFF;
+    constexpr u16 STACK_ADDR_LIMIT = 0xFFFE;
+    
+    // Sprite constants
+    constexpr u16 OAM_BASE   = 0xFE00;
+    constexpr u16 TILE_DATA  = 0x8000;
+    constexpr int NUM_SPRITES = 40;
+    constexpr int SPRITE_WIDTH = 8;
+    constexpr int TILE_BYTES_PER_ROW = 2;
+    constexpr int TILE_SIZE_BYTES = 16;
+    constexpr int PIXELS_PER_TILE_ROW = 8;
+} // anonymous namespace
 
 DebuggerGUI::DebuggerGUI()
     : debugger_(nullptr)
@@ -204,10 +288,10 @@ void DebuggerGUI::render_menu_bar() {
 
 std::string DebuggerGUI::format_flags(u8 f) const {
     std::string result;
-    result += (f & 0x80) ? 'Z' : '-';
-    result += (f & 0x40) ? 'N' : '-';
-    result += (f & 0x20) ? 'H' : '-';
-    result += (f & 0x10) ? 'C' : '-';
+    result += (f & Registers::FLAG_Z) ? 'Z' : '-';
+    result += (f & Registers::FLAG_N) ? 'N' : '-';
+    result += (f & Registers::FLAG_H) ? 'H' : '-';
+    result += (f & Registers::FLAG_C) ? 'C' : '-';
     return result;
 }
 
@@ -340,15 +424,15 @@ void DebuggerGUI::render_disassembly_window() {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Jump to current PC");
         
         ImGui::SameLine();
-        if (ImGui::Button("Entry")) { disasm_address_ = 0x0100; follow_pc_ = false; }
+        if (ImGui::Button("Entry")) { disasm_address_ = ENTRY_POINT; follow_pc_ = false; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("ROM Entry Point ($0100)");
         
         ImGui::SameLine();
-        if (ImGui::Button("RST")) { disasm_address_ = 0x0000; follow_pc_ = false; }
+        if (ImGui::Button("RST")) { disasm_address_ = RST_VECTORS; follow_pc_ = false; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("RST vectors ($0000-$00FF)");
         
         ImGui::SameLine();
-        if (ImGui::Button("INT")) { disasm_address_ = 0x0040; follow_pc_ = false; }
+        if (ImGui::Button("INT")) { disasm_address_ = INT_VECTORS; follow_pc_ = false; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Interrupt vectors ($0040-$0060)");
         
         ImGui::Separator();
@@ -464,17 +548,17 @@ void DebuggerGUI::render_memory_window() {
         }
         
         ImGui::SameLine();
-        if (ImGui::Button("ROM0")) memory_view_address_ = 0x0000;
+        if (ImGui::Button("ROM0")) memory_view_address_ = REGION_ROM0;
         ImGui::SameLine();
-        if (ImGui::Button("VRAM")) memory_view_address_ = 0x8000;
+        if (ImGui::Button("VRAM")) memory_view_address_ = REGION_VRAM;
         ImGui::SameLine();
-        if (ImGui::Button("WRAM")) memory_view_address_ = 0xC000;
+        if (ImGui::Button("WRAM")) memory_view_address_ = REGION_WRAM;
         ImGui::SameLine();
-        if (ImGui::Button("OAM")) memory_view_address_ = 0xFE00;
+        if (ImGui::Button("OAM")) memory_view_address_ = REGION_OAM;
         ImGui::SameLine();
-        if (ImGui::Button("IO")) memory_view_address_ = 0xFF00;
+        if (ImGui::Button("IO")) memory_view_address_ = REGION_IO;
         ImGui::SameLine();
-        if (ImGui::Button("HRAM")) memory_view_address_ = 0xFF80;
+        if (ImGui::Button("HRAM")) memory_view_address_ = REGION_HRAM;
         
         ImGui::Separator();
         
@@ -526,7 +610,7 @@ void DebuggerGUI::render_memory_window() {
         
         // Navigation
         if (ImGui::Button("◄◄")) {
-            memory_view_address_ = (memory_view_address_ >= 0x100) ? memory_view_address_ - 0x100 : 0;
+            memory_view_address_ = (memory_view_address_ >= PAGE_SIZE) ? memory_view_address_ - PAGE_SIZE : 0;
         }
         ImGui::SameLine();
         if (ImGui::Button("◄")) {
@@ -534,11 +618,11 @@ void DebuggerGUI::render_memory_window() {
         }
         ImGui::SameLine();
         if (ImGui::Button("►")) {
-            memory_view_address_ = (memory_view_address_ + cols <= 0xFFFF - rows * cols) ? memory_view_address_ + cols : memory_view_address_;
+            memory_view_address_ = (memory_view_address_ + cols <= ADDR_MAX - rows * cols) ? memory_view_address_ + cols : memory_view_address_;
         }
         ImGui::SameLine();
         if (ImGui::Button("►►")) {
-            memory_view_address_ = (memory_view_address_ + 0x100 <= 0xFFFF - rows * cols) ? memory_view_address_ + 0x100 : memory_view_address_;
+            memory_view_address_ = (memory_view_address_ + PAGE_SIZE <= ADDR_MAX - rows * cols) ? memory_view_address_ + PAGE_SIZE : memory_view_address_;
         }
     }
     ImGui::End();
@@ -737,7 +821,7 @@ void DebuggerGUI::render_stack_window() {
             
             for (int i = 0; i < 16; ++i) {
                 u16 addr = regs->sp + i * 2;
-                if (addr > 0xFFFE) break;
+                if (addr > STACK_ADDR_LIMIT) break;
                 
                 u8 lo = debugger_->read_memory(addr);
                 u8 hi = debugger_->read_memory(addr + 1);
@@ -789,59 +873,59 @@ void DebuggerGUI::render_io_registers_window() {
         
         // LCD registers
         if (ImGui::CollapsingHeader("LCD", ImGuiTreeNodeFlags_DefaultOpen)) {
-            show_reg("LCDC", 0xFF40);
-            show_reg("STAT", 0xFF41);
-            show_reg("SCY ", 0xFF42);
-            show_reg("SCX ", 0xFF43);
-            show_reg("LY  ", 0xFF44);
-            show_reg("LYC ", 0xFF45);
-            show_reg("BGP ", 0xFF47);
-            show_reg("OBP0", 0xFF48);
-            show_reg("OBP1", 0xFF49);
-            show_reg("WY  ", 0xFF4A);
-            show_reg("WX  ", 0xFF4B);
+            show_reg("LCDC", REG_LCDC);
+            show_reg("STAT", REG_STAT);
+            show_reg("SCY ", REG_SCY);
+            show_reg("SCX ", REG_SCX);
+            show_reg("LY  ", REG_LY);
+            show_reg("LYC ", REG_LYC);
+            show_reg("BGP ", REG_BGP);
+            show_reg("OBP0", REG_OBP0);
+            show_reg("OBP1", REG_OBP1);
+            show_reg("WY  ", REG_WY);
+            show_reg("WX  ", REG_WX);
         }
         
         // Sound registers
         if (ImGui::CollapsingHeader("Sound")) {
-            show_reg("NR10", 0xFF10);
-            show_reg("NR11", 0xFF11);
-            show_reg("NR12", 0xFF12);
-            show_reg("NR13", 0xFF13);
-            show_reg("NR14", 0xFF14);
-            show_reg("NR50", 0xFF24);
-            show_reg("NR51", 0xFF25);
-            show_reg("NR52", 0xFF26);
+            show_reg("NR10", REG_NR10);
+            show_reg("NR11", REG_NR11);
+            show_reg("NR12", REG_NR12);
+            show_reg("NR13", REG_NR13);
+            show_reg("NR14", REG_NR14);
+            show_reg("NR50", REG_NR50);
+            show_reg("NR51", REG_NR51);
+            show_reg("NR52", REG_NR52);
         }
         
         // Timer registers
         if (ImGui::CollapsingHeader("Timer")) {
-            show_reg("DIV ", 0xFF04);
-            show_reg("TIMA", 0xFF05);
-            show_reg("TMA ", 0xFF06);
-            show_reg("TAC ", 0xFF07);
+            show_reg("DIV ", REG_DIV);
+            show_reg("TIMA", REG_TIMA);
+            show_reg("TMA ", REG_TMA);
+            show_reg("TAC ", REG_TAC);
         }
         
         // Interrupt registers
         if (ImGui::CollapsingHeader("Interrupts")) {
-            show_reg("IF  ", 0xFF0F);
-            show_reg("IE  ", 0xFFFF);
+            show_reg("IF  ", REG_IF);
+            show_reg("IE  ", REG_IE);
         }
         
         // Joypad
         if (ImGui::CollapsingHeader("Input")) {
-            show_reg("JOYP", 0xFF00);
+            show_reg("JOYP", REG_JOYP);
         }
         
         // Serial
         if (ImGui::CollapsingHeader("Serial")) {
-            show_reg("SB  ", 0xFF01);
-            show_reg("SC  ", 0xFF02);
+            show_reg("SB  ", REG_SB);
+            show_reg("SC  ", REG_SC);
         }
         
         // DMA
         if (ImGui::CollapsingHeader("DMA")) {
-            show_reg("DMA ", 0xFF46);
+            show_reg("DMA ", REG_DMA);
         }
         
         ImGui::EndChild();
@@ -863,18 +947,18 @@ void DebuggerGUI::render_sprites_window() {
     
     if (ImGui::Begin("Sprite Layer", docking_mode_ ? nullptr : &show_sprites_, flags)) {
         // LCDC register to check sprite settings
-        u8 lcdc = debugger_->read_memory(0xFF40);
-        bool sprites_enabled = (lcdc & 0x02) != 0;
-        bool large_sprites = (lcdc & 0x04) != 0;  // 8x16 mode
+        u8 lcdc = debugger_->read_memory(REG_LCDC);
+        bool sprites_enabled = (lcdc & LCDC_OBJ_ENABLE) != 0;
+        bool large_sprites = (lcdc & LCDC_OBJ_SIZE) != 0;  // 8x16 mode
         
         // Get palettes
-        u8 obp0 = debugger_->read_memory(0xFF48);
-        u8 obp1 = debugger_->read_memory(0xFF49);
+        u8 obp0 = debugger_->read_memory(REG_OBP0);
+        u8 obp1 = debugger_->read_memory(REG_OBP1);
         
         // DMG grayscale colors (sprite color 0 is always transparent)
         auto get_color = [](u8 palette, int color_idx) -> ImU32 {
             if (color_idx == 0) return IM_COL32(0, 0, 0, 0);  // Transparent
-            int shade = (palette >> (color_idx * 2)) & 0x03;
+            int shade = (palette >> (color_idx * 2)) & SHADE_MASK;
             // 0=white, 1=light gray, 2=dark gray, 3=black
             const u8 shades[] = {255, 170, 85, 0};
             u8 c = shades[shade];
@@ -919,9 +1003,7 @@ void DebuggerGUI::render_sprites_window() {
             IM_COL32(100, 100, 150, 255)
         );
         
-        const u16 OAM_START = 0xFE00;
-        const u16 TILE_DATA = 0x8000;
-        const int NUM_SPRITES = 40;
+        const u16 OAM_START = OAM_BASE;
         const int SPRITE_HEIGHT = large_sprites ? 16 : 8;
         
         int visible_count = 0;
@@ -936,23 +1018,23 @@ void DebuggerGUI::render_sprites_window() {
             u8 attr = debugger_->read_memory(oam_addr + 3);
             
             // Convert to screen coordinates (OAM stores Y+16, X+8)
-            int screen_x = static_cast<int>(x_pos) - 8;
+            int screen_x = static_cast<int>(x_pos) - SPRITE_WIDTH;
             int screen_y = static_cast<int>(y_pos) - 16;
             
             // Skip sprites completely off-screen
             if (screen_y <= -SPRITE_HEIGHT || screen_y >= GB_HEIGHT) continue;
-            if (screen_x <= -8 || screen_x >= GB_WIDTH) continue;
+            if (screen_x <= -SPRITE_WIDTH || screen_x >= GB_WIDTH) continue;
             
             visible_count++;
             
             // In 8x16 mode, bit 0 of tile number is ignored
             if (large_sprites) {
-                tile_num &= 0xFE;
+                tile_num &= TILE_NUM_MASK_8x16;
             }
             
-            bool y_flip = (attr & 0x40) != 0;
-            bool x_flip = (attr & 0x20) != 0;
-            bool use_obp1 = (attr & 0x10) != 0;
+            bool y_flip = (attr & ATTR_Y_FLIP) != 0;
+            bool x_flip = (attr & ATTR_X_FLIP) != 0;
+            bool use_obp1 = (attr & ATTR_PALETTE) != 0;
             u8 palette = use_obp1 ? obp1 : obp0;
             
             // Draw sprite pixels at screen position
@@ -967,16 +1049,16 @@ void DebuggerGUI::render_sprites_window() {
                 int row_in_tile = actual_row & 7;
                 
                 u8 current_tile = tile_num + tile_offset;
-                u16 tile_addr = TILE_DATA + (current_tile * 16) + (row_in_tile * 2);
+                u16 tile_addr = TILE_DATA + (current_tile * TILE_SIZE_BYTES) + (row_in_tile * TILE_BYTES_PER_ROW);
                 
                 u8 byte1 = debugger_->read_memory(tile_addr);
                 u8 byte2 = debugger_->read_memory(tile_addr + 1);
                 
-                for (int px = 0; px < 8; ++px) {
+                for (int px = 0; px < SPRITE_WIDTH; ++px) {
                     int pix_x = screen_x + px;
                     if (pix_x < 0 || pix_x >= GB_WIDTH) continue;
                     
-                    int actual_px = x_flip ? px : (7 - px);
+                    int actual_px = x_flip ? px : (PIXELS_PER_TILE_ROW - 1 - px);
                     
                     int color_idx = ((byte1 >> actual_px) & 1) | (((byte2 >> actual_px) & 1) << 1);
                     
@@ -997,7 +1079,7 @@ void DebuggerGUI::render_sprites_window() {
         }
         
         // Draw scanline indicator (current LY)
-        u8 ly = debugger_->read_memory(0xFF44);
+        u8 ly = debugger_->read_memory(REG_LY);
         if (ly < GB_HEIGHT) {
             float ly_y = screen_pos.y + ly * SCALE;
             draw_list->AddLine(
@@ -1029,15 +1111,15 @@ void DebuggerGUI::render_sprites_window() {
             u16 oam_addr = OAM_START + (i * 4);
             u8 y_pos = debugger_->read_memory(oam_addr);
             u8 x_pos = debugger_->read_memory(oam_addr + 1);
-            u8 tile_num = debugger_->read_memory(oam_addr + 2);
-            u8 attr = debugger_->read_memory(oam_addr + 3);
             
             int sx = static_cast<int>(x_pos) - 8;
             int sy = static_cast<int>(y_pos) - 16;
             
             // Only show on-screen sprites
-            if (sy > -SPRITE_HEIGHT && sy < GB_HEIGHT && sx > -8 && sx < GB_WIDTH) {
-                bool use_obp1 = (attr & 0x10) != 0;
+            if (sy > -SPRITE_HEIGHT && sy < GB_HEIGHT && sx > -SPRITE_WIDTH && sx < GB_WIDTH) {
+                u8 tile_num = debugger_->read_memory(oam_addr + 2);
+                u8 attr = debugger_->read_memory(oam_addr + 3);
+                bool use_obp1 = (attr & ATTR_PALETTE) != 0;
                 ImGui::Text("#%02d (%3d,%3d) T:%02X %s", 
                     i, sx, sy, tile_num, use_obp1 ? "P1" : "P0");
             }

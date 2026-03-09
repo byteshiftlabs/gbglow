@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 /**
@@ -74,9 +74,6 @@ private:
     
     // Get the config directory path (creates if needed)
     std::string get_config_dir() const;
-    
-    // Extract filename from full path
-    std::string extract_filename(const std::string& path) const;
 };
 
 } // namespace gbglow
