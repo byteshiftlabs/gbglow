@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "display.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
@@ -14,6 +18,8 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
+#include <cstdlib>
 #include <ctime>
 #include <algorithm>
 #include <sys/stat.h>
@@ -62,7 +68,7 @@ Display::Display()
     load_key_bindings();
     
     // Load gamepad configuration
-    gamepad_->load_config("config/keybindings.conf");
+    gamepad_->load_config(get_keybindings_path());
 }
 
 Display::~Display() {
@@ -924,8 +930,8 @@ void Display::render_menu_bar() {
 void Display::render_about_dialog() {
     ImGui::SetNextWindowSize(ImVec2(400, 250), ImGuiCond_FirstUseEver);
     
-    if (ImGui::Begin("About GBCrush", &show_about_dialog_)) {
-        ImGui::Text("GBCrush");
+    if (ImGui::Begin("About gbglow", &show_about_dialog_)) {
+        ImGui::Text("gbglow");
         ImGui::Text("Game Boy Color Emulator");
         ImGui::Separator();
         
@@ -1119,8 +1125,21 @@ void Display::set_recent_roms(RecentRoms* recent_roms) {
     recent_roms_ = recent_roms;
 }
 
+std::string Display::get_keybindings_path() const {
+    const char* xdg_config = std::getenv("XDG_CONFIG_HOME");
+    std::string base_dir;
+    if (xdg_config) {
+        base_dir = xdg_config;
+    } else {
+        const char* home = std::getenv("HOME");
+        base_dir = home ? std::string(home) + "/.config" : ".";
+    }
+    return base_dir + "/gbglow/keybindings.conf";
+}
+
 void Display::load_key_bindings() {
-    std::ifstream file("config/keybindings.conf");
+    std::string config_path = get_keybindings_path();
+    std::ifstream file(config_path);
     if (!file.is_open()) {
         std::cout << "No key bindings config found, using defaults" << std::endl;
         return;
@@ -1165,17 +1184,19 @@ void Display::load_key_bindings() {
     }
     
     file.close();
-    std::cout << "Loaded key bindings from config/keybindings.conf" << std::endl;
+    std::cout << "Loaded key bindings from " << config_path << std::endl;
 }
 
 void Display::save_key_bindings() {
-    std::ofstream file("config/keybindings.conf");
+    std::string config_path = get_keybindings_path();
+    std::filesystem::create_directories(std::filesystem::path(config_path).parent_path());
+    std::ofstream file(config_path);
     if (!file.is_open()) {
         std::cerr << "Failed to save key bindings config" << std::endl;
         return;
     }
     
-    file << "# GBCrush Key Bindings Configuration\n";
+    file << "# gbglow Key Bindings Configuration\n";
     file << "# Format: action=SDLK_keyname\n";
     file << "# \n";
     file << "# Available keys: https://wiki.libsdl.org/SDL2/SDLKeycodeLookup\n";
@@ -1192,7 +1213,7 @@ void Display::save_key_bindings() {
     file << "select=" << sdl_keycode_to_string(key_bindings_.select) << "\n";
     
     file.close();
-    std::cout << "Saved key bindings to config/keybindings.conf" << std::endl;
+    std::cout << "Saved key bindings to " << config_path << std::endl;
 }
 
 int Display::parse_sdl_keycode(const std::string& keyname) {
