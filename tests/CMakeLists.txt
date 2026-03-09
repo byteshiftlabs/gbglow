@@ -3,6 +3,7 @@ add_executable(test_basic
     test_basic.cpp
     ../src/core/cpu.cpp
     ../src/core/instructions.cpp
+    ../src/core/instructions_cb.cpp
     ../src/core/memory.cpp
     ../src/core/registers.cpp
     ../src/core/timer.cpp

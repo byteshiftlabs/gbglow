@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "gamepad.h"
 #include "joypad.h"
 #include <SDL2/SDL.h>
@@ -306,7 +310,11 @@ void Gamepad::load_config(const std::string& path) {
         } else if (key == "gamepad_select") {
             button_mapping_.gb_select = string_to_button(value);
         } else if (key == "gamepad_deadzone") {
-            deadzone_ = std::stoi(value);
+            try {
+                deadzone_ = std::stoi(value);
+            } catch (const std::exception&) {
+                // Keep default deadzone on malformed config value
+            }
         }
     }
 }

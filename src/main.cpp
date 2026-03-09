@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 /**
- * EmuGBC - Game Boy Color Emulator
+ * gbglow - Game Boy Color Emulator
  * 
  * An educational Game Boy Color emulator implementation.
  * Every line of code is designed to teach how the hardware works.
@@ -41,7 +45,7 @@ int main(int argc, char* argv[])
     std::cout << "Loaded ROM: " << rom_path << std::endl;
     
     // Run emulator with display (game loop)
-    emulator.run("EmuGBC - Game Boy Color Emulator");
+    emulator.run("gbglow - Game Boy Color Emulator");
     
     return 0;
 }
