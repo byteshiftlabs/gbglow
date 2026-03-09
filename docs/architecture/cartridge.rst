@@ -276,7 +276,7 @@ Enhanced MBC with optional Real-Time Clock (RTC).
    * 0x0B: Days (lower 8 bits)
    * 0x0C: Days (upper 1 bit) + Halt + Carry
 
-**Note**: RTC not yet implemented in GBCrush.
+**Note**: RTC not yet implemented in gbglow.
 
 MBC5 - Memory Bank Controller 5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -297,7 +297,7 @@ Most advanced MBC, used in later games.
    0x3000-0x3FFF: ROM Bank (9th bit)
    0x4000-0x5FFF: RAM Bank
 
-**Note**: MBC5 not yet implemented in GBCrush.
+**Note**: MBC5 not yet implemented in gbglow.
 
 Implementation
 --------------
