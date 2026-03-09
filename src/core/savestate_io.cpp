@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
@@ -10,6 +10,11 @@
 
 namespace gbglow {
 
+namespace {
+    constexpr u16 WRAM_START = 0xC000;
+    constexpr u16 WRAM_END   = 0xE000;
+} // anonymous namespace
+
 std::string Emulator::get_save_path() const
 {
     // Replace .gb, .gbc extension with .sav
@@ -18,7 +23,7 @@ std::string Emulator::get_save_path() const
     // Find last dot
     size_t dot_pos = save_path.rfind('.');
     if (dot_pos != std::string::npos) {
-        save_path = save_path.substr(0, dot_pos);
+        save_path.resize(dot_pos);
     }
     
     save_path += ".sav";
@@ -74,7 +79,7 @@ bool Emulator::save_state(int slot) {
     file.write(reinterpret_cast<const char*>(&mode), sizeof(mode));
     
     // Save Timer state
-    Timer& timer = memory_->timer();
+    const Timer& timer = memory_->timer();
     u8 div = timer.read_div();
     u8 tima = timer.read_tima();
     u8 tma = timer.read_tma();
@@ -191,7 +196,7 @@ bool Emulator::load_state(int slot) {
         
         // Load partial memory state (work RAM only)
         auto& mem = memory();
-        for (u16 addr = 0xC000; addr < 0xE000; addr++) {
+        for (u16 addr = WRAM_START; addr < WRAM_END; addr++) {
             u8 byte;
             file.read(reinterpret_cast<char*>(&byte), 1);
             mem.write(addr, byte);
@@ -211,7 +216,7 @@ std::string Emulator::get_state_path(int slot) const {
     // Remove extension
     size_t dot_pos = state_path.rfind('.');
     if (dot_pos != std::string::npos) {
-        state_path = state_path.substr(0, dot_pos);
+        state_path.resize(dot_pos);
     }
     
     // Add slot number and .state extension

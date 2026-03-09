@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "apu.h"
@@ -873,9 +873,7 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(nr52_);
     
     // Wave RAM
-    for (const auto& byte : wave_ram_) {
-        data.push_back(byte);
-    }
+    data.insert(data.end(), wave_ram_.begin(), wave_ram_.end());
     
     // Cycle accumulator
     serialize_i32(static_cast<int>(cycle_accumulator_), data);
@@ -974,9 +972,8 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     nr52_ = data[offset++];
     
     // Wave RAM
-    for (auto& byte : wave_ram_) {
-        byte = data[offset++];
-    }
+    std::copy(data + offset, data + offset + wave_ram_.size(), wave_ram_.begin());
+    offset += wave_ram_.size();
     
     // Cycle accumulator
     cycle_accumulator_ = static_cast<Cycles>(deserialize_i32(data, offset));

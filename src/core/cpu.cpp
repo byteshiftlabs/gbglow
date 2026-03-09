@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
@@ -190,7 +190,7 @@ void CPU::alu_add(u8 value, bool use_carry)
     u16 result = regs_.a + value + carry;
     
     // Half-carry: check if carry from bit 3 to bit 4
-    bool half_carry = ((regs_.a & 0x0F) + (value & 0x0F) + carry) > 0x0F;
+    bool half_carry = ((regs_.a & NIBBLE_MASK) + (value & NIBBLE_MASK) + carry) > NIBBLE_MASK;
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, false);
@@ -206,7 +206,7 @@ void CPU::alu_sub(u8 value, bool use_carry)
     int result = regs_.a - value - carry;
     
     // Half-carry: check if borrow from bit 4
-    bool half_carry = ((regs_.a & 0x0F) < ((value & 0x0F) + carry));
+    bool half_carry = ((regs_.a & NIBBLE_MASK) < ((value & NIBBLE_MASK) + carry));
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, true);
@@ -247,7 +247,7 @@ void CPU::alu_cp(u8 value)
 {
     // Compare is like subtraction but doesn't store result
     int result = regs_.a - value;
-    bool half_carry = ((regs_.a & 0x0F) < (value & 0x0F));
+    bool half_carry = ((regs_.a & NIBBLE_MASK) < (value & NIBBLE_MASK));
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, true);
@@ -257,7 +257,7 @@ void CPU::alu_cp(u8 value)
 
 void CPU::alu_inc(u8& reg)
 {
-    bool half_carry = ((reg & 0x0F) == 0x0F);
+    bool half_carry = ((reg & NIBBLE_MASK) == NIBBLE_MASK);
     reg++;
     
     regs_.set_flag(Registers::FLAG_Z, reg == 0);
@@ -268,7 +268,7 @@ void CPU::alu_inc(u8& reg)
 
 void CPU::alu_dec(u8& reg)
 {
-    bool half_carry = ((reg & 0x0F) == 0);
+    bool half_carry = ((reg & NIBBLE_MASK) == 0);
     reg--;
     
     regs_.set_flag(Registers::FLAG_Z, reg == 0);

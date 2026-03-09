@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #pragma once
@@ -314,6 +314,23 @@ private:
     
     // Default scale factor
     static constexpr int DEFAULT_SCALE = 4;
+    
+    // Debugger mode window dimensions
+    static constexpr int DEBUGGER_WINDOW_WIDTH = 1280;
+    static constexpr int DEBUGGER_WINDOW_HEIGHT = 800;
+    
+    // Audio conversion constants (U8 hardware format to S16)
+    static constexpr int AUDIO_U8_MIDPOINT = 128;
+    static constexpr int AUDIO_U8_SCALE = 128;
+    
+    // SDL clear color (opaque black)
+    static constexpr u8 CLEAR_COLOR_R = 0;
+    static constexpr u8 CLEAR_COLOR_G = 0;
+    static constexpr u8 CLEAR_COLOR_B = 0;
+    static constexpr u8 CLEAR_COLOR_A = 255;
+    
+    // Savestate slot label buffer size
+    static constexpr size_t SLOT_LABEL_SIZE = 128;
     
     /**
      * Convert SDL error to readable message
