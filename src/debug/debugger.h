@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #pragma once
 
 #include "../core/types.h"
@@ -37,7 +41,7 @@ struct MemoryWatch {
 };
 
 /**
- * Built-in Debugger for GBCrush
+ * Built-in Debugger for gbglow
  * 
  * Provides comprehensive debugging capabilities:
  * - Breakpoints (address-based)

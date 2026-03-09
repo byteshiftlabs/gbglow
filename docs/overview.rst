@@ -4,7 +4,7 @@ Project Overview
 Philosophy
 ----------
 
-GBCrush prioritizes:
+gbglow prioritizes:
 
 **Clarity**
    Every component is well-documented with references to hardware behavior.

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 /**
  * RecentRoms - Recent ROM files list manager
  * 
@@ -25,7 +29,7 @@ namespace gbglow {
 struct RecentRomEntry {
     std::string file_path;      // Full path to the ROM file
     std::string display_name;   // Filename only (for UI display)
-    std::time_t last_played;    // Timestamp of last play
+    std::time_t last_played = 0;  // Timestamp of last play
     
     RecentRomEntry() = default;
     RecentRomEntry(const std::string& path, std::time_t time);
