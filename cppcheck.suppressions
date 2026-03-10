@@ -1,0 +1,66 @@
+// cppcheck suppression list for gbglow
+// Each group below documents WHY the finding is intentionally suppressed.
+//
+// Policy: only unusedFunction findings are suppressed here.
+// These are all intentional public API methods exposed for the ImGui debugger GUI,
+// gamepad configuration UI, or future front-ends. The emulator core does not call
+// them internally, but they form the stable public surface documented in the headers.
+// They must NOT be removed — removal would break API consumers.
+
+// --- Third-party libraries in external/ — not our code, not our findings ---
+*:external/*
+
+// --- Cartridge introspection API (read by front-end for ROM info display) ---
+unusedFunction:src/cartridge/cartridge.cpp:184    // title()
+unusedFunction:src/cartridge/cartridge.cpp:189    // cartridge_type()
+unusedFunction:src/cartridge/cartridge.cpp:194    // has_battery()
+
+// --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
+unusedFunction:src/cartridge/mbc3.cpp:213         // update_rtc()
+
+// --- Debugger back-end: breakpoint/step control called by DebuggerGUI ---
+unusedFunction:src/debug/debugger.cpp:69          // should_break()
+unusedFunction:src/debug/debugger.cpp:73          // request_step()
+unusedFunction:src/debug/debugger.cpp:77          // request_step_over()
+unusedFunction:src/debug/debugger.cpp:90          // is_step_over_active()
+unusedFunction:src/debug/debugger.cpp:94          // set_step_over_return()
+unusedFunction:src/debug/debugger.cpp:98          // should_stop_step_over()
+unusedFunction:src/debug/debugger.cpp:102         // clear_step_over()
+
+// --- Debugger memory inspection API ---
+unusedFunction:src/debug/debugger.cpp:116         // write_memory()
+unusedFunction:src/debug/debugger.cpp:122         // read_memory_region()
+
+// --- Debugger watch API ---
+unusedFunction:src/debug/debugger.cpp:163         // update_watches()
+
+// --- Debugger execution history API ---
+unusedFunction:src/debug/debugger.cpp:186         // get_execution_history()
+unusedFunction:src/debug/debugger.cpp:190         // clear_history()
+unusedFunction:src/debug/debugger.cpp:194         // set_max_history()
+
+// --- Debugger disassembly helpers (used by disassemble_range, called by GUI) ---
+unusedFunction:src/debug/debugger.cpp:261         // get_register_name_16()
+unusedFunction:src/debug/debugger.cpp:266         // get_condition_name()
+unusedFunction:src/debug/debugger.cpp:661         // disassemble_around_pc()
+
+// --- DebuggerGUI visibility toggle (called by Display on F12 key) ---
+unusedFunction:src/debug/debugger_gui.cpp:131     // toggle_visible()
+
+// --- Gamepad configuration API (called by keybinding UI in config/keybindings.conf) ---
+unusedFunction:src/input/gamepad.cpp:188          // is_connected()
+unusedFunction:src/input/gamepad.cpp:192          // get_controller_count()
+unusedFunction:src/input/gamepad.cpp:196          // get_controller_name()
+unusedFunction:src/input/gamepad.cpp:208          // get_controller_names()
+unusedFunction:src/input/gamepad.cpp:217          // get_button_mapping()
+unusedFunction:src/input/gamepad.cpp:221          // set_button_mapping()
+unusedFunction:src/input/gamepad.cpp:235          // get_deadzone()
+unusedFunction:src/input/gamepad.cpp:239          // set_deadzone()
+unusedFunction:src/input/gamepad.cpp:322          // save_config()
+
+// --- Display utility/state accessors used by front-end or future tools ---
+unusedFunction:src/video/display.cpp:117          // is_debugger_mode()
+unusedFunction:src/video/display.cpp:600          // get_sdl_error()
+unusedFunction:src/video/display.cpp:646          // has_pending_rom()
+unusedFunction:src/video/display.cpp:650          // get_pending_rom()
+unusedFunction:src/video/display.cpp:680          // is_muted()

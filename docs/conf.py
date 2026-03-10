@@ -5,7 +5,7 @@ import sys
 
 # -- Project information -----------------------------------------------------
 project = 'gbglow'
-copyright = '2025, gbglow Contributors'
+copyright = '2025-2026, gbglow Contributors'
 author = 'gbglow Contributors'
 release = '0.1.0'
 
