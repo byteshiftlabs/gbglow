@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "memory.h"
 
 #include <cstring>
 #include <fstream>
+#include <algorithm>
 
 #include "../cartridge/cartridge.h"
 #include "../input/joypad.h"
@@ -44,7 +49,26 @@ namespace {
     constexpr u8 OAM_DMA_SOURCE_SHIFT = 8;  // Source address = value << 8
     
     // Sound registers
-    constexpr u16 SOUND_NR52 = 0xFF26;  // Sound on/off
+    constexpr u16 SOUND_REG_START = 0xFF10;  // First audio register (NR10)
+    constexpr u16 SOUND_REG_END = 0xFF3F;    // Last audio register (Wave RAM)
+    constexpr u16 SOUND_NR52 = 0xFF26;       // Sound on/off
+    
+    // IO register offsets (relative to IO_REGISTERS_START)
+    constexpr u8 IO_LCDC = 0x40;     // LCD Control
+    constexpr u8 IO_STAT = 0x41;     // LCD Status
+    constexpr u8 IO_SCY  = 0x42;     // Scroll Y
+    constexpr u8 IO_SCX  = 0x43;     // Scroll X
+    constexpr u8 IO_LY   = 0x44;     // LCD Y coordinate
+    constexpr u8 IO_BGP  = 0x47;     // Background palette
+    constexpr u8 IO_OBP0 = 0x48;     // Object palette 0
+    constexpr u8 IO_OBP1 = 0x49;     // Object palette 1
+    
+    // Post-boot IO register init values
+    constexpr u8 LCDC_INIT = 0x91;   // LCD on, BG on, window off
+    constexpr u8 STAT_INIT = 0x85;   // Mode 1 (VBlank)
+    constexpr u8 BGP_INIT  = 0xFC;   // Default background palette
+    constexpr u8 OBP_INIT  = 0xFF;   // Default object palettes
+    constexpr u8 NR52_INIT = 0xF1;   // Sound enabled
     
     // CGB registers
     constexpr u16 CGB_KEY1 = 0xFF4D;  // Speed switch register
@@ -79,29 +103,12 @@ Memory::Memory()
     
     // Initialize hardware registers to post-boot state
     // These values match what the boot ROM sets before jumping to cartridge
-    
-    // LCD Control (0xFF40) - LCD enabled, all features on
-    io_regs_[0x40] = 0x91;  // LCDC: LCD on, BG on, window off
-    
-    // LCD Status (0xFF41) - Mode 1 (VBlank)
-    io_regs_[0x41] = 0x85;
-    
-    // Scroll registers
-    io_regs_[0x42] = 0x00;  // SCY
-    io_regs_[0x43] = 0x00;  // SCX
-    
-    // LY register (scanline)
-    io_regs_[0x44] = 0x00;
-    
-    // Background palette (0xFF47)
-    io_regs_[0x47] = 0xFC;
-    
-    // Object palettes
-    io_regs_[0x48] = 0xFF;  // OBP0
-    io_regs_[0x49] = 0xFF;  // OBP1
-    
-    // Sound control register (NR52) - bit 7 = sound enabled
-    io_regs_[SOUND_NR52 - IO_REGISTERS_START] = 0xF1;
+    io_regs_[IO_LCDC] = LCDC_INIT;
+    io_regs_[IO_STAT] = STAT_INIT;
+    io_regs_[IO_BGP]  = BGP_INIT;
+    io_regs_[IO_OBP0] = OBP_INIT;
+    io_regs_[IO_OBP1] = OBP_INIT;
+    io_regs_[SOUND_NR52 - IO_REGISTERS_START] = NR52_INIT;
     
     // Create joypad controller
     joypad_ = std::make_unique<Joypad>(*this);
@@ -120,8 +127,8 @@ Memory::~Memory() {
     // Destructor needs to be defined here where Cartridge is complete
 }
 
-void Memory::load_cartridge(std::unique_ptr<Cartridge> cart) {
-    cartridge_ = std::move(cart);
+void Memory::load_cartridge(std::unique_ptr<Cartridge> cartridge) {
+    cartridge_ = std::move(cartridge);
     
     // Update PPU with cartridge pointer for CGB mode detection
     if (ppu_) {
@@ -231,7 +238,7 @@ u8 Memory::read(u16 address) const {
             return timer_->read_tac();
         }
         // Audio registers - route through APU
-        if (address >= 0xFF10 && address <= 0xFF3F) {
+        if (address >= SOUND_REG_START && address <= SOUND_REG_END) {
             return apu_->read_register(address);
         }
         
@@ -362,7 +369,7 @@ void Memory::write(u16 address, u8 value) {
         }
         
         // Audio registers - route through APU
-        if (address >= 0xFF10 && address <= 0xFF3F) {
+        if (address >= SOUND_REG_START && address <= SOUND_REG_END) {
             apu_->write_register(address, value);
             return;
         }
@@ -456,17 +463,14 @@ namespace {
     // Helper to serialize an array
     template<typename T, size_t N>
     void serialize_array(const std::array<T, N>& arr, std::vector<u8>& data) {
-        for (const auto& elem : arr) {
-            data.push_back(elem);
-        }
+        data.insert(data.end(), arr.begin(), arr.end());
     }
     
     // Helper to deserialize an array
     template<typename T, size_t N>
     void deserialize_array(std::array<T, N>& arr, const u8* data, size_t& offset) {
-        for (auto& elem : arr) {
-            elem = data[offset++];
-        }
+        std::copy(data + offset, data + offset + N, arr.begin());
+        offset += N;
     }
 }
 
@@ -500,8 +504,22 @@ void Memory::serialize(std::vector<u8>& data) const
     data.push_back(interrupt_enable_);
 }
 
-void Memory::deserialize(const u8* data, size_t& offset)
+void Memory::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    // Component sizes matching serialize() output
+    constexpr size_t VRAM_BYTES = 16384;   // vram_ array (CGB: 2 banks x 8KB)
+    constexpr size_t VRAM_BANK_BYTE = 1;   // vram_bank_ selector
+    constexpr size_t SPEED_SWITCH_BYTE = 1; // speed_switch_ register
+    constexpr size_t WRAM_BYTES = 8192;    // wram_ array
+    constexpr size_t OAM_BYTES = 160;      // oam_ array
+    constexpr size_t HRAM_BYTES = 128;     // hram_ array
+    constexpr size_t IO_BYTES = 128;       // io_regs_ array
+    constexpr size_t BOOT_ROM_BYTE = 1;    // boot_rom_enabled_ flag
+    constexpr size_t IE_BYTE = 1;          // interrupt_enable_ register
+    constexpr size_t MEMORY_STATE_SIZE = VRAM_BYTES + VRAM_BANK_BYTE + SPEED_SWITCH_BYTE
+        + WRAM_BYTES + OAM_BYTES + HRAM_BYTES + IO_BYTES + BOOT_ROM_BYTE + IE_BYTE;
+    if (offset + MEMORY_STATE_SIZE > data_size) return;
+
     // VRAM
     deserialize_array(vram_, data, offset);
     

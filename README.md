@@ -1,10 +1,10 @@
-# GBCrush - A Game Boy Color Emulator
+# gbglow - A Game Boy Color Emulator
 
-**GBCrush** is a Game Boy Color emulator written in C++17, focusing on code clarity, comprehensive documentation, and educational value.
+**gbglow** is a Game Boy Color emulator written in C++17, focusing on code clarity, comprehensive documentation, and educational value.
 
 ## Philosophy
 
-GBCrush emphasizes:
+gbglow emphasizes:
 
 - **Clear code**: Easy to understand and learn from
 - **Comprehensive documentation**: Every component fully documented
