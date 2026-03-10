@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "apu.h"
 #include "../core/memory.h"
 #include <algorithm>
+#include <mutex>
 
 namespace gbglow {
 
@@ -34,12 +39,10 @@ static constexpr int NOISE_AMPLIFY_FACTOR = 3;    // Noise amplitude multiplier
 static u8 noise7[NOISE7_TABLE_SIZE];
 static u8 noise15[NOISE15_TABLE_SIZE];
 
-// Flag to indicate if noise tables have been initialized
-static bool noise_tables_initialized = false;
+static std::once_flag noise_tables_flag;
 
 // Generate precomputed noise tables using LFSR algorithm
 static void init_noise_tables() {
-    if (noise_tables_initialized) return;
     
     // Generate 7-bit LFSR noise table
     u16 lfsr = LFSR7_INIT;
@@ -64,8 +67,6 @@ static void init_noise_tables() {
         }
         noise15[i] = byte;
     }
-    
-    noise_tables_initialized = true;
 }
 
 APU::APU(Memory& memory)
@@ -75,8 +76,8 @@ APU::APU(Memory& memory)
     , nr52_(0)
     , cycle_accumulator_(0)
 {
-    // Initialize noise lookup tables (only done once)
-    init_noise_tables();
+    // Initialize noise lookup tables (thread-safe, only done once)
+    std::call_once(noise_tables_flag, init_noise_tables);
     
     // Initialize Wave RAM with default pattern (similar to Game Boy boot state)
     // This is a simple triangle-ish wave pattern
@@ -872,9 +873,7 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(nr52_);
     
     // Wave RAM
-    for (const auto& byte : wave_ram_) {
-        data.push_back(byte);
-    }
+    data.insert(data.end(), wave_ram_.begin(), wave_ram_.end());
     
     // Cycle accumulator
     serialize_i32(static_cast<int>(cycle_accumulator_), data);
@@ -953,17 +952,28 @@ void APU::serialize(std::vector<u8>& data) const
     serialize_i32(channel4_.envol, data);
 }
 
-void APU::deserialize(const u8* data, size_t& offset)
+void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    // Component sizes matching serialize() output
+    constexpr size_t CTRL_BYTES = 3;       // nr50, nr51, nr52
+    constexpr size_t WAVE_RAM_BYTES = 16;  // wave_ram_ array
+    constexpr size_t CYCLE_ACC_BYTES = 4;  // cycle_accumulator_ (i32)
+    constexpr size_t CH1_BYTES = 56;       // 7 u8 + 1 u16 + 3 bool + 11 i32
+    constexpr size_t CH2_BYTES = 41;       // 4 u8 + 1 u16 + 3 bool + 8 i32
+    constexpr size_t CH3_BYTES = 22;       // 1 u8 + 1 u16 + 3 bool + 4 i32
+    constexpr size_t CH4_BYTES = 43;       // 6 u8 + 3 bool + 1 u16 + 8 i32
+    constexpr size_t APU_STATE_SIZE = CTRL_BYTES + WAVE_RAM_BYTES + CYCLE_ACC_BYTES
+        + CH1_BYTES + CH2_BYTES + CH3_BYTES + CH4_BYTES;
+    if (offset + APU_STATE_SIZE > data_size) return;
+
     // Control registers
     nr50_ = data[offset++];
     nr51_ = data[offset++];
     nr52_ = data[offset++];
     
     // Wave RAM
-    for (auto& byte : wave_ram_) {
-        byte = data[offset++];
-    }
+    std::copy(data + offset, data + offset + wave_ram_.size(), wave_ram_.begin());
+    offset += wave_ram_.size();
     
     // Cycle accumulator
     cycle_accumulator_ = static_cast<Cycles>(deserialize_i32(data, offset));
