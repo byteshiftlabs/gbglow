@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #pragma once
 
 #include "types.h"
@@ -37,7 +41,7 @@ public:
     ~Memory();  // Defined in .cpp where Cartridge is complete
     
     // Load a cartridge into memory
-    void load_cartridge(std::unique_ptr<Cartridge> cart);
+    void load_cartridge(std::unique_ptr<Cartridge> cartridge);
     
     // Load boot ROM (256 bytes, optional)
     bool load_boot_rom(const std::string& path);
@@ -68,7 +72,7 @@ public:
     
     // Serialization for save states
     void serialize(std::vector<u8>& data) const;
-    void deserialize(const u8* data, size_t& offset);
+    void deserialize(const u8* data, size_t data_size, size_t& offset);
     
 private:
     // CGB memory size constants

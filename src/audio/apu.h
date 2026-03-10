@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #pragma once
 
 #include "../core/types.h"
@@ -69,7 +73,7 @@ public:
      * Serialization for save states
      */
     void serialize(std::vector<u8>& data) const;
-    void deserialize(const u8* data, size_t& offset);
+    void deserialize(const u8* data, size_t data_size, size_t& offset);
     
 private:
     Memory& memory_;
