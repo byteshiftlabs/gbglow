@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #pragma once
 
 #include "types.h"
@@ -125,12 +129,6 @@ public:
      * @return Path to state file
      */
     std::string get_state_path(int slot) const;
-    
-    /**
-     * Get ROM path
-     * @return Path to currently loaded ROM
-     */
-    const std::string& get_rom_path() const;
     
     /**
      * Get debugger instance

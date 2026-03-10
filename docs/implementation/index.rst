@@ -9,14 +9,14 @@ Project Philosophy
 Code Quality
 ~~~~~~~~~~~~
 
-EmuGBC prioritizes **code clarity** above all else:
+gbglow prioritizes **code clarity** above all else:
 
 * Self-documenting code with meaningful names
 * Comprehensive comments explaining WHY, not WHAT
 * Extensive documentation at every level
 * Simple, straightforward implementations
 
-**Why?** Existing emulators are functional but hard to understand. GBCrush aims to be the go-to reference implementation for learning Game Boy emulation.
+**Why?** Existing emulators are functional but hard to understand. gbglow aims to be the go-to reference implementation for learning Game Boy emulation.
 
 Modular Architecture
 ~~~~~~~~~~~~~~~~~~~~
