@@ -42,9 +42,9 @@ bool Emulator::save_state(int slot) {
         return false;
     }
     
-    // Write header with version
-    const char header[] = "GBCRUSH_STATE_V2";
-    file.write(header, sizeof(header));
+    // Write header with version (no null terminator, so load reads exact same bytes)
+    const char header[] = "GBGLOW_STATE_V2";
+    file.write(header, sizeof(header) - 1);
     
     // Save CPU state (registers)
     const auto& regs = cpu_->registers();
@@ -106,11 +106,11 @@ bool Emulator::load_state(int slot) {
     }
     
     // Verify header - support both V1 and V2
-    char header[sizeof("GBCRUSH_STATE_V2")] = {0};
+    char header[sizeof("GBGLOW_STATE_V2")] = {0};
     file.read(header, sizeof(header) - 1);
     std::string header_str(header);
     
-    if (header_str == "GBCRUSH_STATE_V2") {
+    if (header_str == "GBGLOW_STATE_V2") {
         // Load V2 format with full state
         
         // Load CPU state
@@ -180,7 +180,7 @@ bool Emulator::load_state(int slot) {
         timer.write_tma(tma);
         timer.write_tac(tac);
         
-    } else if (header_str == "GBCRUSH_STATE_V1") {
+    } else if (header_str == "GBGLOW_STATE_V1") {
         // Load V1 format (legacy - incomplete state)
         auto& regs = cpu_->registers();
         file.read(reinterpret_cast<char*>(&regs.a), sizeof(regs.a));
@@ -222,10 +222,6 @@ std::string Emulator::get_state_path(int slot) const {
     // Add slot number and .state extension
     state_path += ".slot" + std::to_string(slot + 1) + ".state";
     return state_path;
-}
-
-const std::string& Emulator::get_rom_path() const {
-    return rom_path_;
 }
 
 bool Emulator::delete_state(int slot) {

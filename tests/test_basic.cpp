@@ -129,14 +129,30 @@ bool test_cpu_flags() {
     CPU cpu(mem);
     cpu.reset();
     
-    // Test XOR A (clears A and sets Z flag)
+    // XOR A (opcode 0xAF): A ^= A -> A = 0, sets Z, clears N/H/C
     cpu.registers().a = 0x42;
     cpu.registers().f = 0x00;
+    mem.write(0xC000, 0xAF);  // XOR A
+    mem.write(0xC001, 0xC6);  // ADD A, n
+    mem.write(0xC002, 0x01);  // n = 0x01
+    cpu.registers().pc = 0xC000;
     
-    // We'd need to implement XOR A instruction (0xAF) to test this properly
-    // For now, just verify the register access works
+    Cycles cycles = cpu.step();
+    TEST_EQ(cycles, static_cast<Cycles>(1));
+    TEST_EQ(cpu.registers().a, 0x00);
+    TEST_ASSERT(cpu.registers().get_flag(Registers::FLAG_Z));
+    TEST_ASSERT(!cpu.registers().get_flag(Registers::FLAG_N));
+    TEST_ASSERT(!cpu.registers().get_flag(Registers::FLAG_H));
+    TEST_ASSERT(!cpu.registers().get_flag(Registers::FLAG_C));
     
-    std::cout << "  PASS: CPU ALU structure ready\n";
+    // ADD A, 0x01: 0 + 1 = 1, clears Z, no carry
+    cycles = cpu.step();
+    TEST_EQ(cycles, static_cast<Cycles>(2));
+    TEST_EQ(cpu.registers().a, 0x01);
+    TEST_ASSERT(!cpu.registers().get_flag(Registers::FLAG_Z));
+    TEST_ASSERT(!cpu.registers().get_flag(Registers::FLAG_C));
+    
+    std::cout << "  PASS: CPU ALU flags working\n";
     return true;
 }
 
