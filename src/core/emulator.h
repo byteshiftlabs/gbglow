@@ -131,12 +131,6 @@ public:
     std::string get_state_path(int slot) const;
     
     /**
-     * Get ROM path
-     * @return Path to currently loaded ROM
-     */
-    const std::string& get_rom_path() const;
-    
-    /**
      * Get debugger instance
      * @return Reference to the debugger
      */
