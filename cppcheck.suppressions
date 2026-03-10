@@ -59,8 +59,8 @@ unusedFunction:src/input/gamepad.cpp:239          // set_deadzone()
 unusedFunction:src/input/gamepad.cpp:322          // save_config()
 
 // --- Display utility/state accessors used by front-end or future tools ---
-unusedFunction:src/video/display.cpp:117          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:600          // get_sdl_error()
-unusedFunction:src/video/display.cpp:646          // has_pending_rom()
-unusedFunction:src/video/display.cpp:650          // get_pending_rom()
-unusedFunction:src/video/display.cpp:680          // is_muted()
+unusedFunction:src/video/display.cpp:123          // is_debugger_mode()
+unusedFunction:src/video/display.cpp:606          // get_sdl_error()
+unusedFunction:src/video/display.cpp:652          // has_pending_rom()
+unusedFunction:src/video/display.cpp:656          // get_pending_rom()
+unusedFunction:src/video/display.cpp:686          // is_muted()
