@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# GBCrush Build Script
+# gbglow Build Script
 # Builds the Game Boy Color emulator
 
 set -e  # Exit on error
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== GBCrush Build Script ===${NC}"
+echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 # Clean previous build
 if [ -d "build" ]; then
