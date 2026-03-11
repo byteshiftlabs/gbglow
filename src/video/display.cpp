@@ -72,6 +72,12 @@ Display::Display()
 }
 
 Display::~Display() {
+    // Shut down gamepad first — it calls SDL_GameControllerClose(),
+    // which must happen before SDL_Quit().
+    if (gamepad_) {
+        gamepad_.reset();
+    }
+
     // Clean up ImGui
     if (imgui_context_) {
         ImGui_ImplSDLRenderer2_Shutdown();
