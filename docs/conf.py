@@ -4,9 +4,9 @@ import os
 import sys
 
 # -- Project information -----------------------------------------------------
-project = 'GBCrush'
-copyright = '2025, GBCrush Contributors'
-author = 'GBCrush Contributors'
+project = 'gbglow'
+copyright = '2025-2026, gbglow Contributors'
+author = 'gbglow Contributors'
 release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------

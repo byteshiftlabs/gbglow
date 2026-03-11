@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "ppu.h"
 
 #include <iostream>
@@ -101,6 +105,28 @@ namespace {
     constexpr u16 CGB_RGB555_SCALE_NUMERATOR = 255;  // RGB scaling numerator
     constexpr u8 CGB_RGB555_SCALE_OFFSET = 15;       // RGB scaling offset for rounding
     constexpr u8 CGB_RGB555_SCALE_DIVISOR = 31;      // RGB scaling divisor
+
+    // PPU timing constants (in dots)
+    constexpr int DOTS_OAM_SEARCH = 80;          // Mode 2: OAM search duration
+    constexpr int DOTS_TRANSFER_END = 252;       // Mode 3 ends at dot 252 (80 + 172)
+    constexpr int DOTS_PER_SCANLINE = 456;       // Total dots per scanline
+    constexpr int SCANLINES_VISIBLE = 144;       // Visible scanlines (same as SCREEN_HEIGHT)
+    constexpr int SCANLINES_TOTAL = 154;         // Total scanlines including VBlank
+
+    // CGB palette specification register constants
+    constexpr u8 CPS_INDEX_MASK = 0x3F;          // Lower 6 bits: palette RAM index
+    constexpr u8 CPS_AUTO_INCREMENT_BIT = 0x80;  // Bit 7: auto-increment after write
+    constexpr u8 CPS_UNUSED_BITS = 0x40;         // Bits 6: always reads as 1
+
+    // DMG shade mask
+    constexpr u8 DMG_SHADE_MASK = 0x03;          // 2-bit shade value (0-3)
+
+    // RGBA framebuffer constants
+    constexpr int RGBA_CHANNELS = 4;             // R, G, B, A
+    constexpr u8 ALPHA_OPAQUE = 0xFF;            // Fully opaque alpha
+
+    // Window X offset (WX register stores position + 7)
+    constexpr int WINDOW_X_OFFSET = 7;
 }
 
 PPU::PPU(Memory& memory) 
@@ -125,7 +151,7 @@ void PPU::step(Cycles cycles) {
         
         switch (mode_) {
             case Mode::OAMSearch:
-                if (dots_ >= 80) {
+                if (dots_ >= DOTS_OAM_SEARCH) {
                     // Search OAM for sprites on this scanline
                     search_oam();
                     mode_ = Mode::Transfer;
@@ -133,7 +159,7 @@ void PPU::step(Cycles cycles) {
                 break;
                 
             case Mode::Transfer:
-                if (dots_ >= 252) {  // 80 + 172
+                if (dots_ >= DOTS_TRANSFER_END) {
                     // Render this scanline
                     render_scanline();
                     mode_ = Mode::HBlank;
@@ -141,11 +167,11 @@ void PPU::step(Cycles cycles) {
                 break;
                 
             case Mode::HBlank:
-                if (dots_ >= 456) {
+                if (dots_ >= DOTS_PER_SCANLINE) {
                     dots_ = 0;
                     ly_++;
                     
-                    if (ly_ >= 144) {
+                    if (ly_ >= SCANLINES_VISIBLE) {
                         // Enter VBlank
                         mode_ = Mode::VBlank;
                         frame_ready_ = true;
@@ -160,11 +186,11 @@ void PPU::step(Cycles cycles) {
                 break;
                 
             case Mode::VBlank:
-                if (dots_ >= 456) {
+                if (dots_ >= DOTS_PER_SCANLINE) {
                     dots_ = 0;
                     ly_++;
                     
-                    if (ly_ >= 154) {
+                    if (ly_ >= SCANLINES_TOTAL) {
                         // End of VBlank, restart frame
                         ly_ = 0;
                         window_line_counter_ = 0;  // Reset window counter for new frame
@@ -235,7 +261,6 @@ void PPU::render_background() {
         u8 tile_num = memory_.read(map_addr);
         
         // CGB: Read tile attributes from VRAM bank 1
-        u8 tile_attr = 0;
         u8 palette_num = 0;
         bool x_flip = false;
         bool y_flip = false;
@@ -244,7 +269,7 @@ void PPU::render_background() {
             // Temporarily switch to VRAM bank 1 to read attributes
             u8 saved_bank = memory_.read(CGB_VBK) & BIT_1;
             memory_.write(CGB_VBK, BIT_1);
-            tile_attr = memory_.read(map_addr);
+            u8 tile_attr = memory_.read(map_addr);
             memory_.write(CGB_VBK, saved_bank);
             
             palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
@@ -292,7 +317,7 @@ void PPU::render_window() {
     }
     
     // Window X=7 means window starts at screen X=0
-    int window_x_start = wx - 7;
+    int window_x_start = wx - WINDOW_X_OFFSET;
     
     // If window is completely off screen to the right, skip
     if (window_x_start >= SCREEN_WIDTH) {
@@ -516,7 +541,7 @@ void PPU::clear_frame_ready()
     frame_ready_ = false;
 }
 
-const std::array<u8, 160 * 144>& PPU::framebuffer() const
+const std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT>& PPU::framebuffer() const
 {
     return framebuffer_;
 }
@@ -547,32 +572,10 @@ u8 PPU::get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const {
     return pixel;
 }
 
-void PPU::render_to_terminal() const {
-    // ASCII characters for different shades
-    const char shades[] = {' ', '.', '+', '#'};  // 0=white, 3=black
-    
-    std::cout << "\n╔";
-    for (int i = 0; i < 160; i++) std::cout << "═";
-    std::cout << "╗\n";
-    
-    for (int y = 0; y < 144; y++) {
-        std::cout << "║";
-        for (int x = 0; x < 160; x++) {
-            u8 pixel = framebuffer_[y * 160 + x];
-            std::cout << shades[pixel];
-        }
-        std::cout << "║\n";
-    }
-    
-    std::cout << "╚";
-    for (int i = 0; i < 160; i++) std::cout << "═";
-    std::cout << "╝\n";
-}
-
 std::vector<u8> PPU::get_rgba_framebuffer() const {
-    // Allocate RGBA framebuffer (160×144×4 bytes)
-    const size_t pixel_count = 160 * 144;
-    const size_t rgba_size = pixel_count * 4;
+    // Allocate RGBA framebuffer
+    const size_t pixel_count = SCREEN_WIDTH * SCREEN_HEIGHT;
+    const size_t rgba_size = pixel_count * RGBA_CHANNELS;
     std::vector<u8> rgba_framebuffer(rgba_size);
     
     // Only use CGB color mode for CGB-only games (flag 0xC0)
@@ -599,10 +602,10 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
             cgb_rgb555_to_rgba(rgb555, r, g, b);
             
             // Write RGBA components
-            rgba_framebuffer[i * 4 + 0] = r;
-            rgba_framebuffer[i * 4 + 1] = g;
-            rgba_framebuffer[i * 4 + 2] = b;
-            rgba_framebuffer[i * 4 + 3] = 0xFF;  // Alpha
+            rgba_framebuffer[i * RGBA_CHANNELS + 0] = r;
+            rgba_framebuffer[i * RGBA_CHANNELS + 1] = g;
+            rgba_framebuffer[i * RGBA_CHANNELS + 2] = b;
+            rgba_framebuffer[i * RGBA_CHANNELS + 3] = ALPHA_OPAQUE;
         }
     } else {
         // DMG mode: Use neutral grayscale palette
@@ -614,13 +617,13 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
         };
         
         for (size_t i = 0; i < pixel_count; i++) {
-            u8 shade = framebuffer_[i] & 0x03;  // Ensure shade is 0-3
+            u8 shade = framebuffer_[i] & DMG_SHADE_MASK;
             
             // Write RGBA components
-            rgba_framebuffer[i * 4 + 0] = palette[shade][0];  // R
-            rgba_framebuffer[i * 4 + 1] = palette[shade][1];  // G
-            rgba_framebuffer[i * 4 + 2] = palette[shade][2];  // B
-            rgba_framebuffer[i * 4 + 3] = palette[shade][3];  // A
+            rgba_framebuffer[i * RGBA_CHANNELS + 0] = palette[shade][0];  // R
+            rgba_framebuffer[i * RGBA_CHANNELS + 1] = palette[shade][1];  // G
+            rgba_framebuffer[i * RGBA_CHANNELS + 2] = palette[shade][2];  // B
+            rgba_framebuffer[i * RGBA_CHANNELS + 3] = palette[shade][3];  // A
         }
     }
     
@@ -630,7 +633,7 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
 // CGB Palette Register Access
 
 u8 PPU::read_bcps() const {
-    return bcps_ | 0x40;  // Bits 6-7 are set to 1
+    return bcps_ | CPS_UNUSED_BITS;
 }
 
 void PPU::write_bcps(u8 value) {
@@ -640,7 +643,7 @@ void PPU::write_bcps(u8 value) {
 u8 PPU::read_bcpd() const {
     // Can only read during VBlank or HBlank (Mode 0 or 1)
     if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
-        u8 index = bcps_ & 0x3F;  // Lower 6 bits are the address
+        u8 index = bcps_ & CPS_INDEX_MASK;
         return bg_palette_ram_[index];
     }
     return 0xFF;  // Return 0xFF if PPU is busy
@@ -649,19 +652,19 @@ u8 PPU::read_bcpd() const {
 void PPU::write_bcpd(u8 value) {
     // Can only write during VBlank or HBlank (Mode 0 or 1)
     if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
-        u8 index = bcps_ & 0x3F;  // Lower 6 bits are the address
+        u8 index = bcps_ & CPS_INDEX_MASK;
         bg_palette_ram_[index] = value;
         
         // Auto-increment if bit 7 is set
-        if (bcps_ & 0x80) {
-            u8 new_index = (index + 1) & 0x3F;
-            bcps_ = (bcps_ & 0x80) | new_index;
+        if (bcps_ & CPS_AUTO_INCREMENT_BIT) {
+            u8 new_index = (index + 1) & CPS_INDEX_MASK;
+            bcps_ = (bcps_ & CPS_AUTO_INCREMENT_BIT) | new_index;
         }
     }
 }
 
 u8 PPU::read_ocps() const {
-    return ocps_ | 0x40;  // Bits 6-7 are set to 1
+    return ocps_ | CPS_UNUSED_BITS;
 }
 
 void PPU::write_ocps(u8 value) {
@@ -671,7 +674,7 @@ void PPU::write_ocps(u8 value) {
 u8 PPU::read_ocpd() const {
     // Can only read during VBlank or HBlank (Mode 0 or 1)
     if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
-        u8 index = ocps_ & 0x3F;  // Lower 6 bits are the address
+        u8 index = ocps_ & CPS_INDEX_MASK;
         return obj_palette_ram_[index];
     }
     return 0xFF;  // Return 0xFF if PPU is busy
@@ -680,19 +683,19 @@ u8 PPU::read_ocpd() const {
 void PPU::write_ocpd(u8 value) {
     // Can only write during VBlank or HBlank (Mode 0 or 1)
     if (mode_ != Mode::Transfer && mode_ != Mode::OAMSearch) {
-        u8 index = ocps_ & 0x3F;  // Lower 6 bits are the address
+        u8 index = ocps_ & CPS_INDEX_MASK;
         obj_palette_ram_[index] = value;
         
         // Auto-increment if bit 7 is set
-        if (ocps_ & 0x80) {
-            u8 new_index = (index + 1) & 0x3F;
-            ocps_ = (ocps_ & 0x80) | new_index;
+        if (ocps_ & CPS_AUTO_INCREMENT_BIT) {
+            u8 new_index = (index + 1) & CPS_INDEX_MASK;
+            ocps_ = (ocps_ & CPS_AUTO_INCREMENT_BIT) | new_index;
         }
     }
 }
 
-void PPU::set_cartridge(const Cartridge* cart) {
-    cartridge_ = cart;
+void PPU::set_cartridge(const Cartridge* cartridge) {
+    cartridge_ = cartridge;
 }
 
 void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
@@ -728,18 +731,27 @@ void PPU::serialize(std::vector<u8>& data) const
     data.push_back(ocps_);
     
     // CGB palette RAM (64 bytes each)
-    for (const auto& byte : bg_palette_ram_) {
-        data.push_back(byte);
-    }
-    for (const auto& byte : obj_palette_ram_) {
-        data.push_back(byte);
-    }
+    data.insert(data.end(), bg_palette_ram_.begin(), bg_palette_ram_.end());
+    data.insert(data.end(), obj_palette_ram_.begin(), obj_palette_ram_.end());
     
     // We don't save framebuffer or scanline_sprites as they're reconstructed
 }
 
-void PPU::deserialize(const u8* data, size_t& offset)
+void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    constexpr size_t MODE_BYTE = 1;         // mode_
+    constexpr size_t DOTS_BYTES = 2;         // dots_ (u16)
+    constexpr size_t LY_BYTE = 1;            // ly_
+    constexpr size_t FRAME_READY_BYTE = 1;   // frame_ready_
+    constexpr size_t WIN_LINE_BYTE = 1;      // window_line_counter_
+    constexpr size_t BCPS_BYTE = 1;          // bcps_
+    constexpr size_t OCPS_BYTE = 1;          // ocps_
+    constexpr size_t BG_PALETTE_BYTES = 64;  // bg_palette_ram_
+    constexpr size_t OBJ_PALETTE_BYTES = 64; // obj_palette_ram_
+    constexpr size_t PPU_STATE_SIZE = MODE_BYTE + DOTS_BYTES + LY_BYTE + FRAME_READY_BYTE
+        + WIN_LINE_BYTE + BCPS_BYTE + OCPS_BYTE + BG_PALETTE_BYTES + OBJ_PALETTE_BYTES;
+    if (offset + PPU_STATE_SIZE > data_size) return;
+
     // PPU mode and timing
     mode_ = static_cast<Mode>(data[offset++]);
     dots_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
@@ -753,12 +765,10 @@ void PPU::deserialize(const u8* data, size_t& offset)
     ocps_ = data[offset++];
     
     // CGB palette RAM
-    for (auto& byte : bg_palette_ram_) {
-        byte = data[offset++];
-    }
-    for (auto& byte : obj_palette_ram_) {
-        byte = data[offset++];
-    }
+    std::copy(data + offset, data + offset + bg_palette_ram_.size(), bg_palette_ram_.begin());
+    offset += bg_palette_ram_.size();
+    std::copy(data + offset, data + offset + obj_palette_ram_.size(), obj_palette_ram_.begin());
+    offset += obj_palette_ram_.size();
     
     // Clear transient state
     scanline_sprites_.clear();
