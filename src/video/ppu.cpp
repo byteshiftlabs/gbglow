@@ -261,7 +261,6 @@ void PPU::render_background() {
         u8 tile_num = memory_.read(map_addr);
         
         // CGB: Read tile attributes from VRAM bank 1
-        u8 tile_attr = 0;
         u8 palette_num = 0;
         bool x_flip = false;
         bool y_flip = false;
@@ -270,7 +269,7 @@ void PPU::render_background() {
             // Temporarily switch to VRAM bank 1 to read attributes
             u8 saved_bank = memory_.read(CGB_VBK) & BIT_1;
             memory_.write(CGB_VBK, BIT_1);
-            tile_attr = memory_.read(map_addr);
+            u8 tile_attr = memory_.read(map_addr);
             memory_.write(CGB_VBK, saved_bank);
             
             palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
@@ -573,28 +572,6 @@ u8 PPU::get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const {
     return pixel;
 }
 
-void PPU::render_to_terminal() const {
-    // ASCII characters for different shades
-    const char shades[] = {' ', '.', '+', '#'};  // 0=white, 3=black
-    
-    std::cout << "\n╔";
-    for (int i = 0; i < SCREEN_WIDTH; i++) std::cout << "═";
-    std::cout << "╗\n";
-    
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        std::cout << "║";
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
-            u8 pixel = framebuffer_[y * SCREEN_WIDTH + x];
-            std::cout << shades[pixel];
-        }
-        std::cout << "║\n";
-    }
-    
-    std::cout << "╚";
-    for (int i = 0; i < SCREEN_WIDTH; i++) std::cout << "═";
-    std::cout << "╝\n";
-}
-
 std::vector<u8> PPU::get_rgba_framebuffer() const {
     // Allocate RGBA framebuffer
     const size_t pixel_count = SCREEN_WIDTH * SCREEN_HEIGHT;
@@ -754,12 +731,8 @@ void PPU::serialize(std::vector<u8>& data) const
     data.push_back(ocps_);
     
     // CGB palette RAM (64 bytes each)
-    for (const auto& byte : bg_palette_ram_) {
-        data.push_back(byte);
-    }
-    for (const auto& byte : obj_palette_ram_) {
-        data.push_back(byte);
-    }
+    data.insert(data.end(), bg_palette_ram_.begin(), bg_palette_ram_.end());
+    data.insert(data.end(), obj_palette_ram_.begin(), obj_palette_ram_.end());
     
     // We don't save framebuffer or scanline_sprites as they're reconstructed
 }
@@ -792,12 +765,10 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     ocps_ = data[offset++];
     
     // CGB palette RAM
-    for (auto& byte : bg_palette_ram_) {
-        byte = data[offset++];
-    }
-    for (auto& byte : obj_palette_ram_) {
-        byte = data[offset++];
-    }
+    std::copy(data + offset, data + offset + bg_palette_ram_.size(), bg_palette_ram_.begin());
+    offset += bg_palette_ram_.size();
+    std::copy(data + offset, data + offset + obj_palette_ram_.size(), obj_palette_ram_.begin());
+    offset += obj_palette_ram_.size();
     
     // Clear transient state
     scanline_sprites_.clear();
