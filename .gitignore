@@ -21,9 +21,6 @@ cmake-build-*/
 .DS_Store
 Thumbs.db
 
-# Sphinx documentation build
-docs/sphinx/_build/
-
 # Debug executables
 debug_test
 
