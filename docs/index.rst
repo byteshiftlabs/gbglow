@@ -52,7 +52,7 @@ Running a ROM
 Features
 --------
 
-* **Complete CPU Emulation**: All 180+ opcodes including CB instructions
+* **Complete CPU Emulation**: All 512 opcodes (256 base + 256 CB-prefixed)
 * **PPU with CGB Support**: Background/sprite rendering, DMG and CGB color palettes
 * **APU**: 4-channel audio with real-time playback
 * **Cartridge Support**: MBC1, MBC3, MBC5 memory bank controllers

@@ -112,4 +112,37 @@ void Timer::request_timer_interrupt() {
     memory_.write(REG_IF, if_reg | TIMER_INT_BIT);
 }
 
+void Timer::serialize(std::vector<u8>& data) const
+{
+    // Timer registers (4 bytes)
+    data.push_back(div_);
+    data.push_back(tima_);
+    data.push_back(tma_);
+    data.push_back(tac_);
+    
+    // Internal counters (4 bytes: 2 × u16)
+    data.push_back(static_cast<u8>(div_counter_ & 0xFF));
+    data.push_back(static_cast<u8>((div_counter_ >> 8) & 0xFF));
+    data.push_back(static_cast<u8>(tima_counter_ & 0xFF));
+    data.push_back(static_cast<u8>((tima_counter_ >> 8) & 0xFF));
+}
+
+void Timer::deserialize(const u8* data, size_t data_size, size_t& offset)
+{
+    constexpr size_t TIMER_STATE_SIZE = 8;  // 4 registers + 2 u16 counters
+    if (offset + TIMER_STATE_SIZE > data_size) return;
+    
+    // Timer registers — restored directly, bypassing write_div() reset behavior
+    div_ = data[offset++];
+    tima_ = data[offset++];
+    tma_ = data[offset++];
+    tac_ = data[offset++];
+    
+    // Internal counters
+    div_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+    tima_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+}
+
 } // namespace gbglow

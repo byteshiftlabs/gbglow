@@ -328,7 +328,6 @@ PPU Class
        
        const std::array<u8, 160 * 144>& framebuffer() const;
        std::vector<u8> get_rgba_framebuffer() const;
-       void render_to_terminal() const;
        
    private:
        Memory& memory_;
@@ -671,34 +670,6 @@ In 8x16 mode:
                   ((byte1 >> bit_pos) & 1);
        
        return pixel;
-   }
-
-Terminal Output
-~~~~~~~~~~~~~~~
-
-For debugging, frames can be rendered as ASCII:
-
-.. code-block:: cpp
-
-   void PPU::render_to_terminal() const {
-       const char shades[] = {' ', '.', '+', '#'};
-       
-       std::cout << "╔";
-       for (int i = 0; i < 160; i++) std::cout << "═";
-       std::cout << "╗\n";
-       
-       for (int y = 0; y < 144; y++) {
-           std::cout << "║";
-           for (int x = 0; x < 160; x++) {
-               u8 pixel = framebuffer_[y * 160 + x];
-               std::cout << shades[pixel];
-           }
-           std::cout << "║\n";
-       }
-       
-       std::cout << "╚";
-       for (int i = 0; i < 160; i++) std::cout << "═";
-       std::cout << "╝\n";
    }
 
 Testing

@@ -17,7 +17,6 @@ This section documents the public API of gbglow's core components.
    :caption: Video System
 
    ppu
-   lcd
 
 .. toctree::
    :maxdepth: 2
@@ -100,9 +99,6 @@ Basic usage example:
        // Run for 60 frames (1 second at 60fps)
        for (int frame = 0; frame < 60; ++frame) {
            emulator.run_frame();
-           
-           // Render every frame
-           emulator.get_ppu().render_to_terminal();
        }
        
        return 0;
@@ -175,13 +171,3 @@ Building
 --------
 
 See :doc:`../development/index` for build instructions.
-
-Examples
---------
-
-See ``examples/`` directory for complete examples:
-
-* Basic emulator usage
-* Custom input handling
-* Debugging tools
-* Performance testing

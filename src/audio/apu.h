@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../core/types.h"
+#include "../core/io_registers.h"
 #include <array>
 #include <cstddef>
 #include <vector>
@@ -99,35 +100,8 @@ private:
     static constexpr int RATE = (1 << 21) / SAMPLE_RATE;  // ~47.5 (frequency scaling factor)
     static constexpr int CYCLES_PER_SAMPLE = CPU_CLOCK_HZ / SAMPLE_RATE;  // ~95 cycles
     
-    // Register addresses
-    static constexpr u16 REG_NR10 = 0xFF10;  // Channel 1 Sweep
-    static constexpr u16 REG_NR11 = 0xFF11;  // Channel 1 Sound length/Wave pattern duty
-    static constexpr u16 REG_NR12 = 0xFF12;  // Channel 1 Volume Envelope
-    static constexpr u16 REG_NR13 = 0xFF13;  // Channel 1 Frequency lo
-    static constexpr u16 REG_NR14 = 0xFF14;  // Channel 1 Frequency hi
-    
-    static constexpr u16 REG_NR21 = 0xFF16;  // Channel 2 Sound Length/Wave Pattern Duty
-    static constexpr u16 REG_NR22 = 0xFF17;  // Channel 2 Volume Envelope
-    static constexpr u16 REG_NR23 = 0xFF18;  // Channel 2 Frequency lo
-    static constexpr u16 REG_NR24 = 0xFF19;  // Channel 2 Frequency hi
-    
-    static constexpr u16 REG_NR30 = 0xFF1A;  // Channel 3 Sound on/off
-    static constexpr u16 REG_NR31 = 0xFF1B;  // Channel 3 Sound Length
-    static constexpr u16 REG_NR32 = 0xFF1C;  // Channel 3 Select output level
-    static constexpr u16 REG_NR33 = 0xFF1D;  // Channel 3 Frequency lo
-    static constexpr u16 REG_NR34 = 0xFF1E;  // Channel 3 Frequency hi
-    
-    static constexpr u16 REG_NR41 = 0xFF20;  // Channel 4 Sound Length
-    static constexpr u16 REG_NR42 = 0xFF21;  // Channel 4 Volume Envelope
-    static constexpr u16 REG_NR43 = 0xFF22;  // Channel 4 Polynomial Counter
-    static constexpr u16 REG_NR44 = 0xFF23;  // Channel 4 Counter/consecutive; Initial
-    
-    static constexpr u16 REG_NR50 = 0xFF24;  // Channel control / ON-OFF / Volume
-    static constexpr u16 REG_NR51 = 0xFF25;  // Selection of Sound output terminal
-    static constexpr u16 REG_NR52 = 0xFF26;  // Sound on/off
-    
-    static constexpr u16 WAVE_RAM_START = 0xFF30;
-    static constexpr u16 WAVE_RAM_END = 0xFF3F;
+    // Register addresses sourced from io_reg:: (io_registers.h)
+    // APU-specific bit masks and constants follow below
     
     // NR52 bit masks
     static constexpr u8 NR52_POWER_BIT = 0x80;
@@ -243,94 +217,94 @@ private:
     // Channel 1: Square wave with frequency sweep
     struct Channel1 {
         // Register values
-        u8 sweep_period;
-        u8 sweep_direction;
-        u8 sweep_shift;
-        u8 wave_duty;
-        u8 initial_volume;
-        u8 envelope_direction;
-        u8 envelope_period;
-        u16 frequency;
-        bool length_enable;
-        bool dac_enabled;
+        u8 sweep_period = 0;
+        u8 sweep_direction = 0;
+        u8 sweep_shift = 0;
+        u8 wave_duty = 0;
+        u8 initial_volume = 0;
+        u8 envelope_direction = 0;
+        u8 envelope_period = 0;
+        u16 frequency = 0;
+        bool length_enable = false;
+        bool dac_enabled = false;
         
         // Runtime state
-        bool on;
-        int pos;      // Phase position
-        int freq;     // Phase increment
-        int cnt;      // Length counter
-        int len;      // Length threshold
-        int encnt;    // Envelope counter
-        int enlen;    // Envelope threshold
-        int endir;    // Envelope direction (-1/+1)
-        int envol;    // Current volume
-        int swcnt;    // Sweep counter
-        int swlen;    // Sweep threshold
-        int swfreq;   // Sweep frequency
+        bool on = false;
+        int phase_position = 0;
+        int phase_increment = 0;
+        int length_counter = 0;
+        int length_threshold = 0;
+        int envelope_counter = 0;
+        int envelope_threshold = 0;
+        int envelope_direction_state = 0;
+        int envelope_volume = 0;
+        int sweep_counter = 0;
+        int sweep_threshold = 0;
+        int sweep_frequency = 0;
     } channel1_;
     
     // Channel 2: Square wave (no sweep)
     struct Channel2 {
         // Register values
-        u8 wave_duty;
-        u8 initial_volume;
-        u8 envelope_direction;
-        u8 envelope_period;
-        u16 frequency;
-        bool length_enable;
-        bool dac_enabled;
+        u8 wave_duty = 0;
+        u8 initial_volume = 0;
+        u8 envelope_direction = 0;
+        u8 envelope_period = 0;
+        u16 frequency = 0;
+        bool length_enable = false;
+        bool dac_enabled = false;
         
         // Runtime state
-        bool on;
-        int pos;
-        int freq;
-        int cnt;
-        int len;
-        int encnt;
-        int enlen;
-        int endir;
-        int envol;
+        bool on = false;
+        int phase_position = 0;
+        int phase_increment = 0;
+        int length_counter = 0;
+        int length_threshold = 0;
+        int envelope_counter = 0;
+        int envelope_threshold = 0;
+        int envelope_direction_state = 0;
+        int envelope_volume = 0;
     } channel2_;
     
     // Channel 3: Programmable wave
     struct Channel3 {
         // Register values
-        u8 output_level;
-        u16 frequency;
-        bool length_enable;
-        bool dac_enabled;
+        u8 output_level = 0;
+        u16 frequency = 0;
+        bool length_enable = false;
+        bool dac_enabled = false;
         
         // Runtime state
-        bool on;
-        int pos;
-        int freq;
-        int cnt;
-        int len;
+        bool on = false;
+        int phase_position = 0;
+        int phase_increment = 0;
+        int length_counter = 0;
+        int length_threshold = 0;
     } channel3_;
     
     // Channel 4: Noise
     struct Channel4 {
         // Register values
-        u8 initial_volume;
-        u8 envelope_direction;
-        u8 envelope_period;
-        u8 clock_shift;
-        u8 width_mode;
-        u8 divisor_code;
-        bool length_enable;
-        bool dac_enabled;
+        u8 initial_volume = 0;
+        u8 envelope_direction = 0;
+        u8 envelope_period = 0;
+        u8 clock_shift = 0;
+        u8 width_mode = 0;
+        u8 divisor_code = 0;
+        bool length_enable = false;
+        bool dac_enabled = false;
         
         // Runtime state
-        bool on;
-        u16 lfsr;
-        int pos;
-        int freq;
-        int cnt;
-        int len;
-        int encnt;
-        int enlen;
-        int endir;
-        int envol;
+        bool on = false;
+        u16 lfsr = 0;
+        int phase_position = 0;
+        int phase_increment = 0;
+        int length_counter = 0;
+        int length_threshold = 0;
+        int envelope_counter = 0;
+        int envelope_threshold = 0;
+        int envelope_direction_state = 0;
+        int envelope_volume = 0;
     } channel4_;
     
     /**

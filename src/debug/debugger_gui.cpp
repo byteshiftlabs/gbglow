@@ -5,6 +5,7 @@
 #include "debugger_gui.h"
 #include "debugger.h"
 #include "../core/registers.h"
+#include "../core/io_registers.h"
 #include <imgui.h>
 #include <sstream>
 #include <iomanip>
@@ -12,47 +13,9 @@
 
 namespace gbglow {
 
-// IO register addresses
+using namespace io_reg;
+
 namespace {
-    // LCD registers
-    constexpr u16 REG_LCDC = 0xFF40;
-    constexpr u16 REG_STAT = 0xFF41;
-    constexpr u16 REG_SCY  = 0xFF42;
-    constexpr u16 REG_SCX  = 0xFF43;
-    constexpr u16 REG_LY   = 0xFF44;
-    constexpr u16 REG_LYC  = 0xFF45;
-    constexpr u16 REG_BGP  = 0xFF47;
-    constexpr u16 REG_OBP0 = 0xFF48;
-    constexpr u16 REG_OBP1 = 0xFF49;
-    constexpr u16 REG_WY   = 0xFF4A;
-    constexpr u16 REG_WX   = 0xFF4B;
-    
-    // Sound registers
-    constexpr u16 REG_NR10 = 0xFF10;
-    constexpr u16 REG_NR11 = 0xFF11;
-    constexpr u16 REG_NR12 = 0xFF12;
-    constexpr u16 REG_NR13 = 0xFF13;
-    constexpr u16 REG_NR14 = 0xFF14;
-    constexpr u16 REG_NR50 = 0xFF24;
-    constexpr u16 REG_NR51 = 0xFF25;
-    constexpr u16 REG_NR52 = 0xFF26;
-    
-    // Timer registers
-    constexpr u16 REG_DIV  = 0xFF04;
-    constexpr u16 REG_TIMA = 0xFF05;
-    constexpr u16 REG_TMA  = 0xFF06;
-    constexpr u16 REG_TAC  = 0xFF07;
-    
-    // Interrupt registers
-    constexpr u16 REG_IF = 0xFF0F;
-    constexpr u16 REG_IE = 0xFFFF;
-    
-    // Input/Serial/DMA registers
-    constexpr u16 REG_JOYP = 0xFF00;
-    constexpr u16 REG_SB   = 0xFF01;
-    constexpr u16 REG_SC   = 0xFF02;
-    constexpr u16 REG_DMA  = 0xFF46;
-    
     // Memory map regions (for quick-nav)
     constexpr u16 REGION_ROM0 = 0x0000;
     constexpr u16 REGION_VRAM = 0x8000;
@@ -94,6 +57,75 @@ namespace {
     constexpr int TILE_BYTES_PER_ROW = 2;
     constexpr int TILE_SIZE_BYTES = 16;
     constexpr int PIXELS_PER_TILE_ROW = 8;
+
+    // ---- Debugger panel layout (docked mode) ----
+    // Emulator viewport occupies (0,0)-(480,450).
+    // Panels are arranged around it.
+    namespace layout {
+        // Registers panel (right of viewport, top)
+        constexpr float REG_X = 485.0f;
+        constexpr float REG_Y = 20.0f;
+        constexpr float REG_W = 200.0f;
+        constexpr float REG_H = 350.0f;
+        constexpr float REG_FREE_W = 200.0f;
+        constexpr float REG_FREE_H = 300.0f;
+
+        // Disassembly panel (right of viewport, below registers)
+        constexpr float DISASM_X = 485.0f;
+        constexpr float DISASM_Y = 375.0f;
+        constexpr float DISASM_W = 400.0f;
+        constexpr float DISASM_H = 405.0f;
+        constexpr float DISASM_FREE_W = 400.0f;
+        constexpr float DISASM_FREE_H = 400.0f;
+
+        // Memory viewer (far right, top)
+        constexpr float MEM_X = 690.0f;
+        constexpr float MEM_Y = 20.0f;
+        constexpr float MEM_W = 585.0f;
+        constexpr float MEM_H = 350.0f;
+        constexpr float MEM_FREE_W = 500.0f;
+        constexpr float MEM_FREE_H = 400.0f;
+
+        // Breakpoints (bottom left)
+        constexpr float BP_X = 0.0f;
+        constexpr float BP_Y = 455.0f;
+        constexpr float BP_W = 240.0f;
+        constexpr float BP_H = 325.0f;
+        constexpr float BP_FREE_W = 250.0f;
+        constexpr float BP_FREE_H = 300.0f;
+
+        // Watch expressions (bottom, right of breakpoints)
+        constexpr float WATCH_X = 245.0f;
+        constexpr float WATCH_Y = 455.0f;
+        constexpr float WATCH_W = 240.0f;
+        constexpr float WATCH_H = 325.0f;
+        constexpr float WATCH_FREE_W = 300.0f;
+        constexpr float WATCH_FREE_H = 250.0f;
+
+        // Stack viewer (below disassembly, right side)
+        constexpr float STACK_X = 890.0f;
+        constexpr float STACK_Y = 375.0f;
+        constexpr float STACK_W = 180.0f;
+        constexpr float STACK_H = 405.0f;
+        constexpr float STACK_FREE_W = 200.0f;
+        constexpr float STACK_FREE_H = 300.0f;
+
+        // IO registers (far right, below memory viewer)
+        constexpr float IO_X = 1075.0f;
+        constexpr float IO_Y = 375.0f;
+        constexpr float IO_W = 200.0f;
+        constexpr float IO_H = 405.0f;
+        constexpr float IO_FREE_W = 350.0f;
+        constexpr float IO_FREE_H = 400.0f;
+
+        // Sprite viewer (bottom, replaces BP+Watch when active)
+        constexpr float SPRITE_X = 0.0f;
+        constexpr float SPRITE_Y = 455.0f;
+        constexpr float SPRITE_W = 480.0f;
+        constexpr float SPRITE_H = 325.0f;
+        constexpr float SPRITE_FREE_W = 500.0f;
+        constexpr float SPRITE_FREE_H = 400.0f;
+    } // namespace layout
 } // anonymous namespace
 
 DebuggerGUI::DebuggerGUI()
@@ -318,10 +350,10 @@ void DebuggerGUI::render_register_row_8(const char* name, u8 value, bool highlig
 void DebuggerGUI::render_registers_window() {
     // Fixed position: right of emulator panel
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(485, 20), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(200, 350), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::REG_X, layout::REG_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::REG_W, layout::REG_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::REG_FREE_W, layout::REG_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -396,10 +428,10 @@ void DebuggerGUI::render_registers_window() {
 void DebuggerGUI::render_disassembly_window() {
     // Fixed position: below registers
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(485, 375), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(400, 405), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::DISASM_X, layout::DISASM_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::DISASM_W, layout::DISASM_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::DISASM_FREE_W, layout::DISASM_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -530,10 +562,10 @@ void DebuggerGUI::render_disassembly_window() {
 void DebuggerGUI::render_memory_window() {
     // Fixed position: right of registers
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(690, 20), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(585, 350), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::MEM_X, layout::MEM_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::MEM_W, layout::MEM_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::MEM_FREE_W, layout::MEM_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -631,10 +663,10 @@ void DebuggerGUI::render_memory_window() {
 void DebuggerGUI::render_breakpoints_window() {
     // Fixed position: below emulator
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(0, 455), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(240, 325), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::BP_X, layout::BP_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::BP_W, layout::BP_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::BP_FREE_W, layout::BP_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -708,10 +740,10 @@ void DebuggerGUI::render_breakpoints_window() {
 void DebuggerGUI::render_watches_window() {
     // Fixed position: right of breakpoints
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(245, 455), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(240, 325), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::WATCH_X, layout::WATCH_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::WATCH_W, layout::WATCH_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(300, 250), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::WATCH_FREE_W, layout::WATCH_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -800,10 +832,10 @@ void DebuggerGUI::render_watches_window() {
 void DebuggerGUI::render_stack_window() {
     // Fixed position: right of disassembly
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(890, 375), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(180, 405), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::STACK_X, layout::STACK_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::STACK_W, layout::STACK_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::STACK_FREE_W, layout::STACK_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -847,10 +879,10 @@ void DebuggerGUI::render_stack_window() {
 void DebuggerGUI::render_io_registers_window() {
     // Fixed position: right of stack
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(1075, 375), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(200, 405), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::IO_X, layout::IO_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::IO_W, layout::IO_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(350, 400), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::IO_FREE_W, layout::IO_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 
@@ -936,10 +968,10 @@ void DebuggerGUI::render_io_registers_window() {
 void DebuggerGUI::render_sprites_window() {
     // Fixed position: below emulator
     if (docking_mode_) {
-        ImGui::SetNextWindowPos(ImVec2(0, 455), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(480, 325), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(layout::SPRITE_X, layout::SPRITE_Y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(layout::SPRITE_W, layout::SPRITE_H), ImGuiCond_Always);
     } else {
-        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(layout::SPRITE_FREE_W, layout::SPRITE_FREE_H), ImGuiCond_FirstUseEver);
     }
     
     ImGuiWindowFlags flags = docking_mode_ ? 

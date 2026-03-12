@@ -30,9 +30,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         # Enable Link Time Optimization
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
-elseif(NOT CMAKE_BUILD_TYPE)
-    message(WARNING "No build type specified, defaulting to Release")
-    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 # Compiler warnings
