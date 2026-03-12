@@ -16,7 +16,6 @@
 #include <iostream>
 
 // Simple JSON writing (no external dependencies)
-// For a production emulator, consider using nlohmann/json or similar
 namespace {
 
 std::string escape_json_string(const std::string& str) {
@@ -195,6 +194,9 @@ std::string RecentRoms::get_config_dir() const
         base_dir = xdg_config;
     } else {
         const char* home = std::getenv("HOME");
+#ifdef _WIN32
+        if (!home) home = std::getenv("USERPROFILE");
+#endif
         if (home) {
             base_dir = std::string(home) + "/.config";
         } else {

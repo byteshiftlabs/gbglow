@@ -4,10 +4,14 @@
 
 #include "apu.h"
 #include "../core/memory.h"
+#include "../core/io_registers.h"
 #include <algorithm>
+#include <iostream>
 #include <mutex>
 
 namespace gbglow {
+
+using namespace io_reg;
 
 // Noise table generation constants
 static constexpr int NOISE7_TABLE_SIZE = 16;      // 128 bits = 16 bytes
@@ -145,8 +149,8 @@ std::pair<u8, u8> APU::generate_sample() {
     process_channel4_sample(left, right);
     
     // Apply master volume from NR50 (bits 0-2 for right, bits 4-6 for left)
-    left *= (nr50_ & NR50_RIGHT_VOLUME_MASK);
-    right *= ((nr50_ >> NR50_LEFT_VOLUME_SHIFT) & NR50_RIGHT_VOLUME_MASK);
+    left *= ((nr50_ >> NR50_LEFT_VOLUME_SHIFT) & NR50_RIGHT_VOLUME_MASK);
+    right *= (nr50_ & NR50_RIGHT_VOLUME_MASK);
     left >>= SAMPLE_VOLUME_SHIFT;
     right >>= SAMPLE_VOLUME_SHIFT;
     
@@ -173,8 +177,8 @@ void APU::process_channel1_sample(int& left, int& right) {
         return;
     }
     
-    int sample = sqwave[channel1_.wave_duty][(channel1_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel1_.envol;
-    channel1_.pos += channel1_.freq;
+    int sample = sqwave[channel1_.wave_duty][(channel1_.phase_position >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel1_.envelope_volume;
+    channel1_.phase_position += channel1_.phase_increment;
     
     update_channel1_length_counter();
     update_channel1_envelope();
@@ -190,45 +194,45 @@ void APU::update_channel1_length_counter() {
         return;
     }
     
-    channel1_.cnt += RATE;
-    if (channel1_.cnt >= channel1_.len) {
+    channel1_.length_counter += RATE;
+    if (channel1_.length_counter >= channel1_.length_threshold) {
         channel1_.on = false;
     }
 }
 
 void APU::update_channel1_envelope() {
-    if (!channel1_.enlen) {
+    if (!channel1_.envelope_threshold) {
         return;
     }
     
-    channel1_.encnt += RATE;
-    if (channel1_.encnt < channel1_.enlen) {
+    channel1_.envelope_counter += RATE;
+    if (channel1_.envelope_counter < channel1_.envelope_threshold) {
         return;
     }
     
-    channel1_.encnt -= channel1_.enlen;
-    channel1_.envol += channel1_.endir;
+    channel1_.envelope_counter -= channel1_.envelope_threshold;
+    channel1_.envelope_volume += channel1_.envelope_direction_state;
     
-    if (channel1_.envol < ENVELOPE_MIN) {
-        channel1_.envol = ENVELOPE_MIN;
+    if (channel1_.envelope_volume < ENVELOPE_MIN) {
+        channel1_.envelope_volume = ENVELOPE_MIN;
     }
-    if (channel1_.envol > ENVELOPE_MAX) {
-        channel1_.envol = ENVELOPE_MAX;
+    if (channel1_.envelope_volume > ENVELOPE_MAX) {
+        channel1_.envelope_volume = ENVELOPE_MAX;
     }
 }
 
 void APU::update_channel1_sweep() {
-    if (!channel1_.swlen) {
+    if (!channel1_.sweep_threshold) {
         return;
     }
     
-    channel1_.swcnt += RATE;
-    if (channel1_.swcnt < channel1_.swlen) {
+    channel1_.sweep_counter += RATE;
+    if (channel1_.sweep_counter < channel1_.sweep_threshold) {
         return;
     }
     
-    channel1_.swcnt -= channel1_.swlen;
-    int frequency = channel1_.swfreq;
+    channel1_.sweep_counter -= channel1_.sweep_threshold;
+    int frequency = channel1_.sweep_frequency;
     int shift = channel1_.sweep_shift;
     
     if (channel1_.sweep_direction) {
@@ -242,12 +246,12 @@ void APU::update_channel1_sweep() {
         return;
     }
     
-    channel1_.swfreq = frequency;
+    channel1_.sweep_frequency = frequency;
     int divisor = FREQ_DIVISOR_BASE - frequency;
     if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-        channel1_.freq = 0;
+        channel1_.phase_increment = 0;
     } else {
-        channel1_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+        channel1_.phase_increment = (RATE << FREQ_SHIFT_SQUARE) / divisor;
     }
 }
 
@@ -256,8 +260,8 @@ void APU::process_channel2_sample(int& left, int& right) {
         return;
     }
     
-    int sample = sqwave[channel2_.wave_duty][(channel2_.pos >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel2_.envol;
-    channel2_.pos += channel2_.freq;
+    int sample = sqwave[channel2_.wave_duty][(channel2_.phase_position >> PHASE_SHIFT_SQUARE) & PHASE_MASK_SQUARE] & channel2_.envelope_volume;
+    channel2_.phase_position += channel2_.phase_increment;
     
     update_channel2_length_counter();
     update_channel2_envelope();
@@ -272,30 +276,30 @@ void APU::update_channel2_length_counter() {
         return;
     }
     
-    channel2_.cnt += RATE;
-    if (channel2_.cnt >= channel2_.len) {
+    channel2_.length_counter += RATE;
+    if (channel2_.length_counter >= channel2_.length_threshold) {
         channel2_.on = false;
     }
 }
 
 void APU::update_channel2_envelope() {
-    if (!channel2_.enlen) {
+    if (!channel2_.envelope_threshold) {
         return;
     }
     
-    channel2_.encnt += RATE;
-    if (channel2_.encnt < channel2_.enlen) {
+    channel2_.envelope_counter += RATE;
+    if (channel2_.envelope_counter < channel2_.envelope_threshold) {
         return;
     }
     
-    channel2_.encnt -= channel2_.enlen;
-    channel2_.envol += channel2_.endir;
+    channel2_.envelope_counter -= channel2_.envelope_threshold;
+    channel2_.envelope_volume += channel2_.envelope_direction_state;
     
-    if (channel2_.envol < ENVELOPE_MIN) {
-        channel2_.envol = ENVELOPE_MIN;
+    if (channel2_.envelope_volume < ENVELOPE_MIN) {
+        channel2_.envelope_volume = ENVELOPE_MIN;
     }
-    if (channel2_.envol > ENVELOPE_MAX) {
-        channel2_.envol = ENVELOPE_MAX;
+    if (channel2_.envelope_volume > ENVELOPE_MAX) {
+        channel2_.envelope_volume = ENVELOPE_MAX;
     }
 }
 
@@ -304,16 +308,16 @@ void APU::process_channel3_sample(int& left, int& right) {
         return;
     }
     
-    int sample = wave_ram_[(channel3_.pos >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE];
+    int sample = wave_ram_[(channel3_.phase_position >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE];
     
-    if (channel3_.pos & (1 << WAVE_NIBBLE_BIT)) {
+    if (channel3_.phase_position & (1 << WAVE_NIBBLE_BIT)) {
         sample &= WAVE_NIBBLE_MASK;
     } else {
         sample >>= WAVE_NIBBLE_SHIFT;
     }
     sample -= SAMPLE_WAVE_OFFSET;
     
-    channel3_.pos += channel3_.freq;
+    channel3_.phase_position += channel3_.phase_increment;
     
     update_channel3_length_counter();
     
@@ -332,8 +336,8 @@ void APU::update_channel3_length_counter() {
         return;
     }
     
-    channel3_.cnt += RATE;
-    if (channel3_.cnt >= channel3_.len) {
+    channel3_.length_counter += RATE;
+    if (channel3_.length_counter >= channel3_.length_threshold) {
         channel3_.on = false;
     }
 }
@@ -344,7 +348,7 @@ void APU::process_channel4_sample(int& left, int& right) {
     }
     
     int sample = calculate_noise_sample();
-    channel4_.pos += channel4_.freq;
+    channel4_.phase_position += channel4_.phase_increment;
     
     update_channel4_length_counter();
     update_channel4_envelope();
@@ -360,16 +364,16 @@ int APU::calculate_noise_sample() {
     int sample;
     
     if (channel4_.width_mode) {
-        byte_index = (channel4_.pos >> NOISE_BYTE_SHIFT) & NOISE7_BYTE_MASK;
-        bit_pos = (NOISE_BIT_MASK - ((channel4_.pos >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
+        byte_index = (channel4_.phase_position >> NOISE_BYTE_SHIFT) & NOISE7_BYTE_MASK;
+        bit_pos = (NOISE_BIT_MASK - ((channel4_.phase_position >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
         sample = (noise7[byte_index] >> bit_pos) & 1;
     } else {
-        byte_index = (channel4_.pos >> NOISE_BYTE_SHIFT) & NOISE15_BYTE_MASK;
-        bit_pos = (NOISE_BIT_MASK - ((channel4_.pos >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
+        byte_index = (channel4_.phase_position >> NOISE_BYTE_SHIFT) & NOISE15_BYTE_MASK;
+        bit_pos = (NOISE_BIT_MASK - ((channel4_.phase_position >> NOISE_BIT_SHIFT) & NOISE_BIT_MASK));
         sample = (noise15[byte_index] >> bit_pos) & 1;
     }
     
-    return (-sample) & channel4_.envol;
+    return (-sample) & channel4_.envelope_volume;
 }
 
 void APU::update_channel4_length_counter() {
@@ -377,30 +381,30 @@ void APU::update_channel4_length_counter() {
         return;
     }
     
-    channel4_.cnt += RATE;
-    if (channel4_.cnt >= channel4_.len) {
+    channel4_.length_counter += RATE;
+    if (channel4_.length_counter >= channel4_.length_threshold) {
         channel4_.on = false;
     }
 }
 
 void APU::update_channel4_envelope() {
-    if (!channel4_.enlen) {
+    if (!channel4_.envelope_threshold) {
         return;
     }
     
-    channel4_.encnt += RATE;
-    if (channel4_.encnt < channel4_.enlen) {
+    channel4_.envelope_counter += RATE;
+    if (channel4_.envelope_counter < channel4_.envelope_threshold) {
         return;
     }
     
-    channel4_.encnt -= channel4_.enlen;
-    channel4_.envol += channel4_.endir;
+    channel4_.envelope_counter -= channel4_.envelope_threshold;
+    channel4_.envelope_volume += channel4_.envelope_direction_state;
     
-    if (channel4_.envol < ENVELOPE_MIN) {
-        channel4_.envol = ENVELOPE_MIN;
+    if (channel4_.envelope_volume < ENVELOPE_MIN) {
+        channel4_.envelope_volume = ENVELOPE_MIN;
     }
-    if (channel4_.envol > ENVELOPE_MAX) {
-        channel4_.envol = ENVELOPE_MAX;
+    if (channel4_.envelope_volume > ENVELOPE_MAX) {
+        channel4_.envelope_volume = ENVELOPE_MAX;
     }
 }
 
@@ -516,7 +520,7 @@ u8 APU::read_register(u16 address) const {
         // Hardware behavior: when Channel 3 is active, only the currently
         // playing byte can be read (others return 0xFF)
         if (channel3_.on) {
-            int current_byte_index = (channel3_.pos >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE;
+            int current_byte_index = (channel3_.phase_position >> PHASE_SHIFT_WAVE) & PHASE_MASK_WAVE;
             return wave_ram_[current_byte_index];
         }
         return wave_ram_[address - WAVE_RAM_START];
@@ -548,10 +552,10 @@ void APU::write_register(u16 address, u8 value) {
         channel1_.sweep_shift = value & SWEEP_SHIFT_MASK;
         
         // Convert sweep period to cycle threshold
-        channel1_.swlen = channel1_.sweep_period << SWEEP_SHIFT;
+        channel1_.sweep_threshold = channel1_.sweep_period << SWEEP_SHIFT;
         
         // Initialize sweep frequency to current frequency
-        channel1_.swfreq = channel1_.frequency;
+        channel1_.sweep_frequency = channel1_.frequency;
         return;
     }
     // Channel 1: Sound length and wave duty (NR11)
@@ -559,25 +563,25 @@ void APU::write_register(u16 address, u8 value) {
         channel1_.wave_duty = (value >> DUTY_CYCLE_SHIFT) & DUTY_CYCLE_MASK;
         
         // Convert length (0-63) to cycle count
-        channel1_.len = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
+        channel1_.length_threshold = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
         return;
     }
     // Channel 1: Volume envelope (NR12)
     if (address == REG_NR12) {
         // Set current and initial volume
-        channel1_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
-        channel1_.initial_volume = channel1_.envol;
+        channel1_.envelope_volume = (value >> VOLUME_SHIFT) & VOLUME_MASK;
+        channel1_.initial_volume = channel1_.envelope_volume;
         
         // Store envelope parameters for trigger
         channel1_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
         channel1_.envelope_period = value & ENVELOPE_MASK;
         
         // Envelope direction: convert 0/1 to -1/+1
-        channel1_.endir = channel1_.envelope_direction;
-        channel1_.endir |= channel1_.endir - 1;  // 0 becomes -1, 1 stays 1
+        channel1_.envelope_direction_state = channel1_.envelope_direction;
+        channel1_.envelope_direction_state |= channel1_.envelope_direction_state - 1;  // 0 becomes -1, 1 stays 1
         
         // Convert envelope period to cycle threshold
-        channel1_.enlen = channel1_.envelope_period << ENVELOPE_SHIFT;
+        channel1_.envelope_threshold = channel1_.envelope_period << ENVELOPE_SHIFT;
         channel1_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
@@ -588,9 +592,9 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment from 11-bit frequency value
         int divisor = FREQ_DIVISOR_BASE - channel1_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-            channel1_.freq = 0;
+            channel1_.phase_increment = 0;
         } else {
-            channel1_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+            channel1_.phase_increment = (RATE << FREQ_SHIFT_SQUARE) / divisor;
         }
         return;
     }
@@ -602,22 +606,22 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment
         int divisor = FREQ_DIVISOR_BASE - channel1_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-            channel1_.freq = 0;
+            channel1_.phase_increment = 0;
         } else {
-            channel1_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+            channel1_.phase_increment = (RATE << FREQ_SHIFT_SQUARE) / divisor;
         }
         
         // Trigger: restart channel (bit 7)
         if (value & TRIGGER_BIT) {
-            channel1_.swcnt = 0;
-            channel1_.swfreq = channel1_.frequency;
-            channel1_.envol = channel1_.initial_volume;
-            channel1_.endir = (channel1_.envelope_direction) ? 1 : -1;
-            channel1_.enlen = channel1_.envelope_period << ENVELOPE_SHIFT;
-            if (!channel1_.on) channel1_.pos = 0;
+            channel1_.sweep_counter = 0;
+            channel1_.sweep_frequency = channel1_.frequency;
+            channel1_.envelope_volume = channel1_.initial_volume;
+            channel1_.envelope_direction_state = (channel1_.envelope_direction) ? 1 : -1;
+            channel1_.envelope_threshold = channel1_.envelope_period << ENVELOPE_SHIFT;
+            if (!channel1_.on) channel1_.phase_position = 0;
             channel1_.on = channel1_.dac_enabled;
-            channel1_.cnt = 0;
-            channel1_.encnt = 0;
+            channel1_.length_counter = 0;
+            channel1_.envelope_counter = 0;
         }
         return;
     }
@@ -627,25 +631,25 @@ void APU::write_register(u16 address, u8 value) {
         channel2_.wave_duty = (value >> DUTY_CYCLE_SHIFT) & DUTY_CYCLE_MASK;
         
         // Convert length (0-63) to cycle count
-        channel2_.len = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
+        channel2_.length_threshold = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
         return;
     }
     // Channel 2: Volume envelope (NR22)
     if (address == REG_NR22) {
         // Set current and initial volume
-        channel2_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
-        channel2_.initial_volume = channel2_.envol;
+        channel2_.envelope_volume = (value >> VOLUME_SHIFT) & VOLUME_MASK;
+        channel2_.initial_volume = channel2_.envelope_volume;
         
         // Store envelope parameters for trigger
         channel2_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
         channel2_.envelope_period = value & ENVELOPE_MASK;
         
         // Envelope direction: convert 0/1 to -1/+1
-        channel2_.endir = channel2_.envelope_direction;
-        channel2_.endir |= channel2_.endir - 1;
+        channel2_.envelope_direction_state = channel2_.envelope_direction;
+        channel2_.envelope_direction_state |= channel2_.envelope_direction_state - 1;
         
         // Convert envelope period to cycle threshold
-        channel2_.enlen = channel2_.envelope_period << ENVELOPE_SHIFT;
+        channel2_.envelope_threshold = channel2_.envelope_period << ENVELOPE_SHIFT;
         channel2_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
@@ -656,9 +660,9 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment
         int divisor = FREQ_DIVISOR_BASE - channel2_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-            channel2_.freq = 0;
+            channel2_.phase_increment = 0;
         } else {
-            channel2_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+            channel2_.phase_increment = (RATE << FREQ_SHIFT_SQUARE) / divisor;
         }
         return;
     }
@@ -670,20 +674,20 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment
         int divisor = FREQ_DIVISOR_BASE - channel2_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE)) {
-            channel2_.freq = 0;
+            channel2_.phase_increment = 0;
         } else {
-            channel2_.freq = (RATE << FREQ_SHIFT_SQUARE) / divisor;
+            channel2_.phase_increment = (RATE << FREQ_SHIFT_SQUARE) / divisor;
         }
         
         // Trigger: restart channel
         if (value & TRIGGER_BIT) {
-            channel2_.envol = channel2_.initial_volume;
-            channel2_.endir = (channel2_.envelope_direction) ? 1 : -1;
-            channel2_.enlen = channel2_.envelope_period << ENVELOPE_SHIFT;
-            if (!channel2_.on) channel2_.pos = 0;
+            channel2_.envelope_volume = channel2_.initial_volume;
+            channel2_.envelope_direction_state = (channel2_.envelope_direction) ? 1 : -1;
+            channel2_.envelope_threshold = channel2_.envelope_period << ENVELOPE_SHIFT;
+            if (!channel2_.on) channel2_.phase_position = 0;
             channel2_.on = channel2_.dac_enabled;
-            channel2_.cnt = 0;
-            channel2_.encnt = 0;
+            channel2_.length_counter = 0;
+            channel2_.envelope_counter = 0;
         }
         return;
     }
@@ -701,7 +705,7 @@ void APU::write_register(u16 address, u8 value) {
     // Channel 3: Sound length (NR31)
     if (address == REG_NR31) {
         // Convert 8-bit length value to cycle count
-        channel3_.len = (LENGTH_MAX_256 - value) << LENGTH_SHIFT;
+        channel3_.length_threshold = (LENGTH_MAX_256 - value) << LENGTH_SHIFT;
         return;
     }
     // Channel 3: Output level/volume (NR32)
@@ -717,9 +721,9 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment (note: different shift than CH1/CH2)
         int divisor = FREQ_DIVISOR_BASE - channel3_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_WAVE)) {
-            channel3_.freq = 0;
+            channel3_.phase_increment = 0;
         } else {
-            channel3_.freq = (RATE << FREQ_SHIFT_WAVE) / divisor;
+            channel3_.phase_increment = (RATE << FREQ_SHIFT_WAVE) / divisor;
         }
         return;
     }
@@ -731,15 +735,15 @@ void APU::write_register(u16 address, u8 value) {
         // Recalculate phase increment
         int divisor = FREQ_DIVISOR_BASE - channel3_.frequency;
         if (RATE > (divisor << FREQ_CHECK_SHIFT_WAVE)) {
-            channel3_.freq = 0;
+            channel3_.phase_increment = 0;
         } else {
-            channel3_.freq = (RATE << FREQ_SHIFT_WAVE) / divisor;
+            channel3_.phase_increment = (RATE << FREQ_SHIFT_WAVE) / divisor;
         }
         
         // Trigger: restart channel
         if (value & TRIGGER_BIT) {
-            if (!channel3_.on) channel3_.pos = 0;
-            channel3_.cnt = 0;
+            if (!channel3_.on) channel3_.phase_position = 0;
+            channel3_.length_counter = 0;
             channel3_.on = channel3_.dac_enabled;
         }
         return;
@@ -748,25 +752,25 @@ void APU::write_register(u16 address, u8 value) {
     // Channel 4: Sound length (NR41)
     if (address == REG_NR41) {
         // Convert length (0-63) to cycle count
-        channel4_.len = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
+        channel4_.length_threshold = (LENGTH_MAX_64 - (value & LENGTH_MASK)) << LENGTH_SHIFT;
         return;
     }
     // Channel 4: Volume envelope (NR42)
     if (address == REG_NR42) {
         // Set current and initial volume
-        channel4_.envol = (value >> VOLUME_SHIFT) & VOLUME_MASK;
-        channel4_.initial_volume = channel4_.envol;
+        channel4_.envelope_volume = (value >> VOLUME_SHIFT) & VOLUME_MASK;
+        channel4_.initial_volume = channel4_.envelope_volume;
         
         // Store envelope parameters for trigger
         channel4_.envelope_direction = (value >> ENVELOPE_DIRECTION_SHIFT) & SWEEP_DIRECTION_MASK;
         channel4_.envelope_period = value & ENVELOPE_MASK;
         
         // Envelope direction: convert 0/1 to -1/+1
-        channel4_.endir = channel4_.envelope_direction;
-        channel4_.endir |= channel4_.endir - 1;
+        channel4_.envelope_direction_state = channel4_.envelope_direction;
+        channel4_.envelope_direction_state |= channel4_.envelope_direction_state - 1;
         
         // Convert envelope period to cycle threshold
-        channel4_.enlen = channel4_.envelope_period << ENVELOPE_SHIFT;
+        channel4_.envelope_threshold = channel4_.envelope_period << ENVELOPE_SHIFT;
         channel4_.dac_enabled = (value & DAC_ENABLE_MASK) != 0;
         return;
     }
@@ -775,7 +779,7 @@ void APU::write_register(u16 address, u8 value) {
         channel4_.clock_shift = (value >> CLOCK_SHIFT_SHIFT) & CLOCK_SHIFT_MASK;
         channel4_.width_mode = (value >> WIDTH_MODE_SHIFT) & WIDTH_MODE_MASK;
         channel4_.divisor_code = value & DIVISOR_CODE_MASK;
-        channel4_.freq = calculate_noise_frequency(channel4_.divisor_code, channel4_.clock_shift);
+        channel4_.phase_increment = calculate_noise_frequency(channel4_.divisor_code, channel4_.clock_shift);
         return;
     }
     // Channel 4: Length enable and trigger (NR44)
@@ -784,13 +788,13 @@ void APU::write_register(u16 address, u8 value) {
         
         // Trigger: restart channel
         if (value & TRIGGER_BIT) {
-            channel4_.envol = channel4_.initial_volume;
-            channel4_.endir = (channel4_.envelope_direction) ? 1 : -1;
-            channel4_.enlen = channel4_.envelope_period << ENVELOPE_SHIFT;
+            channel4_.envelope_volume = channel4_.initial_volume;
+            channel4_.envelope_direction_state = (channel4_.envelope_direction) ? 1 : -1;
+            channel4_.envelope_threshold = channel4_.envelope_period << ENVELOPE_SHIFT;
             channel4_.on = channel4_.dac_enabled;
-            channel4_.pos = 0;
-            channel4_.cnt = 0;
-            channel4_.encnt = 0;
+            channel4_.phase_position = 0;
+            channel4_.length_counter = 0;
+            channel4_.envelope_counter = 0;
             channel4_.lfsr = LFSR_INIT;
         }
         return;
@@ -890,17 +894,17 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(channel1_.length_enable ? 1 : 0);
     data.push_back(channel1_.dac_enabled ? 1 : 0);
     data.push_back(channel1_.on ? 1 : 0);
-    serialize_i32(channel1_.pos, data);
-    serialize_i32(channel1_.freq, data);
-    serialize_i32(channel1_.cnt, data);
-    serialize_i32(channel1_.len, data);
-    serialize_i32(channel1_.encnt, data);
-    serialize_i32(channel1_.enlen, data);
-    serialize_i32(channel1_.endir, data);
-    serialize_i32(channel1_.envol, data);
-    serialize_i32(channel1_.swcnt, data);
-    serialize_i32(channel1_.swlen, data);
-    serialize_i32(channel1_.swfreq, data);
+    serialize_i32(channel1_.phase_position, data);
+    serialize_i32(channel1_.phase_increment, data);
+    serialize_i32(channel1_.length_counter, data);
+    serialize_i32(channel1_.length_threshold, data);
+    serialize_i32(channel1_.envelope_counter, data);
+    serialize_i32(channel1_.envelope_threshold, data);
+    serialize_i32(channel1_.envelope_direction_state, data);
+    serialize_i32(channel1_.envelope_volume, data);
+    serialize_i32(channel1_.sweep_counter, data);
+    serialize_i32(channel1_.sweep_threshold, data);
+    serialize_i32(channel1_.sweep_frequency, data);
     
     // Channel 2 state
     data.push_back(channel2_.wave_duty);
@@ -911,14 +915,14 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(channel2_.length_enable ? 1 : 0);
     data.push_back(channel2_.dac_enabled ? 1 : 0);
     data.push_back(channel2_.on ? 1 : 0);
-    serialize_i32(channel2_.pos, data);
-    serialize_i32(channel2_.freq, data);
-    serialize_i32(channel2_.cnt, data);
-    serialize_i32(channel2_.len, data);
-    serialize_i32(channel2_.encnt, data);
-    serialize_i32(channel2_.enlen, data);
-    serialize_i32(channel2_.endir, data);
-    serialize_i32(channel2_.envol, data);
+    serialize_i32(channel2_.phase_position, data);
+    serialize_i32(channel2_.phase_increment, data);
+    serialize_i32(channel2_.length_counter, data);
+    serialize_i32(channel2_.length_threshold, data);
+    serialize_i32(channel2_.envelope_counter, data);
+    serialize_i32(channel2_.envelope_threshold, data);
+    serialize_i32(channel2_.envelope_direction_state, data);
+    serialize_i32(channel2_.envelope_volume, data);
     
     // Channel 3 state
     data.push_back(channel3_.output_level);
@@ -926,10 +930,10 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(channel3_.length_enable ? 1 : 0);
     data.push_back(channel3_.dac_enabled ? 1 : 0);
     data.push_back(channel3_.on ? 1 : 0);
-    serialize_i32(channel3_.pos, data);
-    serialize_i32(channel3_.freq, data);
-    serialize_i32(channel3_.cnt, data);
-    serialize_i32(channel3_.len, data);
+    serialize_i32(channel3_.phase_position, data);
+    serialize_i32(channel3_.phase_increment, data);
+    serialize_i32(channel3_.length_counter, data);
+    serialize_i32(channel3_.length_threshold, data);
     
     // Channel 4 state
     data.push_back(channel4_.initial_volume);
@@ -942,14 +946,14 @@ void APU::serialize(std::vector<u8>& data) const
     data.push_back(channel4_.dac_enabled ? 1 : 0);
     data.push_back(channel4_.on ? 1 : 0);
     serialize_u16(channel4_.lfsr, data);
-    serialize_i32(channel4_.pos, data);
-    serialize_i32(channel4_.freq, data);
-    serialize_i32(channel4_.cnt, data);
-    serialize_i32(channel4_.len, data);
-    serialize_i32(channel4_.encnt, data);
-    serialize_i32(channel4_.enlen, data);
-    serialize_i32(channel4_.endir, data);
-    serialize_i32(channel4_.envol, data);
+    serialize_i32(channel4_.phase_position, data);
+    serialize_i32(channel4_.phase_increment, data);
+    serialize_i32(channel4_.length_counter, data);
+    serialize_i32(channel4_.length_threshold, data);
+    serialize_i32(channel4_.envelope_counter, data);
+    serialize_i32(channel4_.envelope_threshold, data);
+    serialize_i32(channel4_.envelope_direction_state, data);
+    serialize_i32(channel4_.envelope_volume, data);
 }
 
 void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
@@ -964,7 +968,12 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     constexpr size_t CH4_BYTES = 43;       // 6 u8 + 3 bool + 1 u16 + 8 i32
     constexpr size_t APU_STATE_SIZE = CTRL_BYTES + WAVE_RAM_BYTES + CYCLE_ACC_BYTES
         + CH1_BYTES + CH2_BYTES + CH3_BYTES + CH4_BYTES;
-    if (offset + APU_STATE_SIZE > data_size) return;
+    if (offset + APU_STATE_SIZE > data_size) {
+        std::cerr << "APU deserialize: expected " << APU_STATE_SIZE
+                  << " bytes at offset " << offset
+                  << ", but only " << (data_size - offset) << " remain" << std::endl;
+        return;
+    }
 
     // Control registers
     nr50_ = data[offset++];
@@ -990,17 +999,17 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     channel1_.length_enable = data[offset++] != 0;
     channel1_.dac_enabled = data[offset++] != 0;
     channel1_.on = data[offset++] != 0;
-    channel1_.pos = deserialize_i32(data, offset);
-    channel1_.freq = deserialize_i32(data, offset);
-    channel1_.cnt = deserialize_i32(data, offset);
-    channel1_.len = deserialize_i32(data, offset);
-    channel1_.encnt = deserialize_i32(data, offset);
-    channel1_.enlen = deserialize_i32(data, offset);
-    channel1_.endir = deserialize_i32(data, offset);
-    channel1_.envol = deserialize_i32(data, offset);
-    channel1_.swcnt = deserialize_i32(data, offset);
-    channel1_.swlen = deserialize_i32(data, offset);
-    channel1_.swfreq = deserialize_i32(data, offset);
+    channel1_.phase_position = deserialize_i32(data, offset);
+    channel1_.phase_increment = deserialize_i32(data, offset);
+    channel1_.length_counter = deserialize_i32(data, offset);
+    channel1_.length_threshold = deserialize_i32(data, offset);
+    channel1_.envelope_counter = deserialize_i32(data, offset);
+    channel1_.envelope_threshold = deserialize_i32(data, offset);
+    channel1_.envelope_direction_state = deserialize_i32(data, offset);
+    channel1_.envelope_volume = deserialize_i32(data, offset);
+    channel1_.sweep_counter = deserialize_i32(data, offset);
+    channel1_.sweep_threshold = deserialize_i32(data, offset);
+    channel1_.sweep_frequency = deserialize_i32(data, offset);
     
     // Channel 2 state
     channel2_.wave_duty = data[offset++];
@@ -1011,14 +1020,14 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     channel2_.length_enable = data[offset++] != 0;
     channel2_.dac_enabled = data[offset++] != 0;
     channel2_.on = data[offset++] != 0;
-    channel2_.pos = deserialize_i32(data, offset);
-    channel2_.freq = deserialize_i32(data, offset);
-    channel2_.cnt = deserialize_i32(data, offset);
-    channel2_.len = deserialize_i32(data, offset);
-    channel2_.encnt = deserialize_i32(data, offset);
-    channel2_.enlen = deserialize_i32(data, offset);
-    channel2_.endir = deserialize_i32(data, offset);
-    channel2_.envol = deserialize_i32(data, offset);
+    channel2_.phase_position = deserialize_i32(data, offset);
+    channel2_.phase_increment = deserialize_i32(data, offset);
+    channel2_.length_counter = deserialize_i32(data, offset);
+    channel2_.length_threshold = deserialize_i32(data, offset);
+    channel2_.envelope_counter = deserialize_i32(data, offset);
+    channel2_.envelope_threshold = deserialize_i32(data, offset);
+    channel2_.envelope_direction_state = deserialize_i32(data, offset);
+    channel2_.envelope_volume = deserialize_i32(data, offset);
     
     // Channel 3 state
     channel3_.output_level = data[offset++];
@@ -1026,10 +1035,10 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     channel3_.length_enable = data[offset++] != 0;
     channel3_.dac_enabled = data[offset++] != 0;
     channel3_.on = data[offset++] != 0;
-    channel3_.pos = deserialize_i32(data, offset);
-    channel3_.freq = deserialize_i32(data, offset);
-    channel3_.cnt = deserialize_i32(data, offset);
-    channel3_.len = deserialize_i32(data, offset);
+    channel3_.phase_position = deserialize_i32(data, offset);
+    channel3_.phase_increment = deserialize_i32(data, offset);
+    channel3_.length_counter = deserialize_i32(data, offset);
+    channel3_.length_threshold = deserialize_i32(data, offset);
     
     // Channel 4 state
     channel4_.initial_volume = data[offset++];
@@ -1042,14 +1051,14 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     channel4_.dac_enabled = data[offset++] != 0;
     channel4_.on = data[offset++] != 0;
     channel4_.lfsr = deserialize_u16(data, offset);
-    channel4_.pos = deserialize_i32(data, offset);
-    channel4_.freq = deserialize_i32(data, offset);
-    channel4_.cnt = deserialize_i32(data, offset);
-    channel4_.len = deserialize_i32(data, offset);
-    channel4_.encnt = deserialize_i32(data, offset);
-    channel4_.enlen = deserialize_i32(data, offset);
-    channel4_.endir = deserialize_i32(data, offset);
-    channel4_.envol = deserialize_i32(data, offset);
+    channel4_.phase_position = deserialize_i32(data, offset);
+    channel4_.phase_increment = deserialize_i32(data, offset);
+    channel4_.length_counter = deserialize_i32(data, offset);
+    channel4_.length_threshold = deserialize_i32(data, offset);
+    channel4_.envelope_counter = deserialize_i32(data, offset);
+    channel4_.envelope_threshold = deserialize_i32(data, offset);
+    channel4_.envelope_direction_state = deserialize_i32(data, offset);
+    channel4_.envelope_volume = deserialize_i32(data, offset);
     
     // Clear audio buffer on load
     audio_buffer_.clear();
