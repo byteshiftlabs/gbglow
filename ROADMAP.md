@@ -224,9 +224,8 @@ Implement all 256 base opcodes and 256 CB-prefixed opcodes for the Sharp LR35902
 
 ### Documentation
 - Comprehensive Sphinx documentation added:
-  - Implementation guide in `docs/sphinx/implementation/index.rst`
-  - Architecture details in `docs/sphinx/architecture/ppu.rst`
-  - Memory architecture in `docs/sphinx/architecture/memory.rst`
+  - Architecture details in `docs/architecture/ppu.rst`
+  - Memory architecture in `docs/architecture/memory.rst`
 - Complete code examples with hardware algorithm explanation
 - Testing tips and debugging guidance
 - Common pitfalls documented
@@ -675,7 +674,7 @@ The APU uses phase-based sample generation:
 - **Single `on` flag:** Instead of separate enabled/dac_enabled checks
 - **Envelope/sweep inline:** Applied during sample generation, not separate step()
 
-See `docs/architecture/apu.md` for detailed implementation notes and lessons learned.
+See `docs/architecture/apu.rst` for detailed implementation notes and lessons learned.
 
 ### Acceptance Criteria
 - ✅ All 4 channels have register support
@@ -695,9 +694,9 @@ See `docs/architecture/apu.md` for detailed implementation notes and lessons lea
 **Priority:** LOW - Quality of life improvements
 
 ### Requirements
-- Save states
-- Debugger integration
-- Memory viewer
+- ✅ Save states
+- ✅ Debugger integration
+- ✅ Memory viewer
 - Extended test suite
 
 ---
@@ -718,14 +717,14 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 10. ✅ **Phase 13: Input Integration** - COMPLETE
 11. ✅ **Phase 14: Game Loop** - COMPLETE 🎉
 12. ✅ **Phase 15: Window Layer** - COMPLETE 🎉
-13. 🎨 **Phase 16: Color Support (GBC)** - Optional for DMG games
+13. ✅ **Phase 16: Color Support (GBC)** - COMPLETE 🎉
 14. ✅ **Phase 17: Save File Support** - COMPLETE 🎉
 15. ✅ **Phase 18: Audio** - COMPLETE (SDL2 output) 🎉
 
 **Current Status:** 🎉 PLAYABLE! All core systems complete. Next: Optional enhancements
 
 **Minimum for Playable Pokémon:** ✅ COMPLETE (Phases 1-14)
-**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18) - ALL COMPLETE except Color (16)
+**After MVP:** Window Layer (15), Color Support (16), Save Files (17), Audio (18) - ALL COMPLETE
 
 ---
 
@@ -745,12 +744,12 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 13: Input Integration | ✅ Complete | 100% |
 | 14: Game Loop | ✅ Complete | 100% |
 | 15: Window Layer | ✅ Complete | 100% |
-| 16: Color Support | ⏳ Future | 0% |
+| 16: Color Support | ✅ Complete | 100% |
 | 17: Save Files | ✅ Complete | 100% |
 | 18: Audio | ✅ Complete | 100% |
-| 19: Polish | ⏳ Future | 0% |
+| 19: Polish | ⏳ In Progress | 75% |
 
-**Overall Progress: ~95%** 🎉 (MVP+ Window, Saves, Audio COMPLETE - Fully playable with audio! Only Color GBC and Polish remain)
+**Overall Progress: ~98%** 🎉 (All core phases 1-18 COMPLETE - Fully playable with audio and CGB color! Only Polish remains)
 
 ---
 
@@ -820,4 +819,4 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ---
 
 **Last Updated:** December 21, 2025
-**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-15, 17-18) with full audio and sprites. Optional: Color GBC (16), Polish (19)
+**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-18) with full audio, sprites, and CGB color. Optional: Polish (19)

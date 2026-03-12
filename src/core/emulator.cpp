@@ -54,6 +54,7 @@ bool Emulator::load_rom(const std::string& path) {
         reset();
         return true;
     } catch (const std::exception& e) {
+        std::cerr << "Failed to load ROM: " << e.what() << std::endl;
         return false;
     }
 }

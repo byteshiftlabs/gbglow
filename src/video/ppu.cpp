@@ -8,14 +8,15 @@
 #include <algorithm>
 
 #include "../core/memory.h"
+#include "../core/io_registers.h"
 #include "../cartridge/cartridge.h"
 
 namespace gbglow {
 
+using namespace io_reg;
+
 // Hardware constants
 namespace {
-    constexpr int SCREEN_WIDTH = 160;
-    constexpr int SCREEN_HEIGHT = 144;
     constexpr int TILE_SIZE = 8;
     constexpr int TILEMAP_WIDTH = 32;  // Background map is 32x32 tiles
     constexpr int BYTES_PER_TILE = 16; // Each tile is 16 bytes (8x8 pixels, 2bpp)
@@ -31,19 +32,6 @@ namespace {
     constexpr u8 LCDC_WINDOW_ENABLE_BIT = 0x20;
     constexpr u8 LCDC_WINDOW_TILEMAP_BIT = 0x40;
     constexpr u8 LCDC_LCD_ENABLE_BIT = 0x80;
-    
-    // Register addresses
-    constexpr u16 REG_LCDC = 0xFF40;
-    constexpr u16 REG_STAT = 0xFF41;
-    constexpr u16 REG_SCY = 0xFF42;
-    constexpr u16 REG_SCX = 0xFF43;
-    constexpr u16 REG_LY = 0xFF44;
-    constexpr u16 REG_BGP = 0xFF47;
-    constexpr u16 REG_OBP0 = 0xFF48;
-    constexpr u16 REG_OBP1 = 0xFF49;
-    constexpr u16 REG_WY = 0xFF4A;
-    constexpr u16 REG_WX = 0xFF4B;
-    constexpr u16 REG_IF = 0xFF0F;
     
     // Palette manipulation
     constexpr u8 PALETTE_MASK = 0x03;
@@ -89,9 +77,6 @@ namespace {
     constexpr u8 CGB_ATTR_X_FLIP_BIT = 0x20;    // Bit 5: horizontal flip
     constexpr u8 CGB_ATTR_Y_FLIP_BIT = 0x40;    // Bit 6: vertical flip
     constexpr u8 CGB_ATTR_PRIORITY_BIT = 0x80;  // Bit 7: BG-to-OAM priority
-    
-    // CGB register addresses
-    constexpr u16 CGB_VBK = 0xFF4F;  // VRAM bank register
     
     // CGB color constants
     constexpr u8 CGB_PALETTE_SHIFT = 2;         // Shift amount for palette in framebuffer
@@ -266,11 +251,15 @@ void PPU::render_background() {
         bool y_flip = false;
         
         if (is_cgb) {
-            // Temporarily switch to VRAM bank 1 to read attributes
-            u8 saved_bank = memory_.read(CGB_VBK) & BIT_1;
-            memory_.write(CGB_VBK, BIT_1);
+            // CGB tile attributes live in VRAM bank 1.
+            // We temporarily bank-switch via memory_.write(REG_VBK) and
+            // restore the original bank afterward. This is safe because
+            // render_background() runs entirely within the PPU step and
+            // no other subsystem reads VBK concurrently.
+            u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
+            memory_.write(REG_VBK, BIT_1);
             u8 tile_attr = memory_.read(map_addr);
-            memory_.write(CGB_VBK, saved_bank);
+            memory_.write(REG_VBK, saved_bank);
             
             palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
             x_flip = (tile_attr & CGB_ATTR_X_FLIP_BIT) != BIT_0;
@@ -541,7 +530,7 @@ void PPU::clear_frame_ready()
     frame_ready_ = false;
 }
 
-const std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT>& PPU::framebuffer() const
+const std::array<u8, PPU::SCREEN_WIDTH * PPU::SCREEN_HEIGHT>& PPU::framebuffer() const
 {
     return framebuffer_;
 }

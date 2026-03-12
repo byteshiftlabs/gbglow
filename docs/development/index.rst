@@ -12,7 +12,7 @@ Prerequisites
 Required:
 
 * C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-* CMake 3.15 or higher
+* CMake 3.10 or higher
 * Git
 
 Optional:
@@ -25,7 +25,7 @@ Clone Repository
 
 .. code-block:: bash
 
-   git clone https://github.com/cmelnulabs/gbglow.git
+   git clone --recurse-submodules https://github.com/byteshiftlabs/gbglow.git
    cd gbglow
 
 Build Steps

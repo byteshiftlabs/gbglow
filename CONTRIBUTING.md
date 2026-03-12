@@ -77,6 +77,8 @@ If a finding cannot be cleanly fixed (e.g., an intentional public API method tha
 
 Add tests for any new public API in `tests/test_basic.cpp`. Test names follow the pattern `test_<module>_<scenario>_<expected>`.
 
+**Current coverage**: CPU registers, memory read/write, basic instructions, and cartridge loading. PPU rendering, APU audio, and save-state round-trip tests are not yet covered — contributions welcome.
+
 ## Commit Messages
 
 Use the past participle, present tense description:

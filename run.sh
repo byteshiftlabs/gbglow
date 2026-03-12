@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# GBCrush Run Script
+# gbglow Run Script
 # Builds (if needed) and runs the emulator
 
 set -e  # Exit on error
@@ -34,7 +34,7 @@ if [ ! -f "build/gbglow" ]; then
 fi
 
 # Run the emulator
-echo -e "${GREEN}=== Starting GBCrush ===${NC}"
+echo -e "${GREEN}=== Starting gbglow ===${NC}"
 echo -e "${YELLOW}ROM: $ROM_FILE${NC}"
 echo ""
 echo -e "${GREEN}Controls:${NC}"

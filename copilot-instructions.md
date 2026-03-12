@@ -1,6 +1,6 @@
 # gbglow Project-Specific Standards
 
-For general coding guidelines (code review, architecture, error handling, documentation, etc.), follow the shared prompts in `ai-dev-prompts/`.
+For general coding guidelines (code review, architecture, error handling, documentation, etc.), follow the shared prompts in [ai-dev-prompts](https://github.com/byteshiftlabs/ai-dev-prompts).
 
 This file covers **gbglow-specific** conventions only.
 
@@ -20,7 +20,7 @@ This file covers **gbglow-specific** conventions only.
 Use the project-defined fixed-width types from `types.h`:
 - `u8`, `u16`, `u32`, `u64` for unsigned
 - `i8`, `i16`, `i32`, `i64` for signed
-- `Cycles` for cycle counts, `Address` for memory addresses
+- `Cycles` for cycle counts
 
 ## Hardware Emulation Patterns
 

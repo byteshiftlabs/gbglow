@@ -4,16 +4,15 @@
 
 #include "emulator.h"
 #include "timer.h"
+#include "io_registers.h"
+#include "../audio/apu.h"
 #include <iostream>
 #include <fstream>
 #include <cstdio>
 
 namespace gbglow {
 
-namespace {
-    constexpr u16 WRAM_START = 0xC000;
-    constexpr u16 WRAM_END   = 0xE000;
-} // anonymous namespace
+using namespace io_reg;
 
 std::string Emulator::get_save_path() const
 {
@@ -42,52 +41,32 @@ bool Emulator::save_state(int slot) {
         return false;
     }
     
-    // Write header with version (no null terminator, so load reads exact same bytes)
-    const char header[] = "GBGLOW_STATE_V2";
+    // Write header with version (no null terminator)
+    const char header[] = "GBGLOW_STATE_V3";
     file.write(header, sizeof(header) - 1);
     
-    // Save CPU state (registers)
-    const auto& regs = cpu_->registers();
-    file.write(reinterpret_cast<const char*>(&regs.a), sizeof(regs.a));
-    file.write(reinterpret_cast<const char*>(&regs.f), sizeof(regs.f));
-    file.write(reinterpret_cast<const char*>(&regs.b), sizeof(regs.b));
-    file.write(reinterpret_cast<const char*>(&regs.c), sizeof(regs.c));
-    file.write(reinterpret_cast<const char*>(&regs.d), sizeof(regs.d));
-    file.write(reinterpret_cast<const char*>(&regs.e), sizeof(regs.e));
-    file.write(reinterpret_cast<const char*>(&regs.h), sizeof(regs.h));
-    file.write(reinterpret_cast<const char*>(&regs.l), sizeof(regs.l));
-    file.write(reinterpret_cast<const char*>(&regs.sp), sizeof(regs.sp));
-    file.write(reinterpret_cast<const char*>(&regs.pc), sizeof(regs.pc));
+    // Serialize all components into a single buffer
+    std::vector<u8> state_data;
     
-    // Save CPU flags
-    bool ime = cpu_->ime();
-    bool halted = cpu_->is_halted();
-    file.write(reinterpret_cast<const char*>(&ime), sizeof(ime));
-    file.write(reinterpret_cast<const char*>(&halted), sizeof(halted));
+    // CPU state (registers + flags)
+    cpu_->serialize(state_data);
     
-    // Save memory state using Memory's serialize method
-    std::vector<u8> mem_data;
-    memory_->serialize(mem_data);
-    size_t mem_size = mem_data.size();
-    file.write(reinterpret_cast<const char*>(&mem_size), sizeof(mem_size));
-    file.write(reinterpret_cast<const char*>(mem_data.data()), mem_data.size());
+    // Memory state (VRAM, WRAM, OAM, HRAM, IO, cartridge RAM)
+    memory_->serialize(state_data);
     
-    // Save PPU state
-    u8 ly = ppu_->scanline();
-    u8 mode = static_cast<u8>(ppu_->mode());
-    file.write(reinterpret_cast<const char*>(&ly), sizeof(ly));
-    file.write(reinterpret_cast<const char*>(&mode), sizeof(mode));
+    // PPU state (mode, dots, ly, palettes, etc.)
+    ppu_->serialize(state_data);
     
-    // Save Timer state
-    const Timer& timer = memory_->timer();
-    u8 div = timer.read_div();
-    u8 tima = timer.read_tima();
-    u8 tma = timer.read_tma();
-    u8 tac = timer.read_tac();
-    file.write(reinterpret_cast<const char*>(&div), sizeof(div));
-    file.write(reinterpret_cast<const char*>(&tima), sizeof(tima));
-    file.write(reinterpret_cast<const char*>(&tma), sizeof(tma));
-    file.write(reinterpret_cast<const char*>(&tac), sizeof(tac));
+    // APU state (all channels, wave RAM, control registers)
+    memory_->apu().serialize(state_data);
+    
+    // Timer state (registers + internal counters)
+    memory_->timer().serialize(state_data);
+    
+    // Write serialized data with size prefix
+    size_t data_size = state_data.size();
+    file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+    file.write(reinterpret_cast<const char*>(state_data.data()), state_data.size());
     
     file.close();
     return true;
@@ -105,14 +84,15 @@ bool Emulator::load_state(int slot) {
         return false;
     }
     
-    // Verify header - support GBGLOW V1/V2 and legacy GBCRUSH V1/V2
-    // New format: 15 bytes, no null terminator ("GBGLOW_STATE_V2")
+    // Verify header - support GBGLOW V1/V2/V3 and legacy GBCRUSH V1/V2
+    // New format: 15 bytes, no null terminator ("GBGLOW_STATE_V3")
     // Old format: 16 bytes + 1 trailing null written by buggy code ("GBCRUSH_STATE_V2\0")
     char header[18] = {0};
     file.read(header, 15);
     std::string header_str(header, 15);
 
-    if (header_str != "GBGLOW_STATE_V2" && header_str != "GBGLOW_STATE_V1") {
+    if (header_str != "GBGLOW_STATE_V3" && header_str != "GBGLOW_STATE_V2"
+        && header_str != "GBGLOW_STATE_V1") {
         // Try reading 1 more byte to complete a potential 16-char GBCRUSH magic
         char extra = 0;
         file.read(&extra, 1);
@@ -130,8 +110,38 @@ bool Emulator::load_state(int slot) {
         }
     }
 
-    if (header_str == "GBGLOW_STATE_V2") {
-        // Load V2 format with full state
+    if (header_str == "GBGLOW_STATE_V3") {
+        // V3 format: unified serialization via component serialize/deserialize
+        size_t data_size;
+        file.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
+        
+        // Validate data size (expected ~25KB+ for full state)
+        constexpr size_t MAX_VALID_SIZE = 512 * 1024;  // 512KB sanity limit
+        if (data_size == 0 || data_size > MAX_VALID_SIZE) {
+            std::cerr << "Corrupt save state: invalid data size " << data_size << std::endl;
+            file.close();
+            return false;
+        }
+        
+        std::vector<u8> state_data(data_size);
+        file.read(reinterpret_cast<char*>(state_data.data()), data_size);
+        
+        if (!file.good()) {
+            std::cerr << "Corrupt save state: truncated data" << std::endl;
+            file.close();
+            return false;
+        }
+        
+        size_t offset = 0;
+        cpu_->deserialize(state_data.data(), state_data.size(), offset);
+        memory_->deserialize(state_data.data(), state_data.size(), offset);
+        ppu_->deserialize(state_data.data(), state_data.size(), offset);
+        memory_->apu().deserialize(state_data.data(), state_data.size(), offset);
+        memory_->timer().deserialize(state_data.data(), state_data.size(), offset);
+        
+    } else if (header_str == "GBGLOW_STATE_V2") {
+        // Legacy V2 format — manual field-by-field serialization
+        // Kept for backward compatibility with existing save states
         
         // Load CPU state
         auto& regs = cpu_->registers();
@@ -184,8 +194,8 @@ bool Emulator::load_state(int slot) {
         u8 ly, mode;
         file.read(reinterpret_cast<char*>(&ly), sizeof(ly));
         file.read(reinterpret_cast<char*>(&mode), sizeof(mode));
-        // Note: PPU state restoration would require setters in PPU class
-        // For now, we rely on memory state which includes LCD registers
+        ppu_->set_ly(ly);
+        ppu_->set_mode(mode);
         
         // Load Timer state
         u8 div, tima, tma, tac;
