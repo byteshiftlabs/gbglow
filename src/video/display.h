@@ -57,6 +57,12 @@ public:
     void queue_audio(const std::vector<std::pair<u8, u8>>& samples);
     
     /**
+     * Get the size of the audio queue in bytes
+     * Used for audio-based synchronization
+     */
+    unsigned int get_audio_queue_size() const;
+    
+    /**
      * Check if window should close
      */
     bool should_close() const;

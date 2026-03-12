@@ -3,6 +3,7 @@
 #include "types.h"
 #include "registers.h"
 #include "memory.h"
+#include <vector>
 
 namespace emugbc {
 
@@ -48,9 +49,14 @@ public:
     
     // Check if CPU is halted
     bool is_halted() const;
+    void set_halted(bool value);
     
     // Interrupt management
     void request_interrupt(u8 interrupt_bit);
+    
+    // Serialization for save states
+    void serialize(std::vector<u8>& data) const;
+    void deserialize(const u8* data, size_t& offset);
     
 private:
     Registers regs_;

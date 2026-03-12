@@ -273,4 +273,57 @@ void CPU::alu_dec(u8& reg)
     // Carry flag is not affected
 }
 
+void CPU::set_halted(bool value)
+{
+    halted_ = value;
+}
+
+// ============================================================================
+// Serialization for Save States
+// ============================================================================
+
+void CPU::serialize(std::vector<u8>& data) const
+{
+    // Registers (12 bytes total)
+    data.push_back(regs_.a);
+    data.push_back(regs_.f);
+    data.push_back(regs_.b);
+    data.push_back(regs_.c);
+    data.push_back(regs_.d);
+    data.push_back(regs_.e);
+    data.push_back(regs_.h);
+    data.push_back(regs_.l);
+    data.push_back(static_cast<u8>(regs_.sp & 0xFF));
+    data.push_back(static_cast<u8>((regs_.sp >> 8) & 0xFF));
+    data.push_back(static_cast<u8>(regs_.pc & 0xFF));
+    data.push_back(static_cast<u8>((regs_.pc >> 8) & 0xFF));
+    
+    // CPU flags (3 bytes)
+    data.push_back(ime_ ? 1 : 0);
+    data.push_back(halted_ ? 1 : 0);
+    data.push_back(stopped_ ? 1 : 0);
+}
+
+void CPU::deserialize(const u8* data, size_t& offset)
+{
+    // Registers
+    regs_.a = data[offset++];
+    regs_.f = data[offset++];
+    regs_.b = data[offset++];
+    regs_.c = data[offset++];
+    regs_.d = data[offset++];
+    regs_.e = data[offset++];
+    regs_.h = data[offset++];
+    regs_.l = data[offset++];
+    regs_.sp = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+    regs_.pc = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+    
+    // CPU flags
+    ime_ = data[offset++] != 0;
+    halted_ = data[offset++] != 0;
+    stopped_ = data[offset++] != 0;
+}
+
 } // namespace emugbc
