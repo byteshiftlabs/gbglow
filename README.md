@@ -7,7 +7,7 @@ A cycle-accurate Game Boy Color emulator written in C++17, designed for clarity,
 
 ## Overview
 
-gbglow emulates the Nintendo Game Boy Color hardware at the cycle level, running commercial ROMs including Pokémon titles. The codebase is structured as a reference implementation: every component maps directly to a real hardware block, with inline documentation explaining the hardware behaviour behind each implementation decision.
+gbglow emulates the Nintendo Game Boy Color hardware at the cycle level, running commercial ROMs including Pokémon titles and Kirby Star Stacker. The codebase is structured as a reference implementation: every component maps directly to a real hardware block, with inline documentation explaining the hardware behaviour behind each implementation decision.
 
 Key components: Sharp LR35902 CPU (~180 opcodes + full CB prefix), Picture Processing Unit (DMG and CGB palette modes), 4-channel APU, MBC1/MBC3/MBC5 cartridge support with battery-backed saves, and a built-in step debugger with ImGui overlay.
 
