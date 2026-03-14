@@ -114,7 +114,7 @@ public:
      * @param slot Slot number (0-9)
      * @return true if loaded successfully
      */
-    bool load_state(int slot);
+    [[nodiscard]] bool load_state(int slot);
     
     /**
      * Delete emulator state file
