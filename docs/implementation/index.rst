@@ -280,8 +280,7 @@ Test Levels
 ~~~~~~~~~~~
 
 1. **Unit Tests**: Individual component behavior
-2. **Integration Tests**: Components working together  
-3. **ROM Tests**: Run actual Game Boy ROMs
+2. **ROM Tests**: Run actual Game Boy ROMs
 
 Current Coverage
 ~~~~~~~~~~~~~~~~
@@ -311,15 +310,9 @@ Known Limitations
 Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
-* Sprite rendering
-* Window layer
-* LCD STAT interrupt modes
-* Timer interrupt
 * Serial communication
-* Audio Processing Unit
-* Game Boy Color features
-* MBC3/MBC5 cartridges
-* Save states
+* Game Boy Color features (CGB palette rendering, VRAM banking)
+* Pixel FIFO (currently renders entire scanline at once)
 
 Accuracy Issues
 ~~~~~~~~~~~~~~~
@@ -341,48 +334,21 @@ Will Not Implement
 Future Roadmap
 --------------
 
-Phase 3: Sprite Rendering
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Phase A: CGB Support
+~~~~~~~~~~~~~~~~~~~~
 
-* OAM search implementation
-* Sprite priority handling
-* 8x8 and 8x16 sprite modes
-* Sprite-background priority
+* CGB palette rendering pipeline
+* VRAM banking (bank 0/1)
+* Double-speed mode
 
-Phase 4: Complete PPU
-~~~~~~~~~~~~~~~~~~~~~~
+Phase B: Pixel FIFO
+~~~~~~~~~~~~~~~~~~~~
 
-* Window layer rendering
-* Pixel FIFO implementation
+* Pixel-by-pixel rendering
 * Mid-scanline effects
-* LCD STAT interrupt modes
+* Accurate mode 3 length variation
 
-Phase 5: Complete Interrupts
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-* Timer interrupt
-* Serial interrupt
-* Joypad interrupt
-* Proper interrupt timing
-
-Phase 6: Audio
-~~~~~~~~~~~~~~
-
-* Sound channels 1-4
-* Audio mixer
-* Sample generation
-* Volume/envelope control
-
-Phase 7: Advanced Features
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-* Game Boy Color support
-* MBC3/MBC5 cartridges
-* Save states
-* Rewind feature
-* Debugger interface
-
-Phase 8: Optimization
+Phase C: Optimization
 ~~~~~~~~~~~~~~~~~~~~~
 
 * Profile-guided optimization

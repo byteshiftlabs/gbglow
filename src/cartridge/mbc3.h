@@ -37,6 +37,9 @@ public:
     u8 read(u16 address) const override;
     void write(u16 address, u8 value) override;
     
+    void serialize(std::vector<u8>& data) const override;
+    void deserialize(const u8* data, size_t data_size, size_t& offset) override;
+    
     /**
      * Save RAM and RTC state to file
      */

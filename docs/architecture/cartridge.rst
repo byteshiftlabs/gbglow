@@ -276,7 +276,8 @@ Enhanced MBC with optional Real-Time Clock (RTC).
    * 0x0B: Days (lower 8 bits)
    * 0x0C: Days (upper 1 bit) + Halt + Carry
 
-**Note**: RTC not yet implemented in gbglow.
+RTC is fully implemented: the clock updates from the system clock on
+each ``read()`` and is persisted through ``.sav`` files and save states.
 
 MBC5 - Memory Bank Controller 5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -297,7 +298,8 @@ Most advanced MBC, used in later games.
    0x3000-0x3FFF: ROM Bank (9th bit)
    0x4000-0x5FFF: RAM Bank
 
-**Note**: MBC5 not yet implemented in gbglow.
+MBC5 is fully implemented with 9-bit bank selection and optional
+rumble motor support.
 
 Implementation
 --------------
@@ -416,10 +418,17 @@ Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
 * MBC2 (built-in RAM)
-* MBC3 (RTC support)
-* MBC5 (9-bit banking)
 * MBC6 (flash memory)
 * MBC7 (accelerometer)
 * HuC1/HuC3 (IR communication)
 * MMM01 (multi-game)
 * Camera cartridge
+
+Implemented Features
+~~~~~~~~~~~~~~~~~~~~
+
+* ✅ MBC1 with ROM/RAM banking modes
+* ✅ MBC3 with Real-Time Clock
+* ✅ MBC5 with 9-bit banking and optional rumble
+* ✅ Battery-backed RAM persistence
+* ✅ MBC state serialization in save states (banking registers, RTC)

@@ -30,6 +30,9 @@ Class Declaration
 
        std::vector<u8> get_ram_data() const;
        void set_ram_data(const std::vector<u8>& data);
+
+       virtual void serialize(std::vector<u8>& data) const;
+       virtual void deserialize(const u8* data, size_t data_size, size_t& offset);
    };
 
 Factory Method
@@ -66,3 +69,16 @@ Save RAM
 Writes/reads battery-backed RAM to/from a ``.sav`` file. Only
 meaningful for cartridge types with battery support
 (``has_battery() == true``).
+
+Serialization
+-------------
+
+.. code-block:: cpp
+
+   virtual void serialize(std::vector<u8>& data) const;
+   virtual void deserialize(const u8* data, size_t data_size, size_t& offset);
+
+Saves/restores cartridge state for save-state support. The base class
+serializes RAM with a ``u32`` LE size prefix. MBC subclasses override
+to also save and restore banking registers (ROM/RAM bank numbers,
+RAM-enable flag, banking mode, and MBC3 RTC state).
