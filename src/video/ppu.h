@@ -107,6 +107,7 @@ private:
     u16 dots_;           // Dot counter within current scanline
     u8 ly_;              // Current scanline (LY register)
     bool frame_ready_;
+    bool lcd_was_on_;     // Tracks LCD enable state for edge detection
     
     // Framebuffer: SCREEN_WIDTH x SCREEN_HEIGHT pixels, each pixel is 0-3 (grayscale)
     std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT> framebuffer_;
@@ -159,9 +160,13 @@ private:
     
     // Tile data
     u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const;
-    
+
     // CGB Color conversion
     void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const;
+
+    // STAT interrupt helpers
+    void check_stat_interrupt(u8 stat_enable_bit);  // Fire STAT interrupt if given enable bit is set
+    void update_lyc_coincidence();                   // Sync LYC=LY flag and fire if enabled
 };
 
 } // namespace gbglow
