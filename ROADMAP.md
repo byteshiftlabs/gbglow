@@ -795,6 +795,12 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 - Can save game
 - Can load saved game
 
+#### 🔄 Next: Kirby Star Stacker (DMG)
+- Can boot Kirby Star Stacker (`MBC1+RAM+BATTERY`, DMG-only)
+- Title screen displays correctly
+- Gameplay is interactive and responsive
+- No graphical glitches during stacking sequences
+
 ---
 
 ## 🛠️ Development Principles
@@ -818,5 +824,5 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 
 ---
 
-**Last Updated:** December 21, 2025
-**Current Focus:** 🎮 FEATURE COMPLETE! All core phases done (1-18) with full audio, sprites, and CGB color. Optional: Polish (19)
+**Last Updated:** March 14, 2026
+**Current Focus:** 🎮 Testing Kirby Star Stacker (DMG, MBC1+RAM+BATTERY) — validating STAT interrupts, LCD enable gating and timer-driven game logic beyond the Pokémon baseline.
