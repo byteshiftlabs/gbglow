@@ -276,4 +276,37 @@ void ROMOnly::write(u16 address, u8 value) {
     (void)value;
 }
 
+// Cartridge base class serialization — saves RAM with a u32 LE size prefix.
+// MBC subclasses call this first, then append their own banking registers.
+void Cartridge::serialize(std::vector<u8>& data) const
+{
+    const u32 ram_size = static_cast<u32>(ram_.size());
+    data.push_back(static_cast<u8>(ram_size));
+    data.push_back(static_cast<u8>(ram_size >> 8));
+    data.push_back(static_cast<u8>(ram_size >> 16));
+    data.push_back(static_cast<u8>(ram_size >> 24));
+    data.insert(data.end(), ram_.begin(), ram_.end());
+}
+
+void Cartridge::deserialize(const u8* data, size_t data_size, size_t& offset)
+{
+    constexpr size_t RAM_SIZE_FIELD = 4;
+    if (offset + RAM_SIZE_FIELD > data_size) return;
+
+    const u32 ram_size =
+        static_cast<u32>(data[offset])          |
+        (static_cast<u32>(data[offset + 1]) << 8)  |
+        (static_cast<u32>(data[offset + 2]) << 16) |
+        (static_cast<u32>(data[offset + 3]) << 24);
+    offset += RAM_SIZE_FIELD;
+
+    if (offset + ram_size > data_size) return;
+
+    // Only restore if the saved RAM size matches the cartridge's RAM
+    if (ram_size == static_cast<u32>(ram_.size()) && ram_size > 0) {
+        std::copy(data + offset, data + offset + ram_size, ram_.begin());
+    }
+    offset += ram_size;
+}
+
 } // namespace gbglow
