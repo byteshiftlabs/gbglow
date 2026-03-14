@@ -271,6 +271,10 @@ void MBC3::deserialize(const u8* data, size_t data_size, size_t& offset)
     for (int i = 0; i < 8; i++) {
         base_time |= static_cast<int64_t>(data[offset++]) << (i * 8);
     }
+    // Ensure time_t is at least 64-bit so the stored int64_t value is never truncated.
+    // On 32-bit Linux (time_t = int32_t) dates after 2038 would silently wrap.
+    static_assert(sizeof(std::time_t) >= 8,
+        "gbglow savestate: time_t must be 64-bit for MBC3 RTC portability");
     rtc_base_time_ = static_cast<std::time_t>(base_time);
 
     rtc_base_days_ =
