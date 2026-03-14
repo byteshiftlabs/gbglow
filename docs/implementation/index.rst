@@ -280,8 +280,7 @@ Test Levels
 ~~~~~~~~~~~
 
 1. **Unit Tests**: Individual component behavior
-2. **Integration Tests**: Components working together  
-3. **ROM Tests**: Run actual Game Boy ROMs
+2. **ROM Tests**: Run actual Game Boy ROMs
 
 Current Coverage
 ~~~~~~~~~~~~~~~~
