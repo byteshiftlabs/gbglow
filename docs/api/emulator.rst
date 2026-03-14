@@ -31,7 +31,7 @@ Class Declaration
        
        std::string get_save_path() const;
        bool save_state(int slot);
-       bool load_state(int slot);
+       [[nodiscard]] bool load_state(int slot);
        bool delete_state(int slot);
        std::string get_state_path(int slot) const;
        
@@ -320,10 +320,10 @@ Save states include:
 
 * All CPU registers and flags
 * Complete memory state (WRAM, VRAM, HRAM, OAM)
-* PPU scanline and mode
+* PPU scanline, mode, dots, window line counter, CGB palettes
 * Timer registers
 * APU state
-* Cartridge RAM
+* Cartridge RAM and MBC banking registers (including MBC3 RTC)
 
 Performance
 -----------
