@@ -67,7 +67,7 @@ public:
     u8 get_mode() const { return static_cast<u8>(mode_); }
     void set_ly(u8 ly) { ly_ = ly; }
     void set_mode(u8 m) { mode_ = static_cast<Mode>(m); }
-    
+
     // Frame buffer access
     bool frame_ready() const;
     void clear_frame_ready();
@@ -107,6 +107,8 @@ private:
     u16 dots_;           // Dot counter within current scanline
     u8 ly_;              // Current scanline (LY register)
     bool frame_ready_;
+    bool lcd_was_on_;     // Tracks LCD enable state for edge detection
+    bool stat_irq_line_;  // Combined STAT IRQ OR-gate state; interrupt fires only on low→high edge
     
     // Framebuffer: SCREEN_WIDTH x SCREEN_HEIGHT pixels, each pixel is 0-3 (grayscale)
     std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT> framebuffer_;
@@ -159,9 +161,15 @@ private:
     
     // Tile data
     u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const;
-    
+
     // CGB Color conversion
     void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const;
+
+    // STAT interrupt helpers
+    // Recompute the combined STAT IRQ OR-gate and fire IF bit 1 only on a low→high edge.
+    // Must be called after every mode transition and after every REG_STAT / LY change.
+    void update_stat_irq_line();
+    void update_lyc_coincidence();  // Sync LYC=LY flag then call update_stat_irq_line()
 };
 
 } // namespace gbglow
