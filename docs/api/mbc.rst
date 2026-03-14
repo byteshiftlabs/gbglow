@@ -15,6 +15,8 @@ MBC1
        explicit MBC1(std::vector<u8> rom_data, size_t ram_size);
        u8 read(u16 address) const override;
        void write(u16 address, u8 value) override;
+       void serialize(std::vector<u8>& data) const override;
+       void deserialize(const u8* data, size_t data_size, size_t& offset) override;
    };
 
 Supports up to 2 MB ROM (128 banks) and 32 KB RAM (4 banks).
@@ -34,6 +36,8 @@ MBC3
        bool save_ram_to_file(const std::string& path) override;
        bool load_ram_from_file(const std::string& path) override;
        void update_rtc();
+       void serialize(std::vector<u8>& data) const override;
+       void deserialize(const u8* data, size_t data_size, size_t& offset) override;
    };
 
 Adds a Real-Time Clock (RTC) with seconds, minutes, hours, and
@@ -52,8 +56,25 @@ MBC5
        explicit MBC5(std::vector<u8> rom_data, size_t ram_size, bool has_rumble = false);
        u8 read(u16 address) const override;
        void write(u16 address, u8 value) override;
+       void serialize(std::vector<u8>& data) const override;
+       void deserialize(const u8* data, size_t data_size, size_t& offset) override;
    };
 
 Supports up to 8 MB ROM (9-bit bank number) and 128 KB RAM (16 banks).
 Optionally includes rumble motor support — when enabled, bit 3 of the
 RAM bank register controls the motor.
+
+Serialization
+-------------
+
+All three MBC classes override ``serialize()`` / ``deserialize()`` to
+persist their banking registers in addition to cartridge RAM:
+
+* **MBC1**: ``ram_enabled_``, ``rom_bank_``, ``ram_bank_``, ``banking_mode_``
+* **MBC3**: ``ram_enabled_``, ``rom_bank_``, ``ram_bank_``, ``rtc_register_``,
+  ``rtc_latch_``, ``rtc_base_timestamp_`` (with ``static_assert(sizeof(time_t) >= 8)``
+  for 64-bit portability)
+* **MBC5**: ``ram_enabled_``, ``rom_bank_``, ``ram_bank_``
+
+This ensures save state load/save preserves the exact banking
+configuration, preventing freezes or corruption on reload.
