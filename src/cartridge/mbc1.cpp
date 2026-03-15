@@ -93,4 +93,26 @@ void MBC1::write(u16 address, u8 value) {
     }
 }
 
+void MBC1::serialize(std::vector<u8>& data) const
+{
+    Cartridge::serialize(data);
+    data.push_back(ram_enabled_ ? 1 : 0);
+    data.push_back(rom_bank_);
+    data.push_back(ram_bank_);
+    data.push_back(banking_mode_ ? 1 : 0);
+}
+
+void MBC1::deserialize(const u8* data, size_t data_size, size_t& offset)
+{
+    Cartridge::deserialize(data, data_size, offset);
+
+    constexpr size_t MBC1_STATE_SIZE = 4;
+    if (offset + MBC1_STATE_SIZE > data_size) return;
+
+    ram_enabled_  = data[offset++] != 0;
+    rom_bank_     = data[offset++];
+    ram_bank_     = data[offset++];
+    banking_mode_ = data[offset++] != 0;
+}
+
 } // namespace gbglow
