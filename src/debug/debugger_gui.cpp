@@ -186,6 +186,21 @@ bool DebuggerGUI::step_requested() const {
     return step_requested_;
 }
 
+void DebuggerGUI::request_step() {
+    step_requested_ = true;
+}
+
+void DebuggerGUI::request_step_over() {
+    if (debugger_ && debugger_->prepare_step_over_for_current_instruction()) {
+        continue_requested_ = true;
+        paused_ = false;
+        step_requested_ = false;
+        return;
+    }
+
+    request_step();
+}
+
 void DebuggerGUI::clear_step_request() {
     step_requested_ = false;
 }
@@ -307,7 +322,7 @@ void DebuggerGUI::render_menu_bar() {
             
             ImGui::Separator();
             
-            if (ImGui::MenuItem("Close Debugger", "F12")) {
+            if (ImGui::MenuItem("Close Debugger", "F11")) {
                 visible_ = false;
                 paused_ = false;
             }
@@ -369,12 +384,12 @@ void DebuggerGUI::render_registers_window() {
                     continue_execution();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Step (F10)")) {
-                    step_requested_ = true;
+                if (ImGui::Button("Step Over (F10)")) {
+                    request_step_over();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Step Into (F11)")) {
-                    step_requested_ = true;
+                if (ImGui::Button("Step Into")) {
+                    request_step();
                 }
             } else {
                 if (ImGui::Button("Pause (F5)")) {

@@ -3,6 +3,7 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
+#include "constants.h"
 #include "../audio/apu.h"
 #include "../debug/debugger_gui.h"
 #include "timer.h"
@@ -12,6 +13,8 @@
 #include <thread>
 
 namespace gbglow {
+
+using namespace constants::emulator;
 
 void Emulator::run(const std::string& window_title, int scale_factor) {
     // Initialize display
@@ -30,7 +33,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     // Pass recent ROMs manager to display
     display.set_recent_roms(recent_roms_.get());
     
-    std::cout << "Emulator running. Press ESC to exit, F12 to open debugger." << std::endl;
+    std::cout << "Emulator running. Press ESC to exit, F11 to open debugger, F12 to capture a screenshot." << std::endl;
     std::cout << "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select" << std::endl;
     
     // Main game loop - use audio-based synchronization for consistent timing
@@ -39,12 +42,55 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     
     // Target audio queue size: ~2 frames worth of audio (~60ms)
     // 44100 samples/sec * 2 channels * 2 bytes/sample * 2 frames / 60 fps ≈ 5880 bytes
-    constexpr unsigned int TARGET_AUDIO_QUEUE = 44100 * 2 * 2 * 2 / 60;
-    constexpr unsigned int MAX_AUDIO_QUEUE = TARGET_AUDIO_QUEUE * 2;  // Max ~4 frames
+    DebuggerGUI* debugger_gui = display.get_debugger_gui();
+
+    auto run_emulation_cycles = [&](Cycles cycle_budget) {
+        Cycles remaining = cycle_budget;
+
+        while (remaining > 0) {
+            if (debugger_gui && debugger_gui->is_visible()) {
+                const u16 current_pc = cpu_->registers().pc;
+                if (debugger_->should_break(current_pc) || debugger_->should_stop_step_over(current_pc)) {
+                    debugger_gui->set_paused(true);
+                    debugger_->clear_step_over();
+                    return false;
+                }
+            }
+
+            const u16 executed_pc = cpu_->registers().pc;
+            Cycles cpu_cycles = cpu_->step();
+            ppu_->step(cpu_cycles);
+            memory_->timer().step(cpu_cycles);
+            memory_->apu().step(cpu_cycles);
+            debugger_->record_execution(executed_pc);
+
+            if (debugger_->update_watches() && debugger_gui && debugger_gui->is_visible()) {
+                debugger_gui->set_paused(true);
+                debugger_->clear_step_over();
+                return false;
+            }
+
+            remaining = (remaining > cpu_cycles) ? (remaining - cpu_cycles) : 0;
+        }
+
+        return true;
+    };
     
     while (!display.should_close()) {
         // Handle input events - get joypad from memory (single source of truth)
         display.poll_events(&memory_->joypad());
+
+        // Handle ROM load requests from UI actions such as Recent ROMs.
+        if (display.has_pending_rom()) {
+            const std::string pending_rom = display.get_pending_rom();
+            if (load_rom(pending_rom)) {
+                display.set_rom_path(rom_path_);
+                std::cout << "Loaded ROM: " << pending_rom << std::endl;
+            } else {
+                std::cerr << "Failed to load ROM from menu: " << pending_rom << std::endl;
+            }
+            continue;
+        }
         
         // Handle reset request from menu
         if (display.should_reset()) {
@@ -103,19 +149,17 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         }
         
         // Check debugger pause state
-        DebuggerGUI* debugger_gui = display.get_debugger_gui();
         bool debugger_paused = debugger_gui && debugger_gui->should_pause();
         
         // Handle debugger step request
         if (debugger_paused && debugger_gui->step_requested()) {
-            // Execute single instruction (step() handles interrupts internally)
+            const u16 executed_pc = cpu_->registers().pc;
             Cycles cpu_cycles = cpu_->step();
             ppu_->step(cpu_cycles);
             memory_->timer().step(cpu_cycles);
             memory_->apu().step(cpu_cycles);
-            
-            // Record execution for debugger
-            debugger_->record_execution(cpu_->registers().pc);
+            debugger_->record_execution(executed_pc);
+            debugger_->update_watches();
             
             debugger_gui->clear_step_request();
             
@@ -127,6 +171,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         
         // Handle debugger continue
         if (debugger_gui && debugger_gui->should_continue()) {
+            debugger_->skip_breakpoint_once(cpu_->registers().pc);
             debugger_gui->clear_continue();
         }
         
@@ -167,7 +212,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             
             // Run multiple frames without any synchronization
             for (int i = 0; i < 10; i++) {
-                run_frame();
+                if (!run_emulation_cycles(CYCLES_PER_FRAME)) {
+                    break;
+                }
             }
             
             // Update display to show progress
@@ -187,7 +234,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             if (frames_to_run < 1) frames_to_run = 1;
             
             for (int i = 0; i < frames_to_run; i++) {
-                run_frame();
+                if (!run_emulation_cycles(CYCLES_PER_FRAME)) {
+                    break;
+                }
             }
             
             // Update display if frame is ready
@@ -207,7 +256,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             // Audio-based synchronization with speed adjustment
             // At 50%, we want to wait longer (more audio buffered)
             // At 200%, we want less buffering (faster processing)
-            unsigned int adjusted_max = static_cast<unsigned int>(MAX_AUDIO_QUEUE / speed_multiplier);
+            unsigned int adjusted_max = static_cast<unsigned int>(kMaxAudioQueueBytes / speed_multiplier);
             unsigned int queue_size = display.get_audio_queue_size();
             
             while (queue_size > adjusted_max) {

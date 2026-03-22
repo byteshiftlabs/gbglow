@@ -18,33 +18,24 @@ unusedFunction:src/cartridge/cartridge.cpp:194    // has_battery()
 // --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
 unusedFunction:src/cartridge/mbc3.cpp:213         // update_rtc()
 
-// --- Debugger back-end: breakpoint/step control called by DebuggerGUI ---
-unusedFunction:src/debug/debugger.cpp:69          // should_break()
-unusedFunction:src/debug/debugger.cpp:73          // request_step()
-unusedFunction:src/debug/debugger.cpp:77          // request_step_over()
-unusedFunction:src/debug/debugger.cpp:90          // is_step_over_active()
-unusedFunction:src/debug/debugger.cpp:94          // set_step_over_return()
-unusedFunction:src/debug/debugger.cpp:98          // should_stop_step_over()
-unusedFunction:src/debug/debugger.cpp:102         // clear_step_over()
+// --- Debugger back-end: public helpers retained for debugger tooling ---
+unusedFunction:src/debug/debugger.cpp:120         // is_step_over_active()
 
 // --- Debugger memory inspection API ---
-unusedFunction:src/debug/debugger.cpp:116         // write_memory()
-unusedFunction:src/debug/debugger.cpp:122         // read_memory_region()
-
-// --- Debugger watch API ---
-unusedFunction:src/debug/debugger.cpp:163         // update_watches()
+unusedFunction:src/debug/debugger.cpp:147         // write_memory()
+unusedFunction:src/debug/debugger.cpp:153         // read_memory_region()
 
 // --- Debugger execution history API ---
-unusedFunction:src/debug/debugger.cpp:186         // get_execution_history()
-unusedFunction:src/debug/debugger.cpp:190         // clear_history()
-unusedFunction:src/debug/debugger.cpp:194         // set_max_history()
+unusedFunction:src/debug/debugger.cpp:217         // get_execution_history()
+unusedFunction:src/debug/debugger.cpp:221         // clear_history()
+unusedFunction:src/debug/debugger.cpp:225         // set_max_history()
 
 // --- Debugger disassembly helpers (used by disassemble_range, called by GUI) ---
-unusedFunction:src/debug/debugger.cpp:261         // get_register_name_16()
-unusedFunction:src/debug/debugger.cpp:266         // get_condition_name()
-unusedFunction:src/debug/debugger.cpp:661         // disassemble_around_pc()
+unusedFunction:src/debug/debugger.cpp:313         // get_register_name_16()
+unusedFunction:src/debug/debugger.cpp:318         // get_condition_name()
+unusedFunction:src/debug/debugger.cpp:713         // disassemble_around_pc()
 
-// --- DebuggerGUI visibility toggle (called by Display on F12 key) ---
+// --- DebuggerGUI visibility toggle (called by Display on F11 key) ---
 unusedFunction:src/debug/debugger_gui.cpp:163     // toggle_visible()
 
 // --- Gamepad configuration API (called by keybinding UI in config/keybindings.conf) ---
@@ -59,15 +50,14 @@ unusedFunction:src/input/gamepad.cpp:239          // set_deadzone()
 unusedFunction:src/input/gamepad.cpp:322          // save_config()
 
 // --- Display utility/state accessors used by front-end or future tools ---
-unusedFunction:src/video/display.cpp:123          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:606          // get_sdl_error()
-unusedFunction:src/video/display.cpp:652          // has_pending_rom()
-unusedFunction:src/video/display.cpp:656          // get_pending_rom()
-unusedFunction:src/video/display.cpp:686          // is_muted()
+unusedFunction:src/video/display.cpp:194          // is_debugger_mode()
+unusedFunction:src/video/display.cpp:710          // get_sdl_error()
+unusedFunction:src/video/display.cpp:790          // is_muted()
 
 // --- CPU/PPU public API accessors ---
-unusedFunction:src/core/cpu.cpp:130               // ime()
-unusedFunction:src/core/cpu.cpp:135               // set_ime()
-unusedFunction:src/core/cpu.cpp:140               // is_halted()
-unusedFunction:src/core/cpu.cpp:280               // set_halted()
+unusedFunction:src/core/cpu.cpp:132               // ime()
+unusedFunction:src/core/cpu.cpp:137               // set_ime()
+unusedFunction:src/core/cpu.cpp:142               // is_halted()
+unusedFunction:src/core/cpu.cpp:282               // set_halted()
+unusedFunction:src/core/emulator.cpp:69           // run_frame()
 unusedFunction:src/video/ppu.cpp:626              // scanline()

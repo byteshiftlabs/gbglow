@@ -3,11 +3,21 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "../src/core/cpu.h"
+#include "../src/core/constants.h"
+#include "../src/core/emulator.h"
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
+#include "../src/debug/debugger.h"
+#include "../src/ui/recent_roms.h"
+#include "../src/video/ppu.h"
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace gbglow;
 
@@ -156,6 +166,306 @@ bool test_cpu_flags() {
     return true;
 }
 
+bool test_recent_roms_round_trip() {
+    std::cout << "Testing recent ROMs persistence...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_test";
+    const fs::path config_root = temp_root / "config";
+    const fs::path rom_path = temp_root / "Pokemon Red.gb";
+
+    fs::remove_all(temp_root);
+    fs::create_directories(config_root);
+
+    TEST_ASSERT(setenv("XDG_CONFIG_HOME", config_root.string().c_str(), 1) == 0);
+
+    {
+        std::ofstream rom_file(rom_path);
+        TEST_ASSERT(rom_file.is_open());
+        rom_file << "rom";
+    }
+
+    {
+        RecentRoms recent_roms;
+        recent_roms.clear();
+        recent_roms.add_rom(rom_path.string());
+        TEST_ASSERT(!recent_roms.is_empty());
+        TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
+        TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
+    }
+
+    {
+        RecentRoms reloaded_recent_roms;
+        TEST_ASSERT(!reloaded_recent_roms.is_empty());
+        TEST_EQ(reloaded_recent_roms.get_roms().size(), static_cast<size_t>(1));
+        TEST_ASSERT(reloaded_recent_roms.get_roms().front().file_path == rom_path.string());
+        TEST_ASSERT(reloaded_recent_roms.get_roms().front().display_name == "Pokemon Red.gb");
+    }
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Recent ROMs persistence working\n";
+    return true;
+}
+
+bool test_recent_roms_ignores_malformed_entries() {
+    std::cout << "Testing recent ROMs malformed input handling...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_malformed_test";
+    const fs::path config_root = temp_root / "config";
+    const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
+    const fs::path rom_path = temp_root / "Kirby.gb";
+    const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
+
+    fs::remove_all(temp_root);
+    fs::create_directories(app_config_dir);
+
+    TEST_ASSERT(setenv("XDG_CONFIG_HOME", config_root.string().c_str(), 1) == 0);
+
+    {
+        std::ofstream rom_file(rom_path);
+        TEST_ASSERT(rom_file.is_open());
+        rom_file << "rom";
+    }
+
+    {
+        std::ofstream config_stream(config_file);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream
+            << "{\n"
+            << "  \"roms\": [\n"
+            << "    { \"path\": \"missing_time.gb\" },\n"
+            << "    { \"path\": \"" << rom_path.string() << "\", \"time\": 12345 },\n"
+            << "    { \"path\": \"" << rom_path.string() << "\", \"time\": 67890 }\n"
+            << "  ]\n"
+            << "}\n";
+    }
+
+    {
+        RecentRoms recent_roms;
+        TEST_ASSERT(!recent_roms.is_empty());
+        TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
+        TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Kirby.gb");
+    }
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Recent ROMs malformed input handled safely\n";
+    return true;
+}
+
+namespace {
+
+void set_xdg_config_home(const std::filesystem::path& config_root) {
+    if (setenv("XDG_CONFIG_HOME", config_root.string().c_str(), 1) != 0) {
+        throw std::runtime_error("Failed to set XDG_CONFIG_HOME");
+    }
+}
+
+std::filesystem::path write_test_rom(const std::filesystem::path& rom_path, const std::string& title) {
+    std::vector<unsigned char> rom(0x8000, 0x00);
+    for (size_t i = 0; i < title.size() && i < 16; ++i) {
+        rom[0x0134 + i] = static_cast<unsigned char>(title[i]);
+    }
+    rom[0x0147] = 0x00;
+    rom[0x0149] = 0x00;
+
+    std::ofstream rom_file(rom_path, std::ios::binary);
+    if (!rom_file.is_open()) {
+        throw std::runtime_error("Failed to create test ROM");
+    }
+    rom_file.write(reinterpret_cast<const char*>(rom.data()), static_cast<std::streamsize>(rom.size()));
+    return rom_path;
+}
+
+void append_extra_byte_to_state_blob(const std::filesystem::path& state_path) {
+    const std::string header = constants::savestate::kHeader;
+    std::ifstream input(state_path, std::ios::binary);
+    if (!input.is_open()) {
+        throw std::runtime_error("Failed to open state file for corruption test");
+    }
+
+    std::vector<unsigned char> state_bytes(
+        (std::istreambuf_iterator<char>(input)),
+        std::istreambuf_iterator<char>());
+
+    if (state_bytes.size() < header.size() + 4) {
+        throw std::runtime_error("State file too small for corruption test");
+    }
+
+    const size_t size_offset = header.size();
+    const unsigned int original_size =
+        static_cast<unsigned int>(state_bytes[size_offset]) |
+        (static_cast<unsigned int>(state_bytes[size_offset + 1]) << 8) |
+        (static_cast<unsigned int>(state_bytes[size_offset + 2]) << 16) |
+        (static_cast<unsigned int>(state_bytes[size_offset + 3]) << 24);
+    const unsigned int corrupted_size = original_size + 1;
+
+    state_bytes[size_offset] = static_cast<unsigned char>(corrupted_size & 0xFF);
+    state_bytes[size_offset + 1] = static_cast<unsigned char>((corrupted_size >> 8) & 0xFF);
+    state_bytes[size_offset + 2] = static_cast<unsigned char>((corrupted_size >> 16) & 0xFF);
+    state_bytes[size_offset + 3] = static_cast<unsigned char>((corrupted_size >> 24) & 0xFF);
+    state_bytes.push_back(0xAA);
+
+    std::ofstream output(state_path, std::ios::binary | std::ios::trunc);
+    if (!output.is_open()) {
+        throw std::runtime_error("Failed to rewrite state file for corruption test");
+    }
+    output.write(reinterpret_cast<const char*>(state_bytes.data()), static_cast<std::streamsize>(state_bytes.size()));
+}
+
+}  // namespace
+
+bool test_debugger_prepare_step_over() {
+    std::cout << "Testing debugger step-over arming...\n";
+
+    Memory memory;
+    CPU cpu(memory);
+    PPU ppu(memory);
+    Debugger debugger;
+    debugger.attach(&cpu, &memory, &ppu);
+
+    cpu.registers().pc = 0xC000;
+    memory.write(0xC000, 0xCD);
+    memory.write(0xC001, 0x34);
+    memory.write(0xC002, 0x12);
+
+    TEST_ASSERT(debugger.prepare_step_over_for_current_instruction());
+    TEST_ASSERT(debugger.is_step_over_active());
+    TEST_ASSERT(debugger.should_stop_step_over(0xC003));
+
+    debugger.clear_step_over();
+    memory.write(0xC000, 0x00);
+    TEST_ASSERT(!debugger.prepare_step_over_for_current_instruction());
+    TEST_ASSERT(!debugger.is_step_over_active());
+
+    std::cout << "  PASS: Debugger step-over arming working\n";
+    return true;
+}
+
+bool test_debugger_continue_skips_current_breakpoint_once() {
+    std::cout << "Testing debugger continue from breakpoint...\n";
+
+    Memory memory;
+    CPU cpu(memory);
+    PPU ppu(memory);
+    Debugger debugger;
+    debugger.attach(&cpu, &memory, &ppu);
+
+    cpu.registers().pc = 0xC123;
+    debugger.add_breakpoint(0xC123);
+
+    TEST_ASSERT(debugger.should_break(0xC123));
+
+    debugger.skip_breakpoint_once(0xC123);
+    TEST_ASSERT(!debugger.should_break(0xC123));
+    TEST_ASSERT(debugger.should_break(0xC123));
+
+    std::cout << "  PASS: Debugger continue skips current breakpoint once\n";
+    return true;
+}
+
+bool test_save_state_round_trip() {
+    std::cout << "Testing save-state round trip...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_savestate_round_trip";
+    const fs::path config_root = temp_root / "config";
+    const fs::path rom_path = temp_root / "round_trip.gb";
+
+    fs::remove_all(temp_root);
+    fs::create_directories(config_root);
+    fs::create_directories(temp_root);
+    set_xdg_config_home(config_root);
+    write_test_rom(rom_path, "ROUNDTRIP");
+
+    Emulator emulator;
+    TEST_ASSERT(emulator.load_rom(rom_path.string()));
+
+    emulator.cpu().registers().a = 0x42;
+    emulator.cpu().registers().pc = 0xC123;
+    emulator.cpu().set_ime(true);
+    emulator.memory().write(0xC000, 0x99);
+    emulator.memory().write(0xFF05, 0x77);
+    emulator.ppu().set_ly(77);
+    emulator.ppu().set_mode(static_cast<u8>(PPU::Mode::Transfer));
+
+    TEST_ASSERT(emulator.save_state(0));
+    TEST_ASSERT(fs::exists(emulator.get_state_path(0)));
+
+    emulator.cpu().registers().a = 0x10;
+    emulator.cpu().registers().pc = 0xC000;
+    emulator.cpu().set_ime(false);
+    emulator.memory().write(0xC000, 0x11);
+    emulator.memory().write(0xFF05, 0x22);
+    emulator.ppu().set_ly(12);
+    emulator.ppu().set_mode(static_cast<u8>(PPU::Mode::HBlank));
+
+    TEST_ASSERT(emulator.load_state(0));
+    TEST_EQ(emulator.cpu().registers().a, 0x42);
+    TEST_EQ(emulator.cpu().registers().pc, static_cast<u16>(0xC123));
+    TEST_ASSERT(emulator.cpu().ime());
+    TEST_EQ(emulator.memory().read(0xC000), 0x99);
+    TEST_EQ(emulator.memory().read(0xFF05), 0x77);
+    TEST_EQ(emulator.ppu().get_ly(), 77);
+    TEST_EQ(emulator.ppu().get_mode(), static_cast<u8>(PPU::Mode::Transfer));
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Save-state round trip working\n";
+    return true;
+}
+
+bool test_corrupt_save_state_does_not_mutate_live_state() {
+    std::cout << "Testing corrupt save-state rejection...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_savestate_corrupt";
+    const fs::path config_root = temp_root / "config";
+    const fs::path rom_path = temp_root / "corrupt.gb";
+
+    fs::remove_all(temp_root);
+    fs::create_directories(config_root);
+    fs::create_directories(temp_root);
+    set_xdg_config_home(config_root);
+    write_test_rom(rom_path, "CORRUPT");
+
+    Emulator emulator;
+    TEST_ASSERT(emulator.load_rom(rom_path.string()));
+
+    emulator.cpu().registers().a = 0x33;
+    emulator.cpu().registers().pc = 0xC200;
+    emulator.memory().write(0xC010, 0xAB);
+    emulator.memory().write(0xFF05, 0x66);
+    emulator.ppu().set_ly(55);
+    emulator.ppu().set_mode(static_cast<u8>(PPU::Mode::VBlank));
+    TEST_ASSERT(emulator.save_state(0));
+
+    append_extra_byte_to_state_blob(emulator.get_state_path(0));
+
+    emulator.cpu().registers().a = 0x55;
+    emulator.cpu().registers().pc = 0xD000;
+    emulator.memory().write(0xC010, 0x5A);
+    emulator.memory().write(0xFF05, 0x22);
+    emulator.ppu().set_ly(12);
+    emulator.ppu().set_mode(static_cast<u8>(PPU::Mode::HBlank));
+
+    TEST_ASSERT(!emulator.load_state(0));
+    TEST_EQ(emulator.cpu().registers().a, 0x55);
+    TEST_EQ(emulator.cpu().registers().pc, static_cast<u16>(0xD000));
+    TEST_EQ(emulator.memory().read(0xC010), 0x5A);
+    TEST_EQ(emulator.memory().read(0xFF05), 0x22);
+    TEST_EQ(emulator.ppu().get_ly(), 12);
+    TEST_EQ(emulator.ppu().get_mode(), static_cast<u8>(PPU::Mode::HBlank));
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Corrupt save-state rejected without mutating live state\n";
+    return true;
+}
+
 int main() {
     std::cout << "=================================\n";
     std::cout << "gbglow Basic Component Tests\n";
@@ -166,6 +476,12 @@ int main() {
     all_passed &= test_memory();
     all_passed &= test_cpu_basic();
     all_passed &= test_cpu_flags();
+    all_passed &= test_recent_roms_round_trip();
+    all_passed &= test_recent_roms_ignores_malformed_entries();
+    all_passed &= test_debugger_prepare_step_over();
+    all_passed &= test_debugger_continue_skips_current_breakpoint_once();
+    all_passed &= test_save_state_round_trip();
+    all_passed &= test_corrupt_save_state_does_not_mutate_live_state();
     
     std::cout << "\n" << tests_passed << "/" << tests_run << " assertions passed.\n";
     
