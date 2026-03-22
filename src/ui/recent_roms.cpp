@@ -12,10 +12,10 @@
 
 #include <fstream>
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <iostream>
 #include <iterator>
-#include <regex>
 #include <system_error>
 #include <unordered_set>
 
@@ -63,25 +63,152 @@ std::string unescape_json_string(const std::string& str) {
     return result;
 }
 
-bool parse_recent_rom_entry(const std::string& object_text, gbglow::RecentRomEntry& entry) {
-    static const std::regex path_pattern(R"regex("path"\s*:\s*"((?:\\.|[^"\\])*)")regex");
-    static const std::regex time_pattern(R"regex("time"\s*:\s*([0-9]+))regex");
+bool is_escaped(const std::string& text, size_t pos) {
+    size_t backslash_count = 0;
+    while (pos > 0 && text[--pos] == '\\') {
+        ++backslash_count;
+    }
+    return (backslash_count % 2) != 0;
+}
 
-    std::smatch path_match;
-    std::smatch time_match;
-    if (!std::regex_search(object_text, path_match, path_pattern) ||
-        !std::regex_search(object_text, time_match, time_pattern)) {
+size_t find_matching_delimiter(const std::string& text, size_t start_pos, char open_char, char close_char) {
+    bool inside_string = false;
+    int depth = 0;
+
+    for (size_t i = start_pos; i < text.size(); ++i) {
+        const char ch = text[i];
+        if (ch == '"' && !is_escaped(text, i)) {
+            inside_string = !inside_string;
+            continue;
+        }
+
+        if (inside_string) {
+            continue;
+        }
+
+        if (ch == open_char) {
+            ++depth;
+        } else if (ch == close_char) {
+            --depth;
+            if (depth == 0) {
+                return i;
+            }
+        }
+    }
+
+    return std::string::npos;
+}
+
+size_t find_string_end(const std::string& text, size_t opening_quote_pos) {
+    for (size_t i = opening_quote_pos + 1; i < text.size(); ++i) {
+        if (text[i] == '"' && !is_escaped(text, i)) {
+            return i;
+        }
+    }
+
+    return std::string::npos;
+}
+
+size_t skip_json_whitespace(const std::string& text, size_t pos) {
+    while (pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos]))) {
+        ++pos;
+    }
+    return pos;
+}
+
+bool find_json_object_value_start(const std::string& object_text, const std::string& key, size_t& value_start) {
+    bool inside_string = false;
+
+    for (size_t i = 0; i < object_text.size(); ++i) {
+        const char ch = object_text[i];
+        if (ch != '"' || is_escaped(object_text, i)) {
+            continue;
+        }
+
+        inside_string = !inside_string;
+        if (!inside_string) {
+            continue;
+        }
+
+        const size_t key_start = i + 1;
+        const size_t key_end = find_string_end(object_text, i);
+        if (key_end == std::string::npos) {
+            return false;
+        }
+
+        const std::string current_key = unescape_json_string(object_text.substr(key_start, key_end - key_start));
+        i = key_end;
+        inside_string = false;
+
+        if (current_key != key) {
+            continue;
+        }
+
+        size_t colon_pos = skip_json_whitespace(object_text, key_end + 1);
+        if (colon_pos >= object_text.size() || object_text[colon_pos] != ':') {
+            return false;
+        }
+
+        value_start = skip_json_whitespace(object_text, colon_pos + 1);
+        return value_start < object_text.size();
+    }
+
+    return false;
+}
+
+bool extract_json_string_value(const std::string& object_text, const std::string& key, std::string& value) {
+    size_t value_start = 0;
+    if (!find_json_object_value_start(object_text, key, value_start) || object_text[value_start] != '"') {
+        return false;
+    }
+
+    ++value_start;
+    std::string raw_value;
+    for (size_t i = value_start; i < object_text.size(); ++i) {
+        const char ch = object_text[i];
+        if (ch == '"' && !is_escaped(object_text, i)) {
+            value = unescape_json_string(raw_value);
+            return true;
+        }
+        raw_value += ch;
+    }
+
+    return false;
+}
+
+bool extract_json_integer_value(const std::string& object_text, const std::string& key, std::time_t& value) {
+    size_t value_start = 0;
+    if (!find_json_object_value_start(object_text, key, value_start)) {
+        return false;
+    }
+
+    size_t value_end = value_start;
+    while (value_end < object_text.size() && std::isdigit(static_cast<unsigned char>(object_text[value_end]))) {
+        ++value_end;
+    }
+
+    if (value_end == value_start) {
         return false;
     }
 
     try {
-        entry = gbglow::RecentRomEntry(
-            unescape_json_string(path_match[1].str()),
-            static_cast<std::time_t>(std::stoll(time_match[1].str())));
+        value = static_cast<std::time_t>(std::stoll(object_text.substr(value_start, value_end - value_start)));
     } catch (const std::exception&) {
         return false;
     }
 
+    return true;
+}
+
+bool parse_recent_rom_entry(const std::string& object_text, gbglow::RecentRomEntry& entry) {
+    std::string path;
+    std::time_t time = 0;
+    if (!extract_json_string_value(object_text, "path", path) ||
+        !extract_json_integer_value(object_text, "time", time)) {
+        return false;
+    }
+
+    entry = gbglow::RecentRomEntry(path, time);
     return true;
 }
 
@@ -180,7 +307,7 @@ void RecentRoms::load_from_file()
     }
 
     const size_t array_start = contents.find('[', roms_key);
-    const size_t array_end = contents.find(']', array_start);
+    const size_t array_end = find_matching_delimiter(contents, array_start, '[', ']');
     if (array_start == std::string::npos || array_end == std::string::npos || array_end <= array_start) {
         return;
     }
@@ -193,7 +320,7 @@ void RecentRoms::load_from_file()
             break;
         }
 
-        const size_t object_end = contents.find('}', object_start);
+        const size_t object_end = find_matching_delimiter(contents, object_start, '{', '}');
         if (object_end == std::string::npos || object_end > array_end) {
             break;
         }
