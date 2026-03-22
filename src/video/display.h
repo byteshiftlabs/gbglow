@@ -273,6 +273,8 @@ private:
     bool show_about_dialog_;
     bool show_controller_config_;
     bool open_rom_dialog_requested_;
+    bool open_rom_dialog_visible_;
+    bool close_open_rom_dialog_requested_;
     float speed_multiplier_;  // 0.5, 1.0, 2.0, 4.0
     int save_state_slot_;  // -1 = none, 0-9 = save to slot
     int load_state_slot_;  // -1 = none, 0-9 = load from slot

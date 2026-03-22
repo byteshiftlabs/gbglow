@@ -117,6 +117,8 @@ Display::Display()
     , show_about_dialog_(false)
     , show_controller_config_(false)
     , open_rom_dialog_requested_(false)
+    , open_rom_dialog_visible_(false)
+    , close_open_rom_dialog_requested_(false)
     , speed_multiplier_(1.0f)
     , save_state_slot_(-1)
     , load_state_slot_(-1)
@@ -514,7 +516,11 @@ bool Display::is_global_shortcut(int key, int modifiers) const {
         return key == SDLK_o || key == SDLK_r;
     }
 
-    return (key >= SDLK_F1 && key <= SDLK_F12) || key == SDLK_ESCAPE;
+    if (key == SDLK_ESCAPE) {
+        return !open_rom_dialog_visible_;
+    }
+
+    return key >= SDLK_F1 && key <= SDLK_F12;
 }
 
 void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
@@ -535,8 +541,14 @@ void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
         return;
     }
     
-    // ESC key closes window
     if (key == SDLK_ESCAPE) {
+        if (open_rom_dialog_visible_) {
+            open_rom_error_message_.clear();
+            close_open_rom_dialog_requested_ = true;
+            return;
+        }
+
+        // ESC key closes window
         should_close_ = true;
         return;
     }
@@ -1068,6 +1080,8 @@ void Display::render_about_dialog() {
 
 void Display::request_open_rom_dialog() {
     open_rom_dialog_requested_ = true;
+    open_rom_dialog_visible_ = true;
+    close_open_rom_dialog_requested_ = false;
     open_rom_error_message_.clear();
 
     const std::string& initial_path = current_rom_path_.empty() ? pending_rom_path_ : current_rom_path_;
@@ -1104,8 +1118,21 @@ void Display::render_open_rom_dialog() {
         open_rom_dialog_requested_ = false;
     }
 
+    if (!open_rom_dialog_visible_) {
+        return;
+    }
+
     ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_Appearing);
     if (ImGui::BeginPopupModal(kOpenRomDialogTitle, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (close_open_rom_dialog_requested_) {
+            close_open_rom_dialog_requested_ = false;
+            open_rom_dialog_visible_ = false;
+            open_rom_error_message_.clear();
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
         ImGui::TextWrapped("Enter a ROM path manually or use Browse when a native file picker is available.");
         ImGui::Spacing();
 
@@ -1144,6 +1171,8 @@ void Display::render_open_rom_dialog() {
                 open_rom_error_message_ = "Selected path is not a file.";
             } else {
                 pending_rom_path_ = rom_path.string();
+                open_rom_dialog_visible_ = false;
+                close_open_rom_dialog_requested_ = false;
                 open_rom_error_message_.clear();
                 ImGui::CloseCurrentPopup();
             }
@@ -1151,6 +1180,8 @@ void Display::render_open_rom_dialog() {
 
         ImGui::SameLine();
         if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+            open_rom_dialog_visible_ = false;
+            close_open_rom_dialog_requested_ = false;
             open_rom_error_message_.clear();
             ImGui::CloseCurrentPopup();
         }
