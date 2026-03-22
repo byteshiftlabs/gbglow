@@ -14,6 +14,10 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
+#include <iterator>
+#include <regex>
+#include <system_error>
+#include <unordered_set>
 
 // Simple JSON writing (no external dependencies)
 namespace {
@@ -33,9 +37,64 @@ std::string escape_json_string(const std::string& str) {
     return result;
 }
 
+std::string unescape_json_string(const std::string& str) {
+    std::string result;
+    result.reserve(str.size());
+
+    for (size_t i = 0; i < str.size(); ++i) {
+        if (str[i] != '\\' || i + 1 >= str.size()) {
+            result += str[i];
+            continue;
+        }
+
+        ++i;
+        switch (str[i]) {
+            case '"': result += '"'; break;
+            case '\\': result += '\\'; break;
+            case 'n': result += '\n'; break;
+            case 'r': result += '\r'; break;
+            case 't': result += '\t'; break;
+            default:
+                result += str[i];
+                break;
+        }
+    }
+
+    return result;
+}
+
+bool parse_recent_rom_entry(const std::string& object_text, gbglow::RecentRomEntry& entry) {
+    static const std::regex path_pattern(R"regex("path"\s*:\s*"((?:\\.|[^"\\])*)")regex");
+    static const std::regex time_pattern(R"regex("time"\s*:\s*([0-9]+))regex");
+
+    std::smatch path_match;
+    std::smatch time_match;
+    if (!std::regex_search(object_text, path_match, path_pattern) ||
+        !std::regex_search(object_text, time_match, time_pattern)) {
+        return false;
+    }
+
+    try {
+        entry = gbglow::RecentRomEntry(
+            unescape_json_string(path_match[1].str()),
+            static_cast<std::time_t>(std::stoll(time_match[1].str())));
+    } catch (const std::exception&) {
+        return false;
+    }
+
+    return true;
+}
+
+bool file_exists_noexcept(const std::string& path) {
+    std::error_code error;
+    return std::filesystem::exists(path, error) && !error;
+}
+
 } // anonymous namespace
 
 namespace gbglow {
+
+using namespace constants::application;
 
 RecentRomEntry::RecentRomEntry(const std::string& path, std::time_t time)
     : file_path(path)
@@ -50,7 +109,7 @@ RecentRomEntry::RecentRomEntry(const std::string& path, std::time_t time)
 
 RecentRoms::RecentRoms()
 {
-    config_path_ = get_config_dir() + "/recent_roms.json";
+    config_path_ = get_config_dir() + "/" + kRecentRomsFileName;
     load_from_file();
 }
 
@@ -108,47 +167,48 @@ void RecentRoms::load_from_file()
         // No config file yet - this is normal on first run
         return;
     }
-    
-    // Simple JSON parsing (just enough for our needs)
-    // Format: { "roms": [ {"path": "...", "time": 123456}, ... ] }
-    std::string line;
-    bool in_roms_array = false;
-    
-    while (std::getline(file, line)) {
-        // Look for start of roms array
-        if (line.find("\"roms\"") != std::string::npos) {
-            in_roms_array = true;
-            continue;
-        }
-        
-        if (!in_roms_array) continue;
-        
-        // Parse ROM entry
-        size_t path_pos = line.find("\"path\"");
-        size_t time_pos = line.find("\"time\"");
-        
-        if (path_pos != std::string::npos && time_pos != std::string::npos) {
-            // Extract path
-            size_t path_start = line.find('"', path_pos + 7);
-            size_t path_end = line.find('"', path_start + 1);
-            std::string path = line.substr(path_start + 1, path_end - path_start - 1);
-            
-            // Extract timestamp
-            size_t time_start = line.find(':', time_pos + 6);
-            size_t time_end = line.find_first_of(",}", time_start);
-            std::string time_str = line.substr(time_start + 1, time_end - time_start - 1);
-            std::time_t time = std::stoll(time_str);
-            
-            // Only add if file still exists
-            if (std::filesystem::exists(path)) {
-                recent_roms_.emplace_back(path, time);
-            }
-        }
-        
-        // Check for end of array
-        if (line.find(']') != std::string::npos) {
+
+    recent_roms_.clear();
+
+    const std::string contents(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>());
+
+    const size_t roms_key = contents.find("\"roms\"");
+    if (roms_key == std::string::npos) {
+        return;
+    }
+
+    const size_t array_start = contents.find('[', roms_key);
+    const size_t array_end = contents.find(']', array_start);
+    if (array_start == std::string::npos || array_end == std::string::npos || array_end <= array_start) {
+        return;
+    }
+
+    size_t pos = array_start;
+    std::unordered_set<std::string> seen_paths;
+    while (true) {
+        const size_t object_start = contents.find('{', pos);
+        if (object_start == std::string::npos || object_start >= array_end) {
             break;
         }
+
+        const size_t object_end = contents.find('}', object_start);
+        if (object_end == std::string::npos || object_end > array_end) {
+            break;
+        }
+
+        RecentRomEntry entry;
+        if (parse_recent_rom_entry(contents.substr(object_start, object_end - object_start + 1), entry) &&
+            file_exists_noexcept(entry.file_path) &&
+            seen_paths.insert(entry.file_path).second) {
+            recent_roms_.push_back(entry);
+            if (recent_roms_.size() >= MAX_RECENT_ROMS) {
+                break;
+            }
+        }
+
+        pos = object_end + 1;
     }
 }
 
@@ -194,9 +254,6 @@ std::string RecentRoms::get_config_dir() const
         base_dir = xdg_config;
     } else {
         const char* home = std::getenv("HOME");
-#ifdef _WIN32
-        if (!home) home = std::getenv("USERPROFILE");
-#endif
         if (home) {
             base_dir = std::string(home) + "/.config";
         } else {
@@ -205,7 +262,7 @@ std::string RecentRoms::get_config_dir() const
         }
     }
     
-    return base_dir + "/gbglow";
+    return base_dir + "/" + kConfigDirectoryName;
 }
 
 } // namespace gbglow
