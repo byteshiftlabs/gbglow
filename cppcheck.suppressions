@@ -50,9 +50,9 @@ unusedFunction:src/input/gamepad.cpp:239          // set_deadzone()
 unusedFunction:src/input/gamepad.cpp:322          // save_config()
 
 // --- Display utility/state accessors used by front-end or future tools ---
-unusedFunction:src/video/display.cpp:194          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:710          // get_sdl_error()
-unusedFunction:src/video/display.cpp:790          // is_muted()
+unusedFunction:src/video/display.cpp:196          // is_debugger_mode()
+unusedFunction:src/video/display.cpp:722          // get_sdl_error()
+unusedFunction:src/video/display.cpp:802          // is_muted()
 
 // --- CPU/PPU public API accessors ---
 unusedFunction:src/core/cpu.cpp:132               // ime()
