@@ -3,6 +3,7 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
+#include "constants.h"
 #include "timer.h"
 #include "io_registers.h"
 #include "../audio/apu.h"
@@ -13,15 +14,7 @@
 namespace gbglow {
 
 using namespace io_reg;
-
-namespace {
-    // Save state file magic — must match exactly; old formats are rejected
-    constexpr char STATE_HEADER[] = "GBGLOW_STATE";
-    // Does not include the null terminator
-    constexpr size_t STATE_HEADER_LEN = sizeof(STATE_HEADER) - 1;
-    // Upper sanity limit on the serialized blob (512 KB)
-    constexpr size_t STATE_MAX_BYTES = 512 * 1024;
-}
+using namespace constants::savestate;
 
 std::string Emulator::get_save_path() const
 {
@@ -36,7 +29,7 @@ std::string Emulator::get_save_path() const
 }
 
 bool Emulator::save_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
 
@@ -45,7 +38,7 @@ bool Emulator::save_state(int slot) {
         return false;
     }
 
-    file.write(STATE_HEADER, STATE_HEADER_LEN);
+    file.write(kHeader, static_cast<std::streamsize>(kHeaderLength));
 
     std::vector<u8> state_data;
     cpu_->serialize(state_data);
@@ -73,7 +66,7 @@ bool Emulator::save_state(int slot) {
 }
 
 bool Emulator::load_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
 
@@ -82,9 +75,9 @@ bool Emulator::load_state(int slot) {
         return false;
     }
 
-    char header[STATE_HEADER_LEN] = {};
-    file.read(header, STATE_HEADER_LEN);
-    if (std::string(header, STATE_HEADER_LEN) != STATE_HEADER) {
+    std::string header(kHeaderLength, '\0');
+    file.read(header.data(), static_cast<std::streamsize>(kHeaderLength));
+    if (header != kHeader) {
         std::cerr << "Save state not recognised — resave to update format" << std::endl;
         return false;
     }
@@ -97,7 +90,7 @@ bool Emulator::load_state(int slot) {
         (static_cast<u32>(size_bytes[1]) << 8)  |
         (static_cast<u32>(size_bytes[2]) << 16) |
         (static_cast<u32>(size_bytes[3]) << 24);
-    if (data_size == 0 || data_size > STATE_MAX_BYTES) {
+    if (data_size == 0 || data_size > kMaxBytes) {
         std::cerr << "Corrupt save state: invalid data size " << data_size << std::endl;
         return false;
     }
@@ -106,6 +99,25 @@ bool Emulator::load_state(int slot) {
     file.read(reinterpret_cast<char*>(state_data.data()), data_size);
     if (file.fail()) {
         std::cerr << "Corrupt save state: truncated data" << std::endl;
+        return false;
+    }
+
+    // Validate the blob size against the current component layout before
+    // deserializing anything into the live emulator. This prevents partial
+    // state mutation when a blob is truncated or built against a different
+    // component layout.
+    std::vector<u8> expected_state;
+    cpu_->serialize(expected_state);
+    memory_->serialize(expected_state);
+    ppu_->serialize(expected_state);
+    memory_->apu().serialize(expected_state);
+    memory_->timer().serialize(expected_state);
+    if (auto* cart = memory_->cartridge()) {
+        cart->serialize(expected_state);
+    }
+
+    if (expected_state.size() != static_cast<size_t>(data_size)) {
+        std::cerr << "Corrupt save state: component layout mismatch" << std::endl;
         return false;
     }
 
@@ -141,7 +153,7 @@ std::string Emulator::get_state_path(int slot) const {
 }
 
 bool Emulator::delete_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
     return std::remove(get_state_path(slot).c_str()) == 0;
