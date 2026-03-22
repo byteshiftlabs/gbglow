@@ -63,7 +63,7 @@ public:
      * Handle controller disconnected event
      * @param instance_id SDL joystick instance ID from event
      */
-    void on_controller_removed(int instance_id);
+    void on_controller_removed(int instance_id, Joypad* joypad = nullptr);
     
     /**
      * Handle controller button press
@@ -172,6 +172,7 @@ private:
     
     // Helper to convert axis value to digital state
     void update_stick_state(int axis, int value, Joypad* joypad);
+    void release_all_inputs(Joypad* joypad);
     
     // Get button name for config file
     static std::string button_to_string(int button);
