@@ -105,7 +105,14 @@ public:
      * Check if execution should pause (hit breakpoint)
      * Call before each CPU step
      */
-    bool should_break(u16 pc) const;
+    bool should_break(u16 pc);
+
+    /**
+     * Ignore a breakpoint exactly once at the given PC.
+     * Used when continuing from a paused breakpoint so the current
+     * instruction can execute instead of immediately re-triggering.
+     */
+    void skip_breakpoint_once(u16 pc);
     
     /**
      * Request single step
@@ -116,6 +123,13 @@ public:
      * Request step over (skip calls)
      */
     void request_step_over();
+
+    /**
+     * Prepare step over for the current instruction.
+     * Returns true if step-over execution was armed, false if callers should
+     * fall back to a normal single step.
+     */
+    bool prepare_step_over_for_current_instruction();
     
     /**
      * Check if step was requested
@@ -263,6 +277,8 @@ private:
     bool step_requested_;
     bool step_over_active_;
     u16 step_over_return_address_;
+    bool skip_breakpoint_once_;
+    u16 skipped_breakpoint_pc_;
     
     // Memory watches
     std::vector<MemoryWatch> watches_;
@@ -277,6 +293,7 @@ private:
     std::string get_register_name_8(u8 reg_index) const;
     std::string get_register_name_16(u8 reg_index) const;
     std::string get_condition_name(u8 cond_index) const;
+    static bool is_step_over_opcode(u8 opcode);
 };
 
 } // namespace gbglow
