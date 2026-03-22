@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <iostream>
 #include <iterator>
+#include <sstream>
 #include <system_error>
 #include <unordered_set>
 
@@ -69,6 +70,42 @@ bool is_escaped(const std::string& text, size_t pos) {
         ++backslash_count;
     }
     return (backslash_count % 2) != 0;
+}
+
+bool write_text_file_atomically(const std::filesystem::path& path, const std::string& contents) {
+    const std::filesystem::path temp_path = path.string() + ".tmp";
+
+    {
+        std::ofstream file(temp_path, std::ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        file << contents;
+        if (!file.good()) {
+            file.close();
+            std::error_code remove_error;
+            std::filesystem::remove(temp_path, remove_error);
+            return false;
+        }
+    }
+
+    std::error_code error;
+    std::filesystem::rename(temp_path, path, error);
+    if (!error) {
+        return true;
+    }
+
+    std::filesystem::remove(path, error);
+    error.clear();
+    std::filesystem::rename(temp_path, path, error);
+    if (!error) {
+        return true;
+    }
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+    return false;
 }
 
 size_t find_matching_delimiter(const std::string& text, size_t start_pos, char open_char, char close_char) {
@@ -146,7 +183,7 @@ bool find_json_object_value_start(const std::string& object_text, const std::str
 
         size_t colon_pos = skip_json_whitespace(object_text, key_end + 1);
         if (colon_pos >= object_text.size() || object_text[colon_pos] != ':') {
-            return false;
+            continue;
         }
 
         value_start = skip_json_whitespace(object_text, colon_pos + 1);
@@ -342,33 +379,39 @@ void RecentRoms::load_from_file()
 void RecentRoms::save_to_file()
 {
     // Create config directory if it doesn't exist
-    std::filesystem::create_directories(get_config_dir());
-    
-    std::ofstream file(config_path_);
-    if (!file.is_open()) {
-        std::cerr << "Warning: Could not save recent ROMs to " << config_path_ << std::endl;
+    std::error_code error;
+    std::filesystem::create_directories(get_config_dir(), error);
+    if (error) {
+        std::cerr << "Warning: Could not create recent ROM config directory "
+                  << get_config_dir() << ": " << error.message() << std::endl;
         return;
     }
     
+    std::ostringstream contents;
+    
     // Write JSON manually (simple format, no dependencies)
-    file << "{\n";
-    file << "  \"roms\": [\n";
+    contents << "{\n";
+    contents << "  \"roms\": [\n";
     
     for (size_t i = 0; i < recent_roms_.size(); ++i) {
         const auto& entry = recent_roms_[i];
-        file << "    {\n";
-        file << "      \"path\": \"" << escape_json_string(entry.file_path) << "\",\n";
-        file << "      \"time\": " << entry.last_played << "\n";
-        file << "    }";
+        contents << "    {\n";
+        contents << "      \"path\": \"" << escape_json_string(entry.file_path) << "\",\n";
+        contents << "      \"time\": " << entry.last_played << "\n";
+        contents << "    }";
         
         if (i < recent_roms_.size() - 1) {
-            file << ",";
+            contents << ",";
         }
-        file << "\n";
+        contents << "\n";
     }
     
-    file << "  ]\n";
-    file << "}\n";
+    contents << "  ]\n";
+    contents << "}\n";
+
+    if (!write_text_file_atomically(config_path_, contents.str())) {
+        std::cerr << "Warning: Could not save recent ROMs to " << config_path_ << std::endl;
+    }
 }
 
 std::string RecentRoms::get_config_dir() const
