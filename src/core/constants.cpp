@@ -10,6 +10,7 @@ namespace application {
 const char kName[] = "gbglow";
 const char kConfigDirectoryName[] = "gbglow";
 const char kKeybindingsFileName[] = "keybindings.conf";
+const char kGamepadConfigFileName[] = "gamepad.conf";
 const char kRecentRomsFileName[] = "recent_roms.json";
 const char kOpenRomDialogTitle[] = "Open ROM";
 const char kScreenshotDirectoryName[] = "gbglow";

@@ -95,6 +95,11 @@ public:
      * Clear continue flag
      */
     void clear_continue();
+
+    /**
+     * Clear any pending execution requests.
+     */
+    void clear_execution_requests();
     
     /**
      * Set docking mode (when true, doesn't render its own menu bar)
