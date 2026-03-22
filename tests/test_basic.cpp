@@ -256,6 +256,124 @@ bool test_recent_roms_ignores_malformed_entries() {
     return true;
 }
 
+bool test_recent_roms_handles_paths_with_delimiters() {
+    std::cout << "Testing recent ROMs paths with JSON delimiters...\n";
+
+    auto escape_json = [](const std::string& value) {
+        std::string escaped;
+        escaped.reserve(value.size());
+        for (char ch : value) {
+            switch (ch) {
+                case '\\': escaped += "\\\\"; break;
+                case '"': escaped += "\\\""; break;
+                default: escaped += ch; break;
+            }
+        }
+        return escaped;
+    };
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_delimiter_test";
+    const fs::path config_root = temp_root / "config";
+    const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
+    const fs::path rom_path = temp_root / "Legend ] of } Zelda \"DX\".gb";
+    const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
+
+    fs::remove_all(temp_root);
+    fs::create_directories(app_config_dir);
+
+    TEST_ASSERT(setenv("XDG_CONFIG_HOME", config_root.string().c_str(), 1) == 0);
+
+    {
+        std::ofstream rom_file(rom_path);
+        TEST_ASSERT(rom_file.is_open());
+        rom_file << "rom";
+    }
+
+    {
+        std::ofstream config_stream(config_file);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream
+            << "{\n"
+            << "  \"roms\": [\n"
+            << "    { \"path\": \"" << escape_json(rom_path.string()) << "\", \"time\": 12345 }\n"
+            << "  ]\n"
+            << "}\n";
+    }
+
+    {
+        RecentRoms recent_roms;
+        TEST_ASSERT(!recent_roms.is_empty());
+        TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
+        TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Legend ] of } Zelda \"DX\".gb");
+    }
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Recent ROMs delimiter-heavy paths load correctly\n";
+    return true;
+}
+
+bool test_recent_roms_handles_paths_with_key_tokens() {
+    std::cout << "Testing recent ROMs paths containing key tokens...\n";
+
+    auto escape_json = [](const std::string& value) {
+        std::string escaped;
+        escaped.reserve(value.size());
+        for (char ch : value) {
+            switch (ch) {
+                case '\\': escaped += "\\\\"; break;
+                case '"': escaped += "\\\""; break;
+                default: escaped += ch; break;
+            }
+        }
+        return escaped;
+    };
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_key_token_test";
+    const fs::path config_root = temp_root / "config";
+    const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
+    const fs::path rom_path = temp_root / "path and time adventure.gb";
+    const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
+
+    fs::remove_all(temp_root);
+    fs::create_directories(app_config_dir);
+
+    TEST_ASSERT(setenv("XDG_CONFIG_HOME", config_root.string().c_str(), 1) == 0);
+
+    {
+        std::ofstream rom_file(rom_path);
+        TEST_ASSERT(rom_file.is_open());
+        rom_file << "rom";
+    }
+
+    {
+        std::ofstream config_stream(config_file);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream
+            << "{\n"
+            << "  \"roms\": [\n"
+            << "    { \"path\": \"" << escape_json(rom_path.string()) << "\", \"time\": 67890 }\n"
+            << "  ]\n"
+            << "}\n";
+    }
+
+    {
+        RecentRoms recent_roms;
+        TEST_ASSERT(!recent_roms.is_empty());
+        TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
+        TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "path and time adventure.gb");
+    }
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Recent ROMs key-token paths load correctly\n";
+    return true;
+}
+
 namespace {
 
 void set_xdg_config_home(const std::filesystem::path& config_root) {
@@ -478,6 +596,8 @@ int main() {
     all_passed &= test_cpu_flags();
     all_passed &= test_recent_roms_round_trip();
     all_passed &= test_recent_roms_ignores_malformed_entries();
+    all_passed &= test_recent_roms_handles_paths_with_delimiters();
+    all_passed &= test_recent_roms_handles_paths_with_key_tokens();
     all_passed &= test_debugger_prepare_step_over();
     all_passed &= test_debugger_continue_skips_current_breakpoint_once();
     all_passed &= test_save_state_round_trip();
