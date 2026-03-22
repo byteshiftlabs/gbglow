@@ -16,7 +16,7 @@ unusedFunction:src/cartridge/cartridge.cpp:189    // cartridge_type()
 unusedFunction:src/cartridge/cartridge.cpp:194    // has_battery()
 
 // --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
-unusedFunction:src/cartridge/mbc3.cpp:213         // update_rtc()
+unusedFunction:src/cartridge/mbc3.cpp:217         // update_rtc()
 
 // --- Debugger back-end: public helpers retained for debugger tooling ---
 unusedFunction:src/debug/debugger.cpp:120         // is_step_over_active()

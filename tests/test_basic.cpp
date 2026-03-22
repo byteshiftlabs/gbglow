@@ -7,12 +7,15 @@
 #include "../src/core/emulator.h"
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
+#include "../src/core/timer.h"
+#include "../src/cartridge/mbc3.h"
 #include "../src/debug/debugger.h"
 #include "../src/debug/debugger_gui.h"
 #include "../src/input/gamepad.h"
 #include "../src/ui/recent_roms.h"
 #include "../src/video/ppu.h"
 #include <SDL2/SDL.h>
+#include <ctime>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -512,6 +515,25 @@ void append_extra_byte_to_state_blob(const std::filesystem::path& state_path) {
 
 }  // namespace
 
+namespace {
+
+std::vector<u8> make_mbc3_test_rom() {
+    std::vector<u8> rom(0x8000, 0x00);
+    rom[0x0147] = 0x0F;  // MBC3 + timer + battery
+    rom[0x0149] = 0x00;  // No external RAM needed for this test
+    return rom;
+}
+
+void overwrite_mbc3_base_time(std::vector<u8>& state, std::time_t base_time) {
+    const size_t rtc_base_time_offset = 4 + 5 + 5;
+    const int64_t encoded = static_cast<int64_t>(base_time);
+    for (size_t i = 0; i < 8; ++i) {
+        state[rtc_base_time_offset + i] = static_cast<u8>(encoded >> (i * 8));
+    }
+}
+
+}  // namespace
+
 bool test_debugger_prepare_step_over() {
     std::cout << "Testing debugger step-over arming...\n";
 
@@ -715,6 +737,59 @@ bool test_gamepad_config_clamps_deadzone_and_trims_lines() {
     return true;
 }
 
+bool test_timer_preserves_progress_on_redundant_tac_write() {
+    std::cout << "Testing timer TAC rewrite behavior...\n";
+
+    Memory memory;
+    Timer timer(memory);
+
+    timer.write_tac(0x05);  // Enable timer at 16 cycles per increment.
+    timer.step(8);
+    timer.write_tac(0x05);
+    timer.step(8);
+
+    TEST_EQ(timer.read_tima(), 1);
+
+    std::cout << "  PASS: Redundant TAC writes preserve timer progress\n";
+    return true;
+}
+
+bool test_mbc3_repeated_latch_refreshes_rtc() {
+    std::cout << "Testing MBC3 repeated RTC latch refresh...\n";
+
+    MBC3 cartridge(make_mbc3_test_rom(), 0, true);
+    cartridge.write(0x0000, 0x0A);  // Enable RAM/RTC access.
+    cartridge.write(0x4000, 0x08);  // Select RTC seconds.
+    cartridge.write(0xA000, 0x00);  // Reset visible RTC seconds and base time.
+
+    std::vector<u8> state;
+    cartridge.serialize(state);
+    overwrite_mbc3_base_time(state, std::time(nullptr) - 2);
+
+    size_t offset = 0;
+    cartridge.deserialize(state.data(), state.size(), offset);
+
+    cartridge.write(0x6000, 0x00);
+    cartridge.write(0x6000, 0x01);
+    const u8 first_latched_seconds = cartridge.read(0xA000);
+    TEST_ASSERT(first_latched_seconds >= 1);
+
+    state.clear();
+    cartridge.serialize(state);
+    overwrite_mbc3_base_time(state, std::time(nullptr) - 5);
+    offset = 0;
+    cartridge.deserialize(state.data(), state.size(), offset);
+
+    cartridge.write(0x6000, 0x00);
+    cartridge.write(0x6000, 0x01);
+    const u8 second_latched_seconds = cartridge.read(0xA000);
+
+    TEST_ASSERT(second_latched_seconds > first_latched_seconds);
+
+    std::cout << "  PASS: MBC3 latch sequence refreshes RTC values repeatedly\n";
+    return true;
+}
+
 int main() {
     std::cout << "=================================\n";
     std::cout << "gbglow Basic Component Tests\n";
@@ -737,6 +812,8 @@ int main() {
     all_passed &= test_save_state_requires_loaded_rom();
     all_passed &= test_gamepad_config_clamps_deadzone_and_trims_lines();
     all_passed &= test_gamepad_config_ignores_invalid_buttons_and_creates_dirs();
+    all_passed &= test_timer_preserves_progress_on_redundant_tac_write();
+    all_passed &= test_mbc3_repeated_latch_refreshes_rtc();
     
     std::cout << "\n" << tests_passed << "/" << tests_run << " assertions passed.\n";
     
