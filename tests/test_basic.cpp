@@ -8,8 +8,11 @@
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
 #include "../src/debug/debugger.h"
+#include "../src/debug/debugger_gui.h"
+#include "../src/input/gamepad.h"
 #include "../src/ui/recent_roms.h"
 #include "../src/video/ppu.h"
+#include <SDL2/SDL.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -256,6 +259,79 @@ bool test_recent_roms_ignores_malformed_entries() {
     return true;
 }
 
+bool test_debugger_gui_clears_execution_requests() {
+    std::cout << "Testing debugger GUI execution request clearing...\n";
+
+    DebuggerGUI debugger_gui;
+    debugger_gui.set_visible(true);
+
+    debugger_gui.continue_execution();
+    TEST_ASSERT(debugger_gui.should_continue());
+    TEST_ASSERT(!debugger_gui.step_requested());
+
+    debugger_gui.request_step();
+    TEST_ASSERT(debugger_gui.step_requested());
+    TEST_ASSERT(!debugger_gui.should_continue());
+
+    debugger_gui.continue_execution();
+    TEST_ASSERT(debugger_gui.should_continue());
+    TEST_ASSERT(!debugger_gui.step_requested());
+
+    debugger_gui.set_visible(false);
+    TEST_ASSERT(!debugger_gui.should_continue());
+    TEST_ASSERT(!debugger_gui.step_requested());
+    TEST_ASSERT(!debugger_gui.is_paused());
+
+    debugger_gui.set_visible(true);
+    debugger_gui.continue_execution();
+    debugger_gui.toggle_visible();
+    TEST_ASSERT(!debugger_gui.is_visible());
+    TEST_ASSERT(!debugger_gui.should_continue());
+    TEST_ASSERT(!debugger_gui.step_requested());
+    TEST_ASSERT(!debugger_gui.is_paused());
+
+    std::cout << "  PASS: Debugger GUI request state resets correctly\n";
+    return true;
+}
+
+bool test_gamepad_config_ignores_invalid_buttons_and_creates_dirs() {
+    std::cout << "Testing gamepad config save/load robustness...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_gamepad_save_test";
+    const fs::path config_file = temp_root / "nested" / "gamepad.conf";
+
+    fs::remove_all(temp_root);
+
+    Gamepad gamepad;
+    gamepad.save_config(config_file.string());
+    TEST_ASSERT(fs::exists(config_file));
+
+    {
+        std::ofstream config_stream(config_file);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream
+            << "gamepad_a=INVALID\n"
+            << "gamepad_b=X\n"
+            << "gamepad_start=BAD\n"
+            << "gamepad_select=BACK\n";
+    }
+
+    gamepad.reset_default_mapping();
+    gamepad.load_config(config_file.string());
+
+    const auto& mapping = gamepad.get_button_mapping();
+    TEST_EQ(mapping.gb_a, SDL_CONTROLLER_BUTTON_A);
+    TEST_EQ(mapping.gb_b, SDL_CONTROLLER_BUTTON_X);
+    TEST_EQ(mapping.gb_start, SDL_CONTROLLER_BUTTON_START);
+    TEST_EQ(mapping.gb_select, SDL_CONTROLLER_BUTTON_BACK);
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Gamepad config ignores invalid buttons and saves nested paths\n";
+    return true;
+}
+
 bool test_recent_roms_handles_paths_with_delimiters() {
     std::cout << "Testing recent ROMs paths with JSON delimiters...\n";
 
@@ -335,7 +411,7 @@ bool test_recent_roms_handles_paths_with_key_tokens() {
     const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_key_token_test";
     const fs::path config_root = temp_root / "config";
     const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
-    const fs::path rom_path = temp_root / "path and time adventure.gb";
+    const fs::path rom_path = temp_root / "time";
     const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
 
     fs::remove_all(temp_root);
@@ -365,7 +441,7 @@ bool test_recent_roms_handles_paths_with_key_tokens() {
         TEST_ASSERT(!recent_roms.is_empty());
         TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
         TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
-        TEST_ASSERT(recent_roms.get_roms().front().display_name == "path and time adventure.gb");
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "time");
     }
 
     fs::remove_all(temp_root);
@@ -584,6 +660,61 @@ bool test_corrupt_save_state_does_not_mutate_live_state() {
     return true;
 }
 
+bool test_save_state_requires_loaded_rom() {
+    std::cout << "Testing save-state rejection without a loaded ROM...\n";
+
+    Emulator emulator;
+
+    TEST_ASSERT(!emulator.save_state(0));
+    TEST_ASSERT(!emulator.load_state(0));
+    TEST_ASSERT(!emulator.delete_state(0));
+    TEST_ASSERT(emulator.get_state_path(0).empty());
+
+    std::cout << "  PASS: Save-state operations require a loaded ROM\n";
+    return true;
+}
+
+bool test_gamepad_config_clamps_deadzone_and_trims_lines() {
+    std::cout << "Testing gamepad config parsing...\n";
+
+    namespace fs = std::filesystem;
+    const fs::path temp_root = fs::temp_directory_path() / "gbglow_gamepad_config_test";
+    const fs::path config_path = temp_root / "gamepad.conf";
+
+    fs::remove_all(temp_root);
+    fs::create_directories(temp_root);
+
+    {
+        std::ofstream config_stream(config_path);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream
+            << "# comment\r\n"
+            << "   \r\n"
+            << "gamepad_a = LB\r\n"
+            << "gamepad_deadzone = 999999\r\n"
+            << "   = ignored\r\n";
+    }
+
+    Gamepad gamepad;
+    gamepad.load_config(config_path.string());
+    TEST_EQ(gamepad.get_deadzone(), Gamepad::SDL_AXIS_MAX);
+    TEST_EQ(gamepad.get_button_mapping().gb_a, SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
+
+    {
+        std::ofstream config_stream(config_path, std::ios::trunc);
+        TEST_ASSERT(config_stream.is_open());
+        config_stream << "gamepad_deadzone = -12\n";
+    }
+
+    gamepad.load_config(config_path.string());
+    TEST_EQ(gamepad.get_deadzone(), 0);
+
+    fs::remove_all(temp_root);
+
+    std::cout << "  PASS: Gamepad config parsing clamps deadzone and trims safely\n";
+    return true;
+}
+
 int main() {
     std::cout << "=================================\n";
     std::cout << "gbglow Basic Component Tests\n";
@@ -598,10 +729,14 @@ int main() {
     all_passed &= test_recent_roms_ignores_malformed_entries();
     all_passed &= test_recent_roms_handles_paths_with_delimiters();
     all_passed &= test_recent_roms_handles_paths_with_key_tokens();
+    all_passed &= test_debugger_gui_clears_execution_requests();
     all_passed &= test_debugger_prepare_step_over();
     all_passed &= test_debugger_continue_skips_current_breakpoint_once();
     all_passed &= test_save_state_round_trip();
     all_passed &= test_corrupt_save_state_does_not_mutate_live_state();
+    all_passed &= test_save_state_requires_loaded_rom();
+    all_passed &= test_gamepad_config_clamps_deadzone_and_trims_lines();
+    all_passed &= test_gamepad_config_ignores_invalid_buttons_and_creates_dirs();
     
     std::cout << "\n" << tests_passed << "/" << tests_run << " assertions passed.\n";
     

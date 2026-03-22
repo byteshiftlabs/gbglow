@@ -14,6 +14,7 @@ namespace application {
 extern const char kName[];
 extern const char kConfigDirectoryName[];
 extern const char kKeybindingsFileName[];
+extern const char kGamepadConfigFileName[];
 extern const char kRecentRomsFileName[];
 extern const char kOpenRomDialogTitle[];
 extern const char kScreenshotDirectoryName[];

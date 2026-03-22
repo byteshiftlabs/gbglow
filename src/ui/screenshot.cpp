@@ -148,7 +148,10 @@ std::string Screenshot::extract_rom_name(const std::string& rom_path) const
     
     // Replace spaces and special characters with underscores
     std::replace_if(filename.begin(), filename.end(),
-        [](char c) { return !std::isalnum(c) && c != '_' && c != '-'; }, '_');
+        [](char c) {
+            const unsigned char byte = static_cast<unsigned char>(c);
+            return !std::isalnum(byte) && c != '_' && c != '-';
+        }, '_');
     
     return filename;
 }

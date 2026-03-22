@@ -351,6 +351,11 @@ private:
     std::string get_keybindings_path() const;
 
     /**
+     * Get path to gamepad config file (XDG-compliant)
+     */
+    std::string get_gamepad_config_path() const;
+
+    /**
      * Load key bindings from config file
      */
     void load_key_bindings();
