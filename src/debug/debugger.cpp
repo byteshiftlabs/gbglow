@@ -20,6 +20,8 @@ Debugger::Debugger()
     , step_requested_(false)
     , step_over_active_(false)
     , step_over_return_address_(0)
+    , skip_breakpoint_once_(false)
+    , skipped_breakpoint_pc_(0)
     , max_history_size_(1000)
 {
 }
@@ -66,8 +68,18 @@ const std::set<u16>& Debugger::get_breakpoints() const {
 
 // === Execution Control ===
 
-bool Debugger::should_break(u16 pc) const {
+bool Debugger::should_break(u16 pc) {
+    if (skip_breakpoint_once_ && pc == skipped_breakpoint_pc_) {
+        skip_breakpoint_once_ = false;
+        return false;
+    }
+
     return has_breakpoint(pc);
+}
+
+void Debugger::skip_breakpoint_once(u16 pc) {
+    skip_breakpoint_once_ = true;
+    skipped_breakpoint_pc_ = pc;
 }
 
 void Debugger::request_step() {
@@ -77,6 +89,24 @@ void Debugger::request_step() {
 void Debugger::request_step_over() {
     step_requested_ = true;
     step_over_active_ = true;
+}
+
+bool Debugger::prepare_step_over_for_current_instruction() {
+    if (!cpu_ || !memory_) {
+        return false;
+    }
+
+    const u16 current_pc = cpu_->registers().pc;
+    const u8 opcode = read_memory(current_pc);
+    if (!is_step_over_opcode(opcode)) {
+        return false;
+    }
+
+    u16 next_address = current_pc;
+    disassemble_at(current_pc, next_address);
+    request_step_over();
+    set_step_over_return(next_address);
+    return true;
 }
 
 bool Debugger::step_requested() const {
@@ -102,6 +132,7 @@ bool Debugger::should_stop_step_over(u16 pc) const {
 void Debugger::clear_step_over() {
     step_over_active_ = false;
     step_over_return_address_ = 0;
+    step_requested_ = false;
 }
 
 // === Memory Inspection ===
@@ -249,6 +280,27 @@ std::string Debugger::format_address(u16 address) {
     ss << get_memory_region_name(address) << ":$" 
        << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
     return ss.str();
+}
+
+bool Debugger::is_step_over_opcode(u8 opcode) {
+    switch (opcode) {
+        case 0xC4:
+        case 0xCC:
+        case 0xCD:
+        case 0xD4:
+        case 0xDC:
+        case 0xC7:
+        case 0xCF:
+        case 0xD7:
+        case 0xDF:
+        case 0xE7:
+        case 0xEF:
+        case 0xF7:
+        case 0xFF:
+            return true;
+        default:
+            return false;
+    }
 }
 
 // === Disassembly ===
