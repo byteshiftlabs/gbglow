@@ -28,6 +28,12 @@ int main(int argc, const char* argv[])
         std::cerr << "  X = B button" << std::endl;
         std::cerr << "  Enter = Start" << std::endl;
         std::cerr << "  Shift = Select" << std::endl;
+        std::cerr << "  Ctrl+O = Open ROM dialog" << std::endl;
+        std::cerr << "  Ctrl+R = Reset emulator" << std::endl;
+        std::cerr << "  F1-F9 = Save states" << std::endl;
+        std::cerr << "  Shift+F1-F9 = Load states" << std::endl;
+        std::cerr << "  F11 = Toggle debugger" << std::endl;
+        std::cerr << "  F12 = Capture screenshot" << std::endl;
         std::cerr << "  ESC = Exit" << std::endl;
         return 1;
     }
