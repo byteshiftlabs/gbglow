@@ -1,318 +1,216 @@
 Development Guide
 =================
 
-How to build, test, and contribute to gbglow.
-
-Building from Source
---------------------
+How to build, test, and contribute to gbglow from the current repository state.
 
 Prerequisites
-~~~~~~~~~~~~~
-
-Required:
-
-* C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
-* CMake 3.10 or higher
-* Git
-
-Optional:
-
-* Sphinx (for documentation)
-* Doxygen (for code documentation)
-
-Clone Repository
-~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   git clone --recurse-submodules https://github.com/byteshiftlabs/gbglow.git
-   cd gbglow
-
-Build Steps
-~~~~~~~~~~~
-
-.. code-block:: bash
-
-   # Create build directory
-   mkdir build
-   cd build
-   
-   # Configure
-   cmake ..
-   
-   # Build
-   cmake --build .
-   
-   # The executable is at: build/gbglow
-
-Build Types
-~~~~~~~~~~~
-
-**Debug Build** (default):
-
-.. code-block:: bash
-
-   cmake -DCMAKE_BUILD_TYPE=Debug ..
-   cmake --build .
-
-Features:
-
-* Debug symbols enabled
-* Optimizations disabled
-* Assertions enabled
-* Slower execution
-
-**Release Build**:
-
-.. code-block:: bash
-
-   cmake -DCMAKE_BUILD_TYPE=Release ..
-   cmake --build .
-
-Features:
-
-* Full optimizations (-O3)
-* No debug symbols
-* Assertions disabled
-* Maximum performance
-
-**Release with Debug Info**:
-
-.. code-block:: bash
-
-   cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-   cmake --build .
-
-Features:
-
-* Optimizations enabled
-* Debug symbols included
-* Good for profiling
-
-Running Tests
 -------------
 
-Build Tests
-~~~~~~~~~~~
+Required tools:
 
-Tests are built by default:
+* C++17 compiler
+* CMake 3.14 or newer
+* ``pkg-config``
+* SDL2 development package discoverable as ``sdl2`` via ``pkg-config``
+* ``cppcheck``
+* Git
 
-.. code-block:: bash
-
-   cmake --build . --target test_basic
-
-Run Tests
-~~~~~~~~~
-
-.. code-block:: bash
-
-   # Run all tests
-   ctest
-   
-   # Run specific test
-   ./test_basic
-   
-   # Verbose output
-   ctest --verbose
-
-Test Organization
-~~~~~~~~~~~~~~~~~
-
-.. code-block:: text
-
-   tests/
-   ├── test_basic.cpp      # Core component tests
-   ├── test_cpu.cpp        # CPU instruction tests
-   ├── test_memory.cpp     # Memory system tests
-   └── test_ppu.cpp        # Graphics tests
-
-Writing Tests
-~~~~~~~~~~~~~
-
-gbglow uses a simple assertion-based test framework:
-
-.. code-block:: cpp
-
-   #include "test_framework.h"
-   #include "core/cpu.h"
-   
-   void test_ld_instructions() {
-       Memory memory;
-       CPU cpu(memory);
-       
-       // Test LD A, 42
-       memory.write(0x0000, 0x3E);  // LD A, n
-       memory.write(0x0001, 42);
-       
-       Cycles cycles = cpu.step();
-       
-       assert(cpu.get_registers().a == 42);
-       assert(cycles == 2);
-       
-       test_pass("LD A, n works correctly");
-   }
-
-Development Workflow
---------------------
-
-Branching Strategy
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: text
-
-   main           - Stable releases
-   develop        - Development branch
-   feature/*      - New features
-   bugfix/*       - Bug fixes
-   docs/*         - Documentation updates
-
-Creating a Feature
-~~~~~~~~~~~~~~~~~~
+Ubuntu 24.04 example:
 
 .. code-block:: bash
 
-   # Create feature branch
-   git checkout -b feature/sprite-rendering develop
-   
-   # Make changes
-   # ... edit code ...
-   
-   # Test
-   cmake --build . && ctest
-   
-   # Commit
-   git add .
-   git commit -m "Add sprite rendering support"
-   
-   # Push
-   git push origin feature/sprite-rendering
+   sudo apt install build-essential cmake pkg-config libsdl2-dev cppcheck
 
-Code Style
+Or use the helper script from the repository root:
+
+.. code-block:: bash
+
+   sudo bash ./install_deps_ubuntu.sh
+
+Repository layout
+-----------------
+
+Main project areas:
+
+* ``src/core``: CPU, memory, timer, emulator loop, save-state I/O
+* ``src/video``: PPU and SDL2 display integration
+* ``src/audio``: APU implementation
+* ``src/cartridge``: cartridge loading and MBC implementations
+* ``src/input``: joypad and gamepad input
+* ``src/debug``: debugger and ImGui debugger UI
+* ``src/ui``: recent ROMs list and screenshot support
+* ``tests/test_basic.cpp``: current assertion-based test executable
+* ``docs/architecture``: architecture and subsystem documentation
+
+Build
+-----
+
+Clone the repository:
+
+.. code-block:: bash
+
+   git clone https://github.com/byteshiftlabs/gbglow.git
+   cd gbglow
+
+Recommended build path:
+
+.. code-block:: bash
+
+   ./build.sh
+
+``build.sh`` performs all of the following:
+
+* dependency checks for ``cmake``, ``pkg-config``, ``cppcheck``, and SDL2
+* Dear ImGui download through CMake ``FetchContent`` during configure
+* CMake configure into ``build/``
+* project build
+* test execution with ``ctest --output-on-failure``
+* ``cppcheck`` static analysis
+
+Clean rebuild:
+
+.. code-block:: bash
+
+   ./build.sh --clean
+
+Manual CMake flow:
+
+.. code-block:: bash
+
+   mkdir -p build
+   cd build
+   cmake ..
+   cmake --build . -j"$(nproc)"
+
+Build types
+-----------
+
+The project defaults to ``Release`` when no build type is specified.
+
+Debug build:
+
+.. code-block:: bash
+
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build -j"$(nproc)"
+
+Release build:
+
+.. code-block:: bash
+
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+   cmake --build build -j"$(nproc)"
+
+RelWithDebInfo build:
+
+.. code-block:: bash
+
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+   cmake --build build -j"$(nproc)"
+
+Tests
+-----
+
+Current test executable:
+
+* ``test_basic`` built from ``tests/test_basic.cpp``
+
+Build and run tests manually:
+
+.. code-block:: bash
+
+   cmake --build build --target test_basic
+   cd build
+   ctest --output-on-failure
+
+Run the test binary directly:
+
+.. code-block:: bash
+
+   ./build/tests/test_basic
+
+Current coverage is focused and limited. It includes core CPU, memory, timer, cartridge, and selected utility behavior. It does not yet provide broad subsystem coverage for the full emulator runtime.
+
+Static analysis
+---------------
+
+Run ``cppcheck`` manually:
+
+.. code-block:: bash
+
+   cppcheck --enable=all --inline-suppr --quiet \
+       --suppress=missingIncludeSystem \
+       --suppress=missingInclude \
+       --suppress=unmatchedSuppression \
+       --suppressions-list=cppcheck.suppressions \
+       --error-exitcode=1 \
+       -I src/ src/
+
+If a suppression is necessary, keep it narrow and add a short justification comment in ``cppcheck.suppressions``.
+
+Run
+---
+
+Run a ROM directly after a successful build:
+
+.. code-block:: bash
+
+   ./build/gbglow /path/to/game.gb
+
+Key controls currently documented in the public README:
+
+* Arrow keys: D-pad
+* ``Z``: A
+* ``X``: B
+* ``Enter``: Start
+* ``Shift``: Select
+* ``Ctrl+O``: open ROM dialog
+* ``Ctrl+R``: reset emulator
+* ``F1`` to ``F9``: save state slots
+* ``Shift+F1`` to ``Shift+F9``: load state slots
+* ``F11``: toggle debugger
+* ``F12``: capture screenshot
+* ``ESC``: exit
+
+Workflow
+--------
+
+The repository currently uses ``main`` as the active base branch.
+
+Contribution workflow:
+
+1. create a branch from ``main``
+2. implement the change incrementally
+3. run ``./build.sh`` and keep the pipeline clean
+4. open a pull request targeting ``main``
+
+Branch naming examples used in current contributor guidance:
+
+* ``feature/mbc2-support``
+* ``fix/timer-overflow``
+* ``refactor/ppu-cleanup``
+* ``docs/memory-map``
+
+Code standards
+--------------
+
+Project expectations taken from current source and contributor guidance:
+
+* C++17 only
+* treat warnings as errors
+* avoid magic numbers; prefer ``constexpr`` named constants
+* keep public interfaces documented in headers
+* preserve the existing SPDX and copyright header on source files
+* prefer small, reviewable changes over large mixed refactors
+
+References
 ----------
 
-General Principles
-~~~~~~~~~~~~~~~~~~
+Additional project documentation:
 
-* **Clarity over cleverness** — code must teach, not just execute
-* **Incremental progress** — small, testable commits
-* **Documentation first** — explain WHY before implementing
-* **Test-driven** — validate with known-good test ROMs
-* **Educational value** — reference implementation for learning
-* **Consistent naming**
-* **Minimal dependencies**
-
-Naming Conventions
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   // Classes: PascalCase
-   class PPU { };
-   class MemoryBankController { };
-   
-   // Functions: snake_case
-   void render_scanline();
-   Cycles execute_instruction();
-   
-   // Variables: snake_case
-   u16 program_counter;
-   bool vblank_occurred;
-   
-   // Constants: UPPER_SNAKE_CASE
-   constexpr int SCREEN_WIDTH = 160;
-   constexpr Cycles CYCLES_PER_FRAME = 70224;
-   
-   // Private members: trailing underscore
-   class Example {
-   private:
-       int value_;
-       bool enabled_;
-   };
-
-File Organization
-~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   // Header file: example.h
-   #pragma once
-   
-   #include <vector>
-   #include "types.h"
-   
-   class Example {
-   public:
-       // Public interface first
-       Example();
-       void do_something();
-       
-   private:
-       // Implementation details last
-       void helper_function();
-       int value_;
-   };
-
-.. code-block:: cpp
-
-   // Implementation file: example.cpp
-   #include "example.h"
-   
-   Example::Example()
-       : value_(0)  // Initialize in declaration order
-   {
-   }
-   
-   void Example::do_something() {
-       // Implementation
-   }
-
-Comments
-~~~~~~~~
-
-.. code-block:: cpp
-
-   // Good: Explain WHY, not WHAT
-   // Use 16-bit addition to set flags correctly
-   regs_.af = add16(regs_.af, value);
-   
-   // Bad: States the obvious
-   // Add value to AF register
-   regs_.af += value;
-
-.. code-block:: cpp
-
-   // Good: Document non-obvious behavior
-   // Game Boy Color hardware quirk: writes to DIV reset it to 0
-   if (address == 0xFF04) {
-       div_register_ = 0;
-       return;
-   }
-
-Formatting
-~~~~~~~~~~
-
-Use consistent formatting (enforced by clang-format):
-
-.. code-block:: cpp
-
-   // Indentation: 4 spaces
-   if (condition) {
-       do_something();
-   }
-   
-   // Braces: Same line for class/function, next line for control flow
-   class Example {
-       void function() {
-           if (test) {
-               action();
-           }
-       }
-   };
-   
-   // Line length: Aim for 80-100 characters
-
-Error Handling
-~~~~~~~~~~~~~~
+* ``README.md``
+* ``CONTRIBUTING.md``
+* ``docs/architecture/index.rst``
 
 .. code-block:: cpp
 

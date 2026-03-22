@@ -16,11 +16,12 @@ The project prioritises readable, well-documented code over aggressive optimisat
 ## Quick Start
 
 ```bash
-# 1. Clone with submodules (ImGui is a git submodule)
-git clone --recurse-submodules https://github.com/byteshiftlabs/gbglow.git
+# 1. Clone the repository
+git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 
-# 2. Build (requires CMake ≥ 3.10, GCC/Clang with C++17, SDL2)
+# 2. Build (requires CMake ≥ 3.14, GCC/Clang with C++17, SDL2)
+#    Dear ImGui is fetched automatically by CMake during configure
 ./build.sh
 
 # 3. Run a ROM
@@ -36,9 +37,12 @@ cd gbglow
 | X | B button |
 | Enter | Start |
 | Shift | Select |
+| Ctrl+O | Open ROM dialog |
+| Ctrl+R | Reset emulator |
 | F1–F9 | Save state (slot 1–9) |
 | Shift+F1–F9 | Load state (slot 1–9) |
-| F12 | Toggle debugger |
+| F11 | Toggle debugger |
+| F12 | Capture screenshot |
 | ESC | Exit |
 
 ## How It Works
@@ -65,7 +69,6 @@ src/
   debug/                Debugger back-end and ImGui front-end
   ui/                   Recent ROMs list, screenshot capture
 external/
-  imgui/                Dear ImGui (git submodule)
   stb/                  stb_image_write (PNG screenshot export)
 tests/
   test_basic.cpp        Component unit tests (CPU, Memory, Registers)
@@ -79,14 +82,18 @@ config/
 | Dependency | Version | Purpose |
 |---|---|---|
 | C++ compiler | GCC ≥ 11 or Clang ≥ 13 | C++17 required |
-| CMake | ≥ 3.10 | Build system |
+| CMake | ≥ 3.14 | Build system and FetchContent support |
 | SDL2 | ≥ 2.0.20 | Video, audio, input |
 | pkg-config | any | SDL2 discovery |
 
-Install on Ubuntu/Debian:
+Dear ImGui is fetched automatically during CMake configure.
+
+Install on Ubuntu 24.04:
 ```bash
-sudo apt install build-essential cmake libsdl2-dev pkg-config
+sudo apt install build-essential cmake libsdl2-dev pkg-config zenity
 ```
+
+`zenity` is optional but enables the `Browse` button in the Open ROM dialog on Linux. Without it, you can still paste a ROM path manually.
 
 ## Testing
 

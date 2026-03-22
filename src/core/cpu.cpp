@@ -3,10 +3,12 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
-#include "cpu_constants.h"
+#include "constants.h"
 #include <iostream>
 
 namespace gbglow {
+
+using namespace constants::cpu;
 
 CPU::CPU(Memory& memory)
     : memory_(memory)
