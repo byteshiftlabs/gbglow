@@ -34,6 +34,10 @@ class Memory;
 class Timer {
 public:
     explicit Timer(Memory& memory);
+    Timer(const Timer&) = delete;
+    Timer& operator=(const Timer&) = delete;
+    Timer(Timer&&) = delete;
+    Timer& operator=(Timer&&) = delete;
     
     // Update timer state with elapsed cycles
     void step(Cycles cycles);

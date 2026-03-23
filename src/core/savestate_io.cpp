@@ -10,11 +10,53 @@
 #include <iostream>
 #include <fstream>
 #include <cstdio>
+#include <filesystem>
 
 namespace gbglow {
 
 using namespace io_reg;
 using namespace constants::savestate;
+
+namespace {
+
+bool replace_file_with_temp(const std::filesystem::path& path, const std::vector<u8>& state_data) {
+    const std::filesystem::path temp_path = path.string() + ".tmp";
+    std::ofstream file(temp_path, std::ios::binary | std::ios::trunc);
+    if (!file) {
+        return false;
+    }
+
+    file.write(kHeader, static_cast<std::streamsize>(kHeaderLength));
+
+    const u32 data_size = static_cast<u32>(state_data.size());
+    const u8 size_bytes[4] = {
+        static_cast<u8>(data_size),
+        static_cast<u8>(data_size >> 8),
+        static_cast<u8>(data_size >> 16),
+        static_cast<u8>(data_size >> 24)
+    };
+    file.write(reinterpret_cast<const char*>(size_bytes), sizeof(size_bytes));
+    file.write(reinterpret_cast<const char*>(state_data.data()), static_cast<std::streamsize>(state_data.size()));
+    file.close();
+
+    if (!file.good()) {
+        std::error_code remove_error;
+        std::filesystem::remove(temp_path, remove_error);
+        return false;
+    }
+
+    std::error_code rename_error;
+    std::filesystem::rename(temp_path, path, rename_error);
+    if (!rename_error) {
+        return true;
+    }
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+    return false;
+}
+
+}
 
 std::string Emulator::get_save_path() const
 {
@@ -33,13 +75,6 @@ bool Emulator::save_state(int slot) {
         return false;
     }
 
-    std::ofstream file(get_state_path(slot), std::ios::binary);
-    if (!file) {
-        return false;
-    }
-
-    file.write(kHeader, static_cast<std::streamsize>(kHeaderLength));
-
     std::vector<u8> state_data;
     cpu_->serialize(state_data);
     memory_->serialize(state_data);
@@ -52,17 +87,7 @@ bool Emulator::save_state(int slot) {
 
     // Serialise blob size as a 4-byte little-endian field so the format
     // is portable across 32-bit/64-bit targets and host endianness.
-    const u32 data_size = static_cast<u32>(state_data.size());
-    const u8 size_bytes[4] = {
-        static_cast<u8>(data_size),
-        static_cast<u8>(data_size >> 8),
-        static_cast<u8>(data_size >> 16),
-        static_cast<u8>(data_size >> 24)
-    };
-    file.write(reinterpret_cast<const char*>(size_bytes), sizeof(size_bytes));
-    file.write(reinterpret_cast<const char*>(state_data.data()), data_size);
-
-    return file.good();
+    return replace_file_with_temp(get_state_path(slot), state_data);
 }
 
 bool Emulator::load_state(int slot) {

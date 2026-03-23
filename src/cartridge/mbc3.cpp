@@ -260,16 +260,24 @@ void MBC3::deserialize(const u8* data, size_t data_size, size_t& offset)
     if (offset + MBC3_STATE_SIZE > data_size) return;
 
     ram_rtc_enabled_ = data[offset++] != 0;
-    rom_bank_        = data[offset++];
+    rom_bank_        = data[offset++] & ROM_BANK_MASK;
+    if (rom_bank_ == ROM_BANK_ZERO) {
+        rom_bank_ = ROM_BANK_DEFAULT;
+    }
     ram_rtc_select_  = data[offset++];
     rtc_latched_     = data[offset++] != 0;
     latch_data_last_ = data[offset++];
 
-    rtc_seconds_  = data[offset++];
-    rtc_minutes_  = data[offset++];
-    rtc_hours_    = data[offset++];
+    if (ram_rtc_select_ > RAM_BANK_3 &&
+        (ram_rtc_select_ < RTC_REG_SECONDS || ram_rtc_select_ > RTC_REG_DAYS_HIGH)) {
+        ram_rtc_select_ = RAM_BANK_0;
+    }
+
+    rtc_seconds_  = std::min(data[offset++], RTC_SECONDS_MAX);
+    rtc_minutes_  = std::min(data[offset++], RTC_MINUTES_MAX);
+    rtc_hours_    = std::min(data[offset++], RTC_HOURS_MAX);
     rtc_days_low_ = data[offset++];
-    rtc_days_high_= data[offset++];
+    rtc_days_high_= data[offset++] & (RTC_DAYS_HIGH_DAY_BIT | RTC_DAYS_HIGH_HALT_BIT | RTC_DAYS_HIGH_CARRY_BIT);
 
     int64_t base_time = 0;
     for (int i = 0; i < 8; i++) {
