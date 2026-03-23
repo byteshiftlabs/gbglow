@@ -12,31 +12,35 @@
  */
 
 #include "core/emulator.h"
+#include "core/logging.h"
 
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 int main(int argc, const char* argv[])
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <rom_file>" << std::endl;
-        std::cerr << "\nExample: " << argv[0] << " tetris.gb" << std::endl;
-        std::cerr << "\nControls:" << std::endl;
-        std::cerr << "  Arrow keys = D-pad" << std::endl;
-        std::cerr << "  Z = A button" << std::endl;
-        std::cerr << "  X = B button" << std::endl;
-        std::cerr << "  Enter = Start" << std::endl;
-        std::cerr << "  Shift = Select" << std::endl;
-        std::cerr << "  Ctrl+O = Open ROM dialog" << std::endl;
-        std::cerr << "  Ctrl+R = Reset emulator" << std::endl;
-        std::cerr << "  F1-F9 = Save states" << std::endl;
-        std::cerr << "  Shift+F1-F9 = Load states" << std::endl;
-        std::cerr << "  F11 = Toggle debugger" << std::endl;
-        std::cerr << "  F12 = Capture screenshot" << std::endl;
-        std::cerr << "  ESC = Exit" << std::endl;
+        std::ostringstream usage;
+        usage << "Usage: " << argv[0] << " <rom_file>\n"
+              << "Example: " << argv[0] << " tetris.gb\n\n"
+              << "Controls:\n"
+              << "  Arrow keys = D-pad\n"
+              << "  Z = A button\n"
+              << "  X = B button\n"
+              << "  Enter = Start\n"
+              << "  Shift = Select\n"
+              << "  Ctrl+O = Open ROM dialog\n"
+              << "  Ctrl+R = Reset emulator\n"
+              << "  F1-F9 = Save states\n"
+              << "  Shift+F1-F9 = Load states\n"
+              << "  F11 = Toggle debugger\n"
+              << "  F12 = Capture screenshot\n"
+              << "  ESC = Exit";
+        gbglow::log::error(usage.str());
         return 1;
     }
     
@@ -44,11 +48,11 @@ int main(int argc, const char* argv[])
 
     std::error_code error;
     if (!std::filesystem::exists(rom_path, error) || error) {
-        std::cerr << "ROM file does not exist: " << rom_path << std::endl;
+        gbglow::log::error("ROM file does not exist: " + rom_path);
         return 1;
     }
     if (!std::filesystem::is_regular_file(rom_path, error) || error) {
-        std::cerr << "ROM path is not a regular file: " << rom_path << std::endl;
+        gbglow::log::error("ROM path is not a regular file: " + rom_path);
         return 1;
     }
 
@@ -57,20 +61,20 @@ int main(int argc, const char* argv[])
 
         if (!emulator.load_rom(rom_path))
         {
-            std::cerr << "Failed to load ROM: " << rom_path << std::endl;
+            gbglow::log::error("Failed to load ROM: " + rom_path);
             return 1;
         }
 
-        std::cout << "Loaded ROM: " << rom_path << std::endl;
+        gbglow::log::info("Loaded ROM: " + rom_path);
 
         // Run emulator with display (game loop)
         emulator.run("gbglow - Game Boy Color Emulator");
         return 0;
     } catch (const std::exception& exception) {
-        std::cerr << "Fatal error: " << exception.what() << std::endl;
+        gbglow::log::error(std::string("Fatal error: ") + exception.what());
         return 1;
     } catch (...) {
-        std::cerr << "Fatal error: unknown exception" << std::endl;
+        gbglow::log::error("Fatal error: unknown exception");
         return 1;
     }
 }
