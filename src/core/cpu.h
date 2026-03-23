@@ -25,6 +25,10 @@ namespace gbglow {
 class CPU {
 public:
     explicit CPU(Memory& memory);
+    CPU(const CPU&) = delete;
+    CPU& operator=(const CPU&) = delete;
+    CPU(CPU&&) = delete;
+    CPU& operator=(CPU&&) = delete;
     
     /**
      * Execute one instruction and return the number of cycles (M-cycles) it took.

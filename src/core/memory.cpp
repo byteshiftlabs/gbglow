@@ -146,6 +146,18 @@ APU& Memory::apu() {
     return *apu_;
 }
 
+const APU& Memory::apu() const {
+    return *apu_;
+}
+
+const Joypad& Memory::joypad() const {
+    return *joypad_;
+}
+
+const Timer& Memory::timer() const {
+    return *timer_;
+}
+
 void Memory::set_ppu(PPU* ppu) {
     ppu_ = ppu;
 }
@@ -329,6 +341,27 @@ void Memory::write(u16 address, u8 value) {
     
     // I/O registers - hardware device control
     if (address < IO_REGISTERS_END) {
+        if (address == REG_STAT) {
+            const size_t index = address - IO_REGISTERS_START;
+            io_regs_[index] = (io_regs_[index] & 0x87) | (value & 0x78);
+            if (ppu_) {
+                ppu_->refresh_stat_signal();
+            }
+            return;
+        }
+
+        if (address == REG_LY) {
+            return;
+        }
+
+        if (address == REG_LYC) {
+            io_regs_[address - IO_REGISTERS_START] = value;
+            if (ppu_) {
+                ppu_->refresh_stat_signal();
+            }
+            return;
+        }
+
         // Joypad register - route through joypad controller
         if (address == JOYPAD_REG) {
             joypad_->write_register(value);
@@ -428,6 +461,14 @@ void Memory::write(u16 address, u8 value) {
     }
 }
 
+void Memory::write_io_register(u16 address, u8 value) {
+    if (address < IO_REGISTERS_START || address >= IO_REGISTERS_END) {
+        return;
+    }
+
+    io_regs_[address - IO_REGISTERS_START] = value;
+}
+
 u16 Memory::read16(u16 address) const
 {
     // Game Boy is little-endian: low byte first, then high byte
@@ -522,7 +563,7 @@ void Memory::deserialize(const u8* data, size_t data_size, size_t& offset)
     deserialize_array(vram_, data, offset);
     
     // VRAM bank selector
-    vram_bank_ = data[offset++];
+    vram_bank_ = data[offset++] & VRAM_BANK_MASK;
     
     // Speed switch register
     speed_switch_ = data[offset++];
