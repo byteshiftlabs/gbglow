@@ -11,6 +11,7 @@
 #include <fstream>
 #include <chrono>
 #include <thread>
+#include <stdexcept>
 
 namespace gbglow {
 
@@ -20,8 +21,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     // Initialize display
     Display display;
     if (!display.initialize(window_title, scale_factor)) {
-        std::cerr << "Failed to initialize display" << std::endl;
-        return;
+        throw std::runtime_error("Failed to initialize display");
     }
     
     // Attach debugger to display
