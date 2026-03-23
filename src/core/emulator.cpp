@@ -4,9 +4,9 @@
 
 #include "emulator.h"
 #include "../audio/apu.h"
+#include "logging.h"
 #include "timer.h"
 #include <stdexcept>
-#include <iostream>
 
 namespace gbglow {
 
@@ -29,11 +29,11 @@ Emulator::Emulator()
     // Try to load boot ROM (optional - emulator works without it)
     // Common locations: dmg_boot.bin, boot.gb, etc.
     if (memory_->load_boot_rom("dmg_boot.bin")) {
-        std::cout << "Boot ROM loaded" << std::endl;
+        log::info("Boot ROM loaded from dmg_boot.bin");
     } else if (memory_->load_boot_rom("boot.gb")) {
-        std::cout << "Boot ROM loaded" << std::endl;
+        log::info("Boot ROM loaded from boot.gb");
     } else {
-        std::cout << "No boot ROM found (emulator will skip boot sequence)" << std::endl;
+        log::warning("No boot ROM found; emulator will skip boot sequence");
     }
 }
 
@@ -50,14 +50,14 @@ bool Emulator::load_rom(const std::string& path) {
         std::string save_path = get_save_path();
         if (auto* saved_cartridge = memory_->cartridge()) {
             if (saved_cartridge->load_ram_from_file(save_path)) {
-                std::cout << "Loaded save file: " << save_path << std::endl;
+                log::info("Loaded save file: " + save_path);
             }
         }
         
         reset();
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to load ROM: " << e.what() << std::endl;
+        log::error(std::string("Failed to load ROM: ") + e.what());
         return false;
     }
 }
