@@ -4,10 +4,10 @@
 
 #include "emulator.h"
 #include "constants.h"
+#include "logging.h"
 #include "../audio/apu.h"
 #include "../debug/debugger_gui.h"
 #include "timer.h"
-#include <iostream>
 #include <fstream>
 #include <chrono>
 #include <thread>
@@ -33,8 +33,8 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     // Pass recent ROMs manager to display
     display.set_recent_roms(recent_roms_.get());
     
-    std::cout << "Emulator running. Press ESC to exit, F11 to open debugger, F12 to capture a screenshot." << std::endl;
-    std::cout << "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select" << std::endl;
+    log::info("Emulator running. Press ESC to exit, F11 to open debugger, F12 to capture a screenshot.");
+    log::info("Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select");
     
     // Main game loop - use audio-based synchronization for consistent timing
     // This approach is immune to system load variations (unlike sleep-based timing)
@@ -85,9 +85,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             const std::string pending_rom = display.get_pending_rom();
             if (load_rom(pending_rom)) {
                 display.set_rom_path(rom_path_);
-                std::cout << "Loaded ROM: " << pending_rom << std::endl;
+                log::info("Loaded ROM: " + pending_rom);
             } else {
-                std::cerr << "Failed to load ROM from menu: " << pending_rom << std::endl;
+                log::error("Failed to load ROM from menu: " + pending_rom);
             }
             continue;
         }
@@ -96,7 +96,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         if (display.should_reset()) {
             reset();
             display.clear_reset_flag();
-            std::cout << "Emulator reset" << std::endl;
+            log::info("Emulator reset");
         }
         
         // Handle save state request
@@ -104,9 +104,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         if (save_slot >= 0) {
             if (save_state(save_slot)) {
                 display.update_slot_metadata(save_slot);
-                std::cout << "State saved to slot " << (save_slot + 1) << std::endl;
+                log::info("State saved to slot " + std::to_string(save_slot + 1));
             } else {
-                std::cerr << "Failed to save state to slot " << (save_slot + 1) << std::endl;
+                log::error("Failed to save state to slot " + std::to_string(save_slot + 1));
             }
             display.clear_state_request();
         }
@@ -118,19 +118,19 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             bool file_exists = (std::ifstream(state_path).good());
             
             if (load_state(load_slot)) {
-                std::cout << "State loaded from slot " << (load_slot + 1) << std::endl;
+                log::info("State loaded from slot " + std::to_string(load_slot + 1));
             } else {
                 if (file_exists) {
-                    std::cerr << "Failed to load state from slot " << (load_slot + 1) << " - corrupted or invalid format" << std::endl;
+                    log::error("Failed to load state from slot " + std::to_string(load_slot + 1) + " - corrupted or invalid format");
                     // Delete corrupted save file
                     if (delete_state(load_slot)) {
                         display.delete_slot_metadata(load_slot);
-                        std::cout << "Corrupted save file deleted from slot " << (load_slot + 1) << std::endl;
+                        log::warning("Corrupted save file deleted from slot " + std::to_string(load_slot + 1));
                     } else {
-                        std::cerr << "Failed to delete corrupted save from slot " << (load_slot + 1) << std::endl;
+                        log::error("Failed to delete corrupted save from slot " + std::to_string(load_slot + 1));
                     }
                 } else {
-                    std::cerr << "No save file found in slot " << (load_slot + 1) << std::endl;
+                    log::warning("No save file found in slot " + std::to_string(load_slot + 1));
                 }
             }
             display.clear_state_request();
@@ -141,9 +141,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         if (delete_slot >= 0) {
             if (delete_state(delete_slot)) {
                 display.delete_slot_metadata(delete_slot);
-                std::cout << "State deleted from slot " << (delete_slot + 1) << std::endl;
+                log::info("State deleted from slot " + std::to_string(delete_slot + 1));
             } else {
-                std::cerr << "Failed to delete state from slot " << (delete_slot + 1) << std::endl;
+                log::error("Failed to delete state from slot " + std::to_string(delete_slot + 1));
             }
             display.clear_state_request();
         }
@@ -271,11 +271,11 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     if (auto* loaded_cartridge = memory_->cartridge()) {
         std::string save_path = get_save_path();
         if (loaded_cartridge->save_ram_to_file(save_path)) {
-            std::cout << "Saved game data to: " << save_path << std::endl;
+            log::info("Saved game data to: " + save_path);
         }
     }
     
-    std::cout << "Emulator stopped." << std::endl;
+    log::info("Emulator stopped.");
 }
 
 }  // namespace gbglow
