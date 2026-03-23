@@ -1,6 +1,4 @@
-# Basic component tests
-add_executable(test_basic 
-    test_basic.cpp
+set(GBGLOW_TEST_RUNTIME_SOURCES
     ../src/core/constants.cpp
     ../src/core/emulator.cpp
     ../src/core/cpu.cpp
@@ -23,10 +21,21 @@ add_executable(test_basic
     ../src/ui/recent_roms.cpp
 )
 
-target_include_directories(test_basic PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
-)
+function(add_gbglow_test target test_source)
+    add_executable(${target}
+        ${test_source}
+        ${GBGLOW_TEST_RUNTIME_SOURCES}
+    )
 
-target_link_libraries(test_basic PRIVATE imgui_backend ${SDL2_LIBRARIES})
+    target_include_directories(${target} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
 
-add_test(NAME basic_tests COMMAND test_basic)
+    target_link_libraries(${target} PRIVATE imgui_backend ${SDL2_LIBRARIES})
+
+    add_test(NAME ${target} COMMAND ${target})
+endfunction()
+
+add_gbglow_test(test_core test_core.cpp)
+add_gbglow_test(test_persistence test_persistence.cpp)
+add_gbglow_test(test_ppu test_ppu.cpp)
