@@ -302,8 +302,12 @@ void Cartridge::deserialize(const u8* data, size_t data_size, size_t& offset)
 
     if (offset + ram_size > data_size) return;
 
-    // Only restore if the saved RAM size matches the cartridge's RAM
-    if (ram_size == static_cast<u32>(ram_.size()) && ram_size > 0) {
+    if (ram_size != static_cast<u32>(ram_.size())) {
+        offset = data_size + 1;
+        return;
+    }
+
+    if (ram_size > 0) {
         std::copy(data + offset, data + offset + ram_size, ram_.begin());
     }
     offset += ram_size;

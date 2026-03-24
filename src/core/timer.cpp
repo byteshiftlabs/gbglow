@@ -79,7 +79,12 @@ void Timer::write_tma(u8 value) {
 
 void Timer::write_tac(u8 value) {
     // Only lower 3 bits are used
-    tac_ = value & 0x07;
+    const u8 new_tac = value & 0x07;
+    if (new_tac == tac_) {
+        return;
+    }
+
+    tac_ = new_tac;
     
     // Reset TIMA counter when changing configuration
     tima_counter_ = 0;
@@ -136,13 +141,16 @@ void Timer::deserialize(const u8* data, size_t data_size, size_t& offset)
     div_ = data[offset++];
     tima_ = data[offset++];
     tma_ = data[offset++];
-    tac_ = data[offset++];
+    tac_ = data[offset++] & (TAC_ENABLE_BIT | TAC_CLOCK_SELECT_MASK);
     
     // Internal counters
     div_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
     offset += 2;
     tima_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
     offset += 2;
+
+    div_counter_ %= DIV_FREQUENCY;
+    tima_counter_ %= get_clock_frequency();
 }
 
 } // namespace gbglow

@@ -5,9 +5,54 @@
 #include "gamepad.h"
 #include "joypad.h"
 #include <SDL2/SDL.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+
+namespace {
+
+void trim_in_place(std::string& value) {
+    const size_t first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        value.clear();
+        return;
+    }
+
+    const size_t last = value.find_last_not_of(" \t\r\n");
+    value = value.substr(first, last - first + 1);
+}
+
+bool write_text_file_atomically(const std::filesystem::path& path, const std::string& contents) {
+    const std::filesystem::path temp_path = path.string() + ".tmp";
+
+    {
+        std::ofstream file(temp_path, std::ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        file << contents;
+        if (!file.good()) {
+            file.close();
+            std::error_code remove_error;
+            std::filesystem::remove(temp_path, remove_error);
+            return false;
+        }
+    }
+
+    std::error_code error;
+    std::filesystem::rename(temp_path, path, error);
+    if (!error) {
+        return true;
+    }
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+    return false;
+}
+
+}  // namespace
 
 namespace gbglow {
 
@@ -63,12 +108,14 @@ void Gamepad::on_controller_added(int device_index) {
     }
 }
 
-void Gamepad::on_controller_removed(int instance_id) {
+void Gamepad::on_controller_removed(int instance_id, Joypad* joypad) {
     auto it = controllers_.find(instance_id);
     if (it != controllers_.end()) {
         const char* name = SDL_GameControllerName(it->second);
         SDL_Log("Gamepad disconnected: %s (instance %d)",
                 name ? name : "Unknown", instance_id);
+
+        release_all_inputs(joypad);
         
         SDL_GameControllerClose(it->second);
         controllers_.erase(it);
@@ -185,6 +232,26 @@ void Gamepad::update_stick_state(int axis, int value, Joypad* joypad) {
     }
 }
 
+void Gamepad::release_all_inputs(Joypad* joypad) {
+    left_stick_up_ = false;
+    left_stick_down_ = false;
+    left_stick_left_ = false;
+    left_stick_right_ = false;
+
+    if (!joypad) {
+        return;
+    }
+
+    joypad->release_up();
+    joypad->release_down();
+    joypad->release_left();
+    joypad->release_right();
+    joypad->release_a();
+    joypad->release_b();
+    joypad->release_start();
+    joypad->release_select();
+}
+
 bool Gamepad::is_connected() const {
     return !controllers_.empty();
 }
@@ -295,23 +362,31 @@ void Gamepad::load_config(const std::string& path) {
         std::string value = line.substr(eq_pos + 1);
         
         // Trim whitespace
-        key.erase(0, key.find_first_not_of(" \t"));
-        key.erase(key.find_last_not_of(" \t") + 1);
-        value.erase(0, value.find_first_not_of(" \t"));
-        value.erase(value.find_last_not_of(" \t") + 1);
+        trim_in_place(key);
+        trim_in_place(value);
+        if (key.empty() || value.empty()) {
+            continue;
+        }
+
+        const auto apply_button_mapping_value = [&](int& destination) {
+            const int button = string_to_button(value);
+            if (button != SDL_CONTROLLER_BUTTON_INVALID) {
+                destination = button;
+            }
+        };
         
         // Parse gamepad settings
         if (key == "gamepad_a") {
-            button_mapping_.gb_a = string_to_button(value);
+            apply_button_mapping_value(button_mapping_.gb_a);
         } else if (key == "gamepad_b") {
-            button_mapping_.gb_b = string_to_button(value);
+            apply_button_mapping_value(button_mapping_.gb_b);
         } else if (key == "gamepad_start") {
-            button_mapping_.gb_start = string_to_button(value);
+            apply_button_mapping_value(button_mapping_.gb_start);
         } else if (key == "gamepad_select") {
-            button_mapping_.gb_select = string_to_button(value);
+            apply_button_mapping_value(button_mapping_.gb_select);
         } else if (key == "gamepad_deadzone") {
             try {
-                deadzone_ = std::stoi(value);
+                set_deadzone(std::stoi(value));
             } catch (const std::exception&) {
                 // Keep default deadzone on malformed config value
             }
@@ -320,19 +395,28 @@ void Gamepad::load_config(const std::string& path) {
 }
 
 void Gamepad::save_config(const std::string& path) {
-    std::ofstream file(path);
-    if (!file.is_open()) {
+    std::error_code error;
+    const std::filesystem::path config_path(path);
+    if (config_path.has_parent_path()) {
+        std::filesystem::create_directories(config_path.parent_path(), error);
+        if (error) {
+            return;
+        }
+    }
+
+    std::ostringstream contents;
+    contents << "# Gamepad Button Mappings\n";
+    contents << "# Available buttons: A, B, X, Y, BACK, START, LB, RB, LEFTSTICK, RIGHTSTICK\n";
+    contents << "#\n";
+    contents << "gamepad_a=" << button_to_string(button_mapping_.gb_a) << "\n";
+    contents << "gamepad_b=" << button_to_string(button_mapping_.gb_b) << "\n";
+    contents << "gamepad_start=" << button_to_string(button_mapping_.gb_start) << "\n";
+    contents << "gamepad_select=" << button_to_string(button_mapping_.gb_select) << "\n";
+    contents << "gamepad_deadzone=" << deadzone_ << "\n";
+
+    if (!write_text_file_atomically(config_path, contents.str())) {
         return;
     }
-    
-    file << "# Gamepad Button Mappings\n";
-    file << "# Available buttons: A, B, X, Y, BACK, START, LB, RB, LEFTSTICK, RIGHTSTICK\n";
-    file << "#\n";
-    file << "gamepad_a=" << button_to_string(button_mapping_.gb_a) << "\n";
-    file << "gamepad_b=" << button_to_string(button_mapping_.gb_b) << "\n";
-    file << "gamepad_start=" << button_to_string(button_mapping_.gb_start) << "\n";
-    file << "gamepad_select=" << button_to_string(button_mapping_.gb_select) << "\n";
-    file << "gamepad_deadzone=" << deadzone_ << "\n";
 }
 
 } // namespace gbglow
