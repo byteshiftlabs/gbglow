@@ -3,24 +3,59 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
+#include "constants.h"
 #include "timer.h"
 #include "io_registers.h"
 #include "../audio/apu.h"
 #include <iostream>
 #include <fstream>
 #include <cstdio>
+#include <filesystem>
 
 namespace gbglow {
 
 using namespace io_reg;
+using namespace constants::savestate;
 
 namespace {
-    // Save state file magic — must match exactly; old formats are rejected
-    constexpr char STATE_HEADER[] = "GBGLOW_STATE";
-    // Does not include the null terminator
-    constexpr size_t STATE_HEADER_LEN = sizeof(STATE_HEADER) - 1;
-    // Upper sanity limit on the serialized blob (512 KB)
-    constexpr size_t STATE_MAX_BYTES = 512 * 1024;
+
+bool replace_file_with_temp(const std::filesystem::path& path, const std::vector<u8>& state_data) {
+    const std::filesystem::path temp_path = path.string() + ".tmp";
+    std::ofstream file(temp_path, std::ios::binary | std::ios::trunc);
+    if (!file) {
+        return false;
+    }
+
+    file.write(kHeader, static_cast<std::streamsize>(kHeaderLength));
+
+    const u32 data_size = static_cast<u32>(state_data.size());
+    const u8 size_bytes[4] = {
+        static_cast<u8>(data_size),
+        static_cast<u8>(data_size >> 8),
+        static_cast<u8>(data_size >> 16),
+        static_cast<u8>(data_size >> 24)
+    };
+    file.write(reinterpret_cast<const char*>(size_bytes), sizeof(size_bytes));
+    file.write(reinterpret_cast<const char*>(state_data.data()), static_cast<std::streamsize>(state_data.size()));
+    file.close();
+
+    if (!file.good()) {
+        std::error_code remove_error;
+        std::filesystem::remove(temp_path, remove_error);
+        return false;
+    }
+
+    std::error_code rename_error;
+    std::filesystem::rename(temp_path, path, rename_error);
+    if (!rename_error) {
+        return true;
+    }
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+    return false;
+}
+
 }
 
 std::string Emulator::get_save_path() const
@@ -36,16 +71,9 @@ std::string Emulator::get_save_path() const
 }
 
 bool Emulator::save_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
-
-    std::ofstream file(get_state_path(slot), std::ios::binary);
-    if (!file) {
-        return false;
-    }
-
-    file.write(STATE_HEADER, STATE_HEADER_LEN);
 
     std::vector<u8> state_data;
     cpu_->serialize(state_data);
@@ -59,21 +87,11 @@ bool Emulator::save_state(int slot) {
 
     // Serialise blob size as a 4-byte little-endian field so the format
     // is portable across 32-bit/64-bit targets and host endianness.
-    const u32 data_size = static_cast<u32>(state_data.size());
-    const u8 size_bytes[4] = {
-        static_cast<u8>(data_size),
-        static_cast<u8>(data_size >> 8),
-        static_cast<u8>(data_size >> 16),
-        static_cast<u8>(data_size >> 24)
-    };
-    file.write(reinterpret_cast<const char*>(size_bytes), sizeof(size_bytes));
-    file.write(reinterpret_cast<const char*>(state_data.data()), data_size);
-
-    return file.good();
+    return replace_file_with_temp(get_state_path(slot), state_data);
 }
 
 bool Emulator::load_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
 
@@ -82,10 +100,10 @@ bool Emulator::load_state(int slot) {
         return false;
     }
 
-    char header[STATE_HEADER_LEN] = {};
-    file.read(header, STATE_HEADER_LEN);
-    if (std::string(header, STATE_HEADER_LEN) != STATE_HEADER) {
-        std::cerr << "Save state not recognised — resave to update format" << std::endl;
+    std::string header(kHeaderLength, '\0');
+    file.read(header.data(), static_cast<std::streamsize>(kHeaderLength));
+    if (header != kHeader) {
+        std::cerr << "Corrupt save state: invalid header" << std::endl;
         return false;
     }
 
@@ -97,7 +115,7 @@ bool Emulator::load_state(int slot) {
         (static_cast<u32>(size_bytes[1]) << 8)  |
         (static_cast<u32>(size_bytes[2]) << 16) |
         (static_cast<u32>(size_bytes[3]) << 24);
-    if (data_size == 0 || data_size > STATE_MAX_BYTES) {
+    if (data_size == 0 || data_size > kMaxBytes) {
         std::cerr << "Corrupt save state: invalid data size " << data_size << std::endl;
         return false;
     }
@@ -106,6 +124,25 @@ bool Emulator::load_state(int slot) {
     file.read(reinterpret_cast<char*>(state_data.data()), data_size);
     if (file.fail()) {
         std::cerr << "Corrupt save state: truncated data" << std::endl;
+        return false;
+    }
+
+    // Validate the blob size against the current component layout before
+    // deserializing anything into the live emulator. This prevents partial
+    // state mutation when a blob is truncated or built against a different
+    // component layout.
+    std::vector<u8> expected_state;
+    cpu_->serialize(expected_state);
+    memory_->serialize(expected_state);
+    ppu_->serialize(expected_state);
+    memory_->apu().serialize(expected_state);
+    memory_->timer().serialize(expected_state);
+    if (auto* cart = memory_->cartridge()) {
+        cart->serialize(expected_state);
+    }
+
+    if (expected_state.size() != static_cast<size_t>(data_size)) {
+        std::cerr << "Corrupt save state: component layout mismatch" << std::endl;
         return false;
     }
 
@@ -131,6 +168,10 @@ bool Emulator::load_state(int slot) {
 }
 
 std::string Emulator::get_state_path(int slot) const {
+    if (rom_path_.empty()) {
+        return {};
+    }
+
     std::string state_path = rom_path_;
     size_t dot_pos = state_path.rfind('.');
     if (dot_pos != std::string::npos) {
@@ -141,7 +182,7 @@ std::string Emulator::get_state_path(int slot) const {
 }
 
 bool Emulator::delete_state(int slot) {
-    if (slot < 0 || slot > 9) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
     return std::remove(get_state_path(slot).c_str()) == 0;
