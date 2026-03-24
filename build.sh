@@ -13,11 +13,15 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}=== EmuGBC Build Script ===${NC}"
 
-# Create build directory if it doesn't exist
-if [ ! -d "build" ]; then
-    echo -e "${YELLOW}Creating build directory...${NC}"
-    mkdir build
+# Clean previous build
+if [ -d "build" ]; then
+    echo -e "${YELLOW}Cleaning previous build...${NC}"
+    rm -rf build
 fi
+
+# Create build directory
+echo -e "${YELLOW}Creating build directory...${NC}"
+mkdir build
 
 # Navigate to build directory
 cd build
