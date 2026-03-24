@@ -77,13 +77,6 @@ bool write_text_file_atomically(const std::filesystem::path& path, const std::st
         return true;
     }
 
-    std::filesystem::remove(path, error);
-    error.clear();
-    std::filesystem::rename(temp_path, path, error);
-    if (!error) {
-        return true;
-    }
-
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);
     return false;
@@ -239,14 +232,44 @@ Display::~Display() {
     SDL_Quit();
 }
 
-void Display::attach_debugger(Debugger* debugger) {
+void Display::attach_debugger(Debugger& debugger) {
     if (debugger_gui_) {
         debugger_gui_->attach(debugger);
     }
 }
 
-DebuggerGUI* Display::get_debugger_gui() {
-    return debugger_gui_.get();
+bool Display::debugger_visible() const {
+    return debugger_gui_ && debugger_gui_->is_visible();
+}
+
+bool Display::debugger_should_pause() const {
+    return debugger_gui_ && debugger_gui_->should_pause();
+}
+
+bool Display::debugger_step_requested() const {
+    return debugger_gui_ && debugger_gui_->step_requested();
+}
+
+void Display::clear_debugger_step_request() {
+    if (debugger_gui_) {
+        debugger_gui_->clear_step_request();
+    }
+}
+
+bool Display::debugger_continue_requested() const {
+    return debugger_gui_ && debugger_gui_->should_continue();
+}
+
+void Display::clear_debugger_continue_request() {
+    if (debugger_gui_) {
+        debugger_gui_->clear_continue();
+    }
+}
+
+void Display::pause_debugger() {
+    if (debugger_gui_) {
+        debugger_gui_->pause_execution();
+    }
 }
 
 bool Display::is_debugger_mode() const {
@@ -280,6 +303,34 @@ void Display::set_debugger_mode(bool enabled) {
     }
 }
 
+void Display::open_debugger_mode() {
+    if (!debugger_gui_) {
+        return;
+    }
+
+    set_debugger_mode(true);
+    debugger_gui_->set_visible(true);
+    debugger_gui_->set_docking_mode(true);
+}
+
+void Display::close_debugger_mode() {
+    if (!debugger_gui_) {
+        return;
+    }
+
+    set_debugger_mode(false);
+    debugger_gui_->set_visible(false);
+    debugger_gui_->set_docking_mode(false);
+}
+
+void Display::toggle_debugger_mode() {
+    if (debugger_mode_) {
+        close_debugger_mode();
+    } else {
+        open_debugger_mode();
+    }
+}
+
 bool Display::initialize(const std::string& title, int scale_factor) {
     scale_factor_ = scale_factor;
     
@@ -309,7 +360,6 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     );
     
     if (!window_) {
-        SDL_Quit();
         return false;
     }
     
@@ -324,7 +374,6 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     if (!renderer_) {
         SDL_DestroyWindow(window_);
         window_ = nullptr;
-        SDL_Quit();
         return false;
     }
     
@@ -343,7 +392,6 @@ bool Display::initialize(const std::string& title, int scale_factor) {
         renderer_ = nullptr;
         SDL_DestroyWindow(window_);
         window_ = nullptr;
-        SDL_Quit();
         return false;
     }
     
@@ -654,17 +702,7 @@ void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
     // F11 key toggles debugger mode
     if (key == SDLK_F11) {
         if (debugger_gui_) {
-            if (debugger_mode_) {
-                // Exit debugger mode
-                set_debugger_mode(false);
-                debugger_gui_->set_visible(false);
-                debugger_gui_->set_docking_mode(false);
-            } else {
-                // Enter debugger mode
-                set_debugger_mode(true);
-                debugger_gui_->set_visible(true);
-                debugger_gui_->set_docking_mode(true);
-            }
+            toggle_debugger_mode();
         }
         return;
     }
@@ -675,7 +713,7 @@ void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
             if (debugger_gui_->is_paused()) {
                 debugger_gui_->continue_execution();
             } else {
-                debugger_gui_->set_paused(true);
+                debugger_gui_->pause_execution();
             }
         }
         return;
@@ -842,6 +880,15 @@ bool Display::should_reset() const {
     return should_reset_;
 }
 
+void Display::bind_session_context(const std::string& rom_path, RecentRoms& recent_roms) {
+    if (current_rom_path_ != rom_path) {
+        slot_metadata_.clear();
+    }
+
+    current_rom_path_ = rom_path;
+    recent_roms_ = &recent_roms;
+}
+
 void Display::clear_reset_flag() {
     should_reset_ = false;
 }
@@ -1006,17 +1053,7 @@ void Display::render_menu_bar() {
             bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
             if (ImGui::MenuItem("Debugger", "F11", debugger_visible)) {
                 if (debugger_gui_) {
-                    if (debugger_mode_) {
-                        // In debugger mode, toggle exits debugger mode
-                        set_debugger_mode(false);
-                        debugger_gui_->set_visible(false);
-                        debugger_gui_->set_docking_mode(false);
-                    } else {
-                        // Not in debugger mode, enter it
-                        set_debugger_mode(true);
-                        debugger_gui_->set_visible(true);
-                        debugger_gui_->set_docking_mode(true);
-                    }
+                    toggle_debugger_mode();
                 }
             }
             
@@ -1032,7 +1069,7 @@ void Display::render_menu_bar() {
                     if (paused) {
                         debugger_gui_->continue_execution();
                     } else {
-                        debugger_gui_->set_paused(true);
+                        debugger_gui_->pause_execution();
                     }
                 }
                 
@@ -1043,21 +1080,12 @@ void Display::render_menu_bar() {
                 ImGui::Separator();
                 
                 // View toggles
-                ImGui::MenuItem("Registers", nullptr, &debugger_gui_->show_registers());
-                ImGui::MenuItem("Disassembly", nullptr, &debugger_gui_->show_disassembly());
-                ImGui::MenuItem("Memory", nullptr, &debugger_gui_->show_memory());
-                ImGui::MenuItem("Breakpoints", nullptr, &debugger_gui_->show_breakpoints());
-                ImGui::MenuItem("Watches", nullptr, &debugger_gui_->show_watches());
-                ImGui::MenuItem("Stack", nullptr, &debugger_gui_->show_stack());
-                ImGui::MenuItem("I/O Registers", nullptr, &debugger_gui_->show_io_registers());
-                ImGui::MenuItem("Sprites (OAM)", nullptr, &debugger_gui_->show_sprites());
+                debugger_gui_->render_window_menu_items();
                 
                 ImGui::Separator();
                 
                 if (ImGui::MenuItem("Exit Debugger", "F11")) {
-                    set_debugger_mode(false);
-                    debugger_gui_->set_visible(false);
-                    debugger_gui_->set_docking_mode(false);
+                    close_debugger_mode();
                 }
                 
                 ImGui::EndMenu();
@@ -1445,17 +1473,6 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
     // Keep occupied slots actionable even if metadata lookup fails.
     snprintf(label, sizeof(label), "Slot %d - used", slot + 1);
     return label;
-}
-
-void Display::set_rom_path(const std::string& rom_path) {
-    if (current_rom_path_ != rom_path) {
-        slot_metadata_.clear();
-    }
-    current_rom_path_ = rom_path;
-}
-
-void Display::set_recent_roms(RecentRoms* recent_roms) {
-    recent_roms_ = recent_roms;
 }
 
 std::string Display::get_keybindings_path() const {
