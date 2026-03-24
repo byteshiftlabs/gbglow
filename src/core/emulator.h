@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "constants.h"
 #include "types.h"
 #include "cpu.h"
 #include "memory.h"
@@ -30,6 +31,10 @@ class Emulator
 {
 public:
     Emulator();
+    Emulator(const Emulator&) = delete;
+    Emulator& operator=(const Emulator&) = delete;
+    Emulator(Emulator&&) = delete;
+    Emulator& operator=(Emulator&&) = delete;
     
     /**
      * Load a ROM file into the emulator
@@ -69,32 +74,35 @@ public:
      * @return Reference to the PPU component
      */
     const PPU& ppu() const;
-    PPU& ppu();
+    PPU& ppu_for_testing();
     
     /**
      * Access to CPU for debugging
      * @return Reference to the CPU component
      */
     const CPU& cpu() const;
-    CPU& cpu();
+    CPU& cpu_for_testing();
     
     /**
      * Access to Joypad for input
      * @return Reference to the Joypad component
      */
     Joypad& joypad();
+    const Joypad& joypad() const;
     
     /**
      * Get cartridge from memory
      * @return Pointer to cartridge (may be null)
      */
     Cartridge* cartridge();
+    const Cartridge* cartridge() const;
 
     /**
      * Access to Memory for testing & diagnostics
      * @return Reference to Memory
      */
-    Memory& memory();
+    const Memory& memory() const;
+    Memory& memory_for_testing();
     
     /**
      * Get the save file path for current ROM
@@ -135,14 +143,32 @@ public:
      * @return Reference to the debugger
      */
     Debugger& debugger();
+    const Debugger& debugger() const;
     
     /**
      * Get recent ROMs list
      * @return Reference to the recent ROMs manager
      */
     RecentRoms& recent_roms();
+    const RecentRoms& recent_roms() const;
     
 private:
+    void attach_display_state(Display& display);
+    bool run_emulation_cycles(Display& display, Cycles cycle_budget);
+    Cycles execute_component_step();
+    bool handle_pending_rom_request(Display& display);
+    void handle_reset_request(Display& display);
+    void handle_save_state_request(Display& display);
+    void handle_load_state_request(Display& display);
+    void handle_delete_state_request(Display& display);
+    bool handle_debugger_step_request(Display& display);
+    void handle_screenshot_request(Display& display);
+    void update_display_frame(Display& display, bool clear_frame_ready);
+    void update_paused_display(Display& display);
+    void run_turbo_mode(Display& display);
+    void run_normal_mode(Display& display, float speed_multiplier);
+    void save_ram_on_exit();
+
     std::unique_ptr<Memory> memory_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
@@ -153,11 +179,11 @@ private:
     std::string rom_path_;  // Path to loaded ROM file
     
     // Game Boy refresh rate: ~59.73 Hz
-    static constexpr double FRAME_RATE = 59.73;
-    static constexpr double FRAME_TIME_MS = 1000.0 / FRAME_RATE;  // ~16.74 ms
+    static constexpr double FRAME_RATE = constants::emulator::kFrameRateHz;
+    static constexpr double FRAME_TIME_MS = constants::emulator::kFrameTimeMs;
     
     // Cycles per frame
-    static constexpr Cycles CYCLES_PER_FRAME = 70224;  // 154 scanlines × 456 dots
+    static constexpr Cycles CYCLES_PER_FRAME = constants::emulator::kCyclesPerFrame;
 };
 
 } // namespace gbglow
