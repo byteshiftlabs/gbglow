@@ -575,10 +575,12 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
     const size_t rgba_size = pixel_count * 4;
     std::vector<u8> rgba_framebuffer(rgba_size);
     
-    // Check if we're in CGB mode
-    bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    // Only use CGB color mode for CGB-only games (flag 0xC0)
+    // Games with flag 0x80 (CGB supported but also works on DMG) like Pokémon Red
+    // are DMG games that don't use CGB color palettes
+    bool is_cgb_only = cartridge_ && cartridge_->is_cgb_only();
     
-    if (is_cgb) {
+    if (is_cgb_only) {
         // CGB mode: Framebuffer stores (palette_num << CGB_PALETTE_SHIFT) | color_index
         for (size_t i = 0; i < pixel_count; i++) {
             u8 fb_value = framebuffer_[i];

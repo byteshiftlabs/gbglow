@@ -63,9 +63,19 @@ public:
     unsigned int get_audio_queue_size() const;
     
     /**
+     * Clear the audio queue (used for turbo mode)
+     */
+    void clear_audio_queue();
+    
+    /**
      * Check if window should close
      */
     bool should_close() const;
+    
+    /**
+     * Check if turbo mode is active (Space key held)
+     */
+    bool is_turbo_active() const;
     
     /**
      * Process window events (must be called each frame)
@@ -86,6 +96,7 @@ private:
     unsigned int audio_device_;  // SDL_AudioDeviceID is typedef'd to Uint32
     
     bool should_close_;
+    bool turbo_mode_;  // Space key held for speedup
     int scale_factor_;
     
     // Game Boy LCD dimensions
