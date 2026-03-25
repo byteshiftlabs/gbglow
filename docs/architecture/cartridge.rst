@@ -276,8 +276,8 @@ Enhanced MBC with optional Real-Time Clock (RTC).
    * 0x0B: Days (lower 8 bits)
    * 0x0C: Days (upper 1 bit) + Halt + Carry
 
-RTC is fully implemented: the clock updates from the system clock on
-each ``read()`` and is persisted through ``.sav`` files and save states.
+RTC support updates the clock from the system clock on each ``read()``
+and persists it through ``.sav`` files and save states.
 
 MBC5 - Memory Bank Controller 5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -298,8 +298,8 @@ Most advanced MBC, used in later games.
    0x3000-0x3FFF: ROM Bank (9th bit)
    0x4000-0x5FFF: RAM Bank
 
-MBC5 is fully implemented with 9-bit bank selection and optional
-rumble motor support.
+MBC5 support includes 9-bit bank selection and optional rumble motor
+handling.
 
 Implementation
 --------------
