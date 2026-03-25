@@ -18,23 +18,6 @@ unusedFunction:src/cartridge/cartridge.cpp:194    // has_battery()
 // --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
 unusedFunction:src/cartridge/mbc3.cpp:217         // update_rtc()
 
-// --- Debugger back-end: public helpers retained for debugger tooling ---
-unusedFunction:src/debug/debugger.cpp:120         // is_step_over_active()
-
-// --- Debugger memory inspection API ---
-unusedFunction:src/debug/debugger.cpp:147         // write_memory()
-unusedFunction:src/debug/debugger.cpp:153         // read_memory_region()
-
-// --- Debugger execution history API ---
-unusedFunction:src/debug/debugger.cpp:217         // get_execution_history()
-unusedFunction:src/debug/debugger.cpp:221         // clear_history()
-unusedFunction:src/debug/debugger.cpp:225         // set_max_history()
-
-// --- Debugger disassembly helpers (used by disassemble_range, called by GUI) ---
-unusedFunction:src/debug/debugger.cpp:313         // get_register_name_16()
-unusedFunction:src/debug/debugger.cpp:318         // get_condition_name()
-unusedFunction:src/debug/debugger.cpp:713         // disassemble_around_pc()
-
 // --- DebuggerGUI visibility toggle (called by Display on F11 key) ---
 unusedFunction:src/debug/debugger_gui.cpp:189     // toggle_visible()
 
@@ -49,9 +32,14 @@ unusedFunction:src/input/gamepad.cpp:302          // get_deadzone()
 unusedFunction:src/input/gamepad.cpp:397          // save_config()
 
 // --- Display utility/state accessors used by front-end or future tools ---
-unusedFunction:src/video/display.cpp:245          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:769          // get_sdl_error()
-unusedFunction:src/video/display.cpp:855          // is_muted()
+unusedFunction:src/video/display.cpp:275          // is_debugger_mode()
+unusedFunction:src/video/display.cpp:819          // get_sdl_error()
+unusedFunction:src/video/display.cpp:914          // is_muted()
+
+// --- Emulator testing hooks exposed for focused unit/integration tests ---
+unusedFunction:src/core/emulator.cpp:107          // ppu_for_testing()
+unusedFunction:src/core/emulator.cpp:117          // cpu_for_testing()
+unusedFunction:src/core/emulator.cpp:142          // memory_for_testing()
 
 // --- CPU/PPU public API accessors ---
 unusedFunction:src/core/cpu.cpp:132               // ime()
@@ -59,4 +47,6 @@ unusedFunction:src/core/cpu.cpp:137               // set_ime()
 unusedFunction:src/core/cpu.cpp:142               // is_halted()
 unusedFunction:src/core/cpu.cpp:282               // set_halted()
 unusedFunction:src/core/emulator.cpp:69           // run_frame()
-unusedFunction:src/video/ppu.cpp:728              // scanline()
+unusedFunction:src/video/ppu.cpp:764              // set_mode()
+unusedFunction:src/video/ppu.cpp:773              // scanline()
+unusedFunction:src/video/ppu.cpp:778              // set_scanline()
