@@ -15,7 +15,16 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
         add_compile_options(/O2)
     else()
-        add_compile_options(-O3 -march=native -ffast-math)
+        # Core optimizations for maximum performance
+        add_compile_options(
+            -O3                      # Maximum optimization level
+            -march=native            # Optimize for your specific CPU architecture
+            -mtune=native            # Fine-tune for your CPU microarchitecture
+            -ffast-math              # Fast floating-point math operations
+            -funroll-loops           # Unroll small loops (excellent for emulation)
+            -finline-functions       # Aggressive function inlining
+            -fomit-frame-pointer     # Free up register for computations
+        )
         # Strip debug symbols in release
         add_link_options(-s)
         # Enable Link Time Optimization
