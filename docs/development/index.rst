@@ -39,7 +39,9 @@ Main project areas:
 * ``src/input``: joypad and gamepad input
 * ``src/debug``: debugger and ImGui debugger UI
 * ``src/ui``: recent ROMs list and screenshot support
-* ``tests/test_basic.cpp``: current assertion-based test executable
+* ``tests/test_core.cpp``: CPU, memory, timer, and cartridge tests
+* ``tests/test_persistence.cpp``: save-state and persistence tests
+* ``tests/test_ppu.cpp``: PPU behavior tests
 * ``docs/architecture``: architecture and subsystem documentation
 
 Build
@@ -111,15 +113,17 @@ RelWithDebInfo build:
 Tests
 -----
 
-Current test executable:
+Current test executables:
 
-* ``test_basic`` built from ``tests/test_basic.cpp``
+* ``test_core`` built from ``tests/test_core.cpp``
+* ``test_persistence`` built from ``tests/test_persistence.cpp``
+* ``test_ppu`` built from ``tests/test_ppu.cpp``
 
 Build and run tests manually:
 
 .. code-block:: bash
 
-   cmake --build build --target test_basic
+   cmake --build build --target test_core test_persistence test_ppu
    cd build
    ctest --output-on-failure
 
@@ -127,7 +131,9 @@ Run the test binary directly:
 
 .. code-block:: bash
 
-   ./build/tests/test_basic
+   ./build/tests/test_core
+   ./build/tests/test_persistence
+   ./build/tests/test_ppu
 
 Current coverage is focused and limited. It includes core CPU, memory, timer, cartridge, and selected utility behavior. It does not yet provide broad subsystem coverage for the full emulator runtime.
 
@@ -228,80 +234,6 @@ Additional project documentation:
        // Load data...
        return true;
    }
-
-Performance Guidelines
-----------------------
-
-Optimization Strategy
-~~~~~~~~~~~~~~~~~~~~~
-
-1. **Profile first**: Don't guess what's slow
-2. **Algorithm before micro-optimization**: Better algorithm > faster loop
-3. **Measure changes**: Verify improvements
-
-Hot Paths
-~~~~~~~~~
-
-Focus optimization on:
-
-* CPU instruction dispatch
-* Memory read/write
-* PPU pixel rendering
-
-.. code-block:: cpp
-
-   // Good: Fast path for common case
-   u8 Memory::read(u16 address) const {
-       // Fast WRAM access (most common)
-       if (address >= 0xC000 && address < 0xE000) {
-           return wram_[address - 0xC000];
-       }
-       
-       // Handle other regions...
-       return slow_path_read(address);
-   }
-
-Avoid Allocations
-~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   // Bad: Allocates every frame
-   std::vector<Sprite> get_sprites() {
-       std::vector<Sprite> sprites;
-       // Build sprite list...
-       return sprites;
-   }
-   
-   // Good: Reuse storage
-   class PPU {
-       void render_frame() {
-           sprite_buffer_.clear();
-           // Fill sprite_buffer_...
-       }
-       
-   private:
-       std::vector<Sprite> sprite_buffer_;  // Reused
-   };
-
-Cache-Friendly Data
-~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   // Good: Tightly packed, cache-friendly
-   struct Sprite {
-       u8 y, x, tile, flags;  // 4 bytes
-   };
-   
-   // Bad: Scattered data
-   struct Sprite {
-       u8 y;
-       bool visible;
-       u16 padding;
-       u8 x;
-       // ... scattered fields
-   };
 
 Debugging Tips
 --------------
@@ -411,7 +343,7 @@ Before submitting:
 * [ ] Documentation updated
 * [ ] Code follows style guidelines
 * [ ] No unnecessary dependencies added
-* [ ] Performance impact considered
+* [ ] Runtime behavior reviewed
 
 Documentation
 -------------
@@ -442,7 +374,7 @@ Resources
 Game Boy Documentation
 ~~~~~~~~~~~~~~~~~~~~~~
 
-* `Pan Docs <https://gbdev.io/pandocs/>`_ - Complete hardware reference
+* `Pan Docs <https://gbdev.io/pandocs/>`_ - Hardware reference
 * `Game Boy CPU Manual <http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf>`_
 * `The Cycle-Accurate Game Boy Docs <https://github.com/AntonioND/giibiiadvance/blob/master/docs/TCAGBD.pdf>`_
 
