@@ -7,27 +7,24 @@ Philosophy
 gbglow prioritizes:
 
 **Clarity**
-   Every component is well-documented with references to hardware behavior.
-   Code reads like documentation.
+   Documentation focuses on component boundaries and hardware-facing behavior.
 
 **Modularity**
    Clean separation between CPU, PPU, memory, and other subsystems.
    Each component can be understood independently.
 
 **Testability**
-   Comprehensive test suite using official test ROMs.
-   Unit tests for each major component.
+   The project includes unit tests for core components.
 
 **Education**
-   Code and documentation help others understand GB/GBC hardware.
-   Clear explanations of why things work the way they do.
+   Documentation explains implementation choices where they affect behavior.
 
 Technology Stack
 ----------------
 
 Language
 ~~~~~~~~
-C++17 - Modern C++ with zero-cost abstractions, strong typing, and clean OOP design.
+C++17 - Modern C++ with strong typing and standard library support.
 
 Build System
 ~~~~~~~~~~~~
@@ -84,6 +81,6 @@ Memory Map
 References
 ----------
 
-* `Pan Docs <https://gbdev.io/pandocs/>`_ - The definitive Game Boy technical reference
+* `Pan Docs <https://gbdev.io/pandocs/>`_ - Game Boy technical reference
 * `Game Boy CPU Manual <http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf>`_
 * `The Cycle-Accurate Game Boy Docs <https://github.com/AntonioND/giibiiadvance/blob/master/docs/TCAGBD.pdf>`_

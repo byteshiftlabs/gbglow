@@ -12,11 +12,9 @@ Code Quality
 gbglow prioritizes **code clarity** above all else:
 
 * Self-documenting code with meaningful names
-* Comprehensive comments explaining WHY, not WHAT
-* Extensive documentation at every level
+* Comments that explain intent where needed
+* Documentation for subsystem behavior and interfaces
 * Simple, straightforward implementations
-
-**Why?** Existing emulators are functional but hard to understand. gbglow aims to be the go-to reference implementation for learning Game Boy emulation.
 
 Modular Architecture
 ~~~~~~~~~~~~~~~~~~~~
@@ -44,16 +42,15 @@ Why C++17?
 
 **Advantages:**
 
-* Performance: Zero-cost abstractions, inline-able code
-* Control: Manual memory management where needed
-* Industry Standard: Proven for emulation (Dolphin, PCSX2, etc.)
-* Modern Features: Smart pointers, constexpr, std::optional
+* Control over low-level data structures
+* Standard toolchain support
+* Modern language features such as smart pointers, constexpr, and std::optional
 
 **Alternatives Considered:**
 
-* **Rust**: Great safety, but less industry adoption for emulation
-* **C**: More control, but lacking modern abstractions
-* **Python**: Too slow for cycle-accurate emulation
+* **Rust**: Different ownership model and toolchain tradeoffs
+* **C**: Lower-level language with fewer standard abstractions
+* **Python**: Different runtime model than the current implementation
 
 Why CMake?
 ~~~~~~~~~~
@@ -79,8 +76,6 @@ Current dependencies:
 * Simpler to build
 * Focus on emulation core
 * Rendering is pluggable
-
-Future: Optional SDL integration for real-time rendering.
 
 CPU Implementation
 ------------------
@@ -111,7 +106,6 @@ Switch-based dispatch for clarity:
 
 * More complex class hierarchy
 * Less clear instruction flow
-* No significant performance benefit
 
 Instruction Implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,7 +185,6 @@ Why Not Memory Callbacks?
 
 * More complex
 * Harder to trace
-* No performance benefit
 * Less clear control flow
 
 PPU Implementation
@@ -263,15 +256,6 @@ Game Boy tiles are 2-bit planar format:
    }
 
 **Format**: Two bytes per row, one bit per pixel per byte.
-
-Not Yet Optimized
-~~~~~~~~~~~~~~~~~
-
-1. **Instruction Dispatch**: Could use computed goto
-2. **Memory Access**: Could cache last access region
-3. **PPU Rendering**: Could use SIMD for pixel processing
-
-**Philosophy**: Optimize only when profiling shows need.
 
 Testing Strategy
 ----------------
@@ -347,13 +331,6 @@ Phase B: Pixel FIFO
 * Pixel-by-pixel rendering
 * Mid-scanline effects
 * Accurate mode 3 length variation
-
-Phase C: Optimization
-~~~~~~~~~~~~~~~~~~~~~
-
-* Profile-guided optimization
-* SIMD for rendering
-* JIT compilation (maybe)
 
 Design Patterns Used
 --------------------
@@ -626,13 +603,11 @@ Sprite Pixel Rendering
 Testing Sprite Rendering
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Test ROM**: Pokémon Red/Blue
-
 **Expected Results**:
 
-1. **Game Freak Logo**: Appears during boot sequence
-2. **Nidorino vs Gengar**: Fight scene sprites visible
-3. **Player Sprite**: Correctly rendered in game
+1. Boot-time sprites appear after DMA populates OAM
+2. Scene sprites are visible with the expected priority rules
+3. Player sprites render with the expected tile and flip handling
 
 **Before Fix**: All sprites invisible (OAM remained zeros)
 
@@ -648,7 +623,8 @@ If sprites don't appear:
 3. **Check visibility logic**: Ensure Y coordinate checks are correct
 4. **Verify tile numbers**: 8x16 mode requires special handling
 5. **Test with debug output**: Log first few OAM entries
-* Cache locality: Scanline sprites stored contiguously
+
+Additional note: scanline sprites are stored contiguously.
 
 Code Quality Improvements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -696,9 +672,8 @@ What Went Well
 
 * Clear architecture from start
 * Modular design paid off
-* Comprehensive testing helped catch bugs
+* Test coverage helped catch bugs
 * Documentation-first approach
-* **Reference implementations helpful**: Studying other emulators provided valuable insights
 * **Incremental debugging**: Added logging to find OAM DMA issue
 
 What Could Be Better
@@ -707,7 +682,6 @@ What Could Be Better
 * Should have implemented sprites earlier
 * PPU could be more modular
 * Need better test ROM integration
-* Should profile earlier
 * **OAM DMA was missing**: Should have been implemented from start
 
 Common Pitfalls
@@ -728,8 +702,7 @@ Advice for Contributors
 3. **Test thoroughly**: Add tests with code
 4. **Ask questions**: GitHub discussions
 5. **Be patient**: Emulation is complex
-6. **Study reference implementations**: Well-tested emulators provide valuable insights
-7. **Debug with logging**: Temporary debug output catches issues
+6. **Debug with logging**: Temporary debug output catches issues
 
 References
 ----------

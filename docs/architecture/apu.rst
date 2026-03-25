@@ -214,8 +214,8 @@ Testing
 
 The APU is tested with:
 
-1. **Pokémon Red Game Freak logo** - Tests sweep and envelope
-2. **blargg's dmg_sound** - Comprehensive test ROMs
+1. Manual audio checks with representative ROM behavior
+2. blargg's ``dmg_sound`` test ROMs
 
 See Also
 --------
