@@ -15,10 +15,15 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
         add_compile_options(/O2)
     else()
-        add_compile_options(-O3)
+        add_compile_options(-O3 -march=native -ffast-math)
+        # Strip debug symbols in release
+        add_link_options(-s)
         # Enable Link Time Optimization
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     endif()
+elseif(NOT CMAKE_BUILD_TYPE)
+    message(WARNING "No build type specified, defaulting to Release")
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 # Compiler warnings
@@ -59,6 +64,17 @@ set(AUDIO_SOURCES
     src/audio/apu.cpp
 )
 
+# ImGui sources
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer2.cpp
+)
+
 # Main executable
 add_executable(emugbc
     src/main.cpp
@@ -67,10 +83,13 @@ add_executable(emugbc
     ${CARTRIDGE_SOURCES}
     ${INPUT_SOURCES}
     ${AUDIO_SOURCES}
+    ${IMGUI_SOURCES}
 )
 
 target_include_directories(emugbc PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
 )
 
 # Find and link SDL2 for graphics output
