@@ -37,20 +37,19 @@ Class Declaration
 Memory Map
 ----------
 
-=================  ===========  ==========================
-Address Range      Size         Description
-=================  ===========  ==========================
-``0x0000–0x3FFF``  16 KB        ROM Bank 0 (cartridge)
-``0x4000–0x7FFF``  16 KB        Switchable ROM Bank (MBC)
-``0x8000–0x9FFF``   8 KB        Video RAM (VRAM)
-``0xA000–0xBFFF``   8 KB        External RAM (cartridge)
-``0xC000–0xDFFF``   8 KB        Work RAM (WRAM)
-``0xE000–0xFDFF``            Echo RAM (mirrors WRAM)
-``0xFE00–0xFE9F``  160 B        OAM (sprite attributes)
-``0xFF00–0xFF7F``            I/O Registers
-``0xFF80–0xFFFE``  127 B        High RAM (HRAM)
-``0xFFFF``          1 B         Interrupt Enable register
-=================  ===========  ==========================
+.. csv-table::
+    :header: "Address Range", "Size", "Description"
+
+    "``0x0000-0x3FFF``", "16 KB", "ROM Bank 0 (cartridge)"
+    "``0x4000-0x7FFF``", "16 KB", "Switchable ROM Bank (MBC)"
+    "``0x8000-0x9FFF``", "8 KB", "Video RAM (VRAM)"
+    "``0xA000-0xBFFF``", "8 KB", "External RAM (cartridge)"
+    "``0xC000-0xDFFF``", "8 KB", "Work RAM (WRAM)"
+    "``0xE000-0xFDFF``", "7.5 KB", "Echo RAM (mirrors WRAM)"
+    "``0xFE00-0xFE9F``", "160 B", "OAM (sprite attributes)"
+    "``0xFF00-0xFF7F``", "128 B", "I/O registers"
+    "``0xFF80-0xFFFE``", "127 B", "High RAM (HRAM)"
+    "``0xFFFF``", "1 B", "Interrupt Enable register"
 
 Read / Write
 ------------
