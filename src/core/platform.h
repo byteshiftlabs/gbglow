@@ -9,15 +9,10 @@
 namespace gbglow {
 
 /**
- * Thread-safe localtime wrapper.
- * Uses localtime_r on POSIX, localtime_s on MSVC.
+ * Thread-safe localtime wrapper for the supported Ubuntu 24.04 environment.
  */
 inline std::tm* portable_localtime(const std::time_t* timer, std::tm* buf) {
-#ifdef _WIN32
-    return (localtime_s(buf, timer) == 0) ? buf : nullptr;
-#else
     return localtime_r(timer, buf);
-#endif
 }
 
 } // namespace gbglow
