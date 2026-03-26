@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Compiler optimizations - O3 for maximum performance
+# Compiler optimizations for the current supported target: Ubuntu 24.04 with GCC/Clang.
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -28,7 +28,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
-# Compiler warnings
+# Compiler warnings for the current supported GCC/Clang toolchain.
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 # Source files
