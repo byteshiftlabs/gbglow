@@ -68,7 +68,7 @@ private:
      * Creates directory if it doesn't exist
      * @return Full path to screenshots directory
      */
-    std::string get_screenshot_dir() const;
+    static std::string get_screenshot_dir();
     
     /**
      * Generate filename with timestamp
@@ -84,7 +84,7 @@ private:
      * @param rom_path Full path to ROM file
      * @return Just the ROM name
      */
-    std::string extract_rom_name(const std::string& rom_path) const;
+    static std::string extract_rom_name(const std::string& rom_path);
 };
 
 } // namespace gbglow
