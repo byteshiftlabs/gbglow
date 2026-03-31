@@ -23,7 +23,6 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             cmake \
-            cppcheck \
             git \
             libsdl2-dev \
             pkg-config \
@@ -31,8 +30,16 @@ jobs:
             python3-venv \
             zenity
 
+      - name: Build pinned cppcheck
+        run: |
+          mkdir -p .tools
+          curl -L https://github.com/danmar/cppcheck/archive/refs/tags/2.20.0.tar.gz \
+            | tar -xz -C .tools
+          cmake -S .tools/cppcheck-2.20.0 -B .tools/cppcheck-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build .tools/cppcheck-build -j"$(nproc)"
+
       - name: Build, test, and run static analysis
-        run: ./build.sh --clean
+        run: CPPCHECK_BIN="$PWD/.tools/cppcheck-build/bin/cppcheck" ./build.sh --clean
 
       - name: Build documentation
         run: |
