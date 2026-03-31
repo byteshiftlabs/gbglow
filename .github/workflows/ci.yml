@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-test-docs:
     runs-on: ubuntu-24.04
+    env:
+      CPPCHECK_VERSION: 2.20.0
 
     steps:
       - name: Check out repository
@@ -30,16 +32,28 @@ jobs:
             python3-venv \
             zenity
 
-      - name: Build pinned cppcheck
+      - name: Restore cached cppcheck
+        id: cppcheck-cache
+        uses: actions/cache@v4
+        with:
+          path: .tools/cppcheck-${{ env.CPPCHECK_VERSION }}
+          key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_VERSION }}
+
+      - name: Build and install pinned cppcheck
+        if: steps.cppcheck-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p .tools
-          curl -L https://github.com/danmar/cppcheck/archive/refs/tags/2.20.0.tar.gz \
+          curl -L https://github.com/danmar/cppcheck/archive/refs/tags/${CPPCHECK_VERSION}.tar.gz \
             | tar -xz -C .tools
-          cmake -S .tools/cppcheck-2.20.0 -B .tools/cppcheck-build -DCMAKE_BUILD_TYPE=Release
+          cmake -S .tools/cppcheck-${CPPCHECK_VERSION} \
+            -B .tools/cppcheck-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/.tools/cppcheck-${CPPCHECK_VERSION}"
           cmake --build .tools/cppcheck-build -j"$(nproc)"
+          cmake --install .tools/cppcheck-build
 
       - name: Build, test, and run static analysis
-        run: CPPCHECK_BIN="$PWD/.tools/cppcheck-build/bin/cppcheck" ./build.sh --clean
+        run: CPPCHECK_BIN="$PWD/.tools/cppcheck-${CPPCHECK_VERSION}/bin/cppcheck" ./build.sh --clean
 
       - name: Build documentation
         run: |
