@@ -570,7 +570,7 @@ void Display::poll_events(Joypad* joypad) {
         ImGui_ImplSDL2_ProcessEvent(&event);
         
         // Check if ImGui wants to capture input
-        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiIO& io = ImGui::GetIO();
         bool imgui_wants_keyboard = io.WantCaptureKeyboard;
         
         // Exception: If waiting for key rebinding, allow keyboard events through
@@ -1052,8 +1052,8 @@ void Display::render_menu_bar() {
             
             ImGui::Separator();
             
-            bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
-            if (ImGui::MenuItem("Debugger", "F11", debugger_visible)) {
+            bool is_debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
+            if (ImGui::MenuItem("Debugger", "F11", is_debugger_visible)) {
                 if (debugger_gui_) {
                     toggle_debugger_mode();
                 }
