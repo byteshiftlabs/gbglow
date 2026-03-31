@@ -39,21 +39,8 @@ jobs:
           path: .tools/cppcheck-${{ env.CPPCHECK_VERSION }}
           key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_VERSION }}
 
-      - name: Build and install pinned cppcheck
-        if: steps.cppcheck-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p .tools
-          curl -L https://github.com/danmar/cppcheck/archive/refs/tags/${CPPCHECK_VERSION}.tar.gz \
-            | tar -xz -C .tools
-          cmake -S .tools/cppcheck-${CPPCHECK_VERSION} \
-            -B .tools/cppcheck-build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$PWD/.tools/cppcheck-${CPPCHECK_VERSION}"
-          cmake --build .tools/cppcheck-build -j"$(nproc)"
-          cmake --install .tools/cppcheck-build
-
       - name: Build, test, and run static analysis
-        run: CPPCHECK_BIN="$PWD/.tools/cppcheck-${CPPCHECK_VERSION}/bin/cppcheck" ./build.sh --clean
+        run: ./build.sh --bootstrap-cppcheck --clean
 
       - name: Build documentation
         run: |
