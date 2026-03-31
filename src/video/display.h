@@ -360,17 +360,17 @@ private:
     /**
      * Convert SDL error to readable message
      */
-    std::string get_sdl_error() const;
+    static std::string get_sdl_error();
     
     /**
      * Get path to keybindings config file (XDG-compliant)
      */
-    std::string get_keybindings_path() const;
+    static std::string get_keybindings_path();
 
     /**
      * Get path to gamepad config file (XDG-compliant)
      */
-    std::string get_gamepad_config_path() const;
+    static std::string get_gamepad_config_path();
 
     /**
      * Load key bindings from config file
@@ -385,12 +385,12 @@ private:
     /**
      * Parse SDL keycode from string (e.g., "SDLK_a" -> SDLK_a)
      */
-    int parse_sdl_keycode(const std::string& keyname);
+    static int parse_sdl_keycode(const std::string& keyname);
     
     /**
      * Convert SDL keycode to string (e.g., SDLK_a -> "SDLK_a")
      */
-    std::string sdl_keycode_to_string(int keycode);
+    static std::string sdl_keycode_to_string(int keycode);
     
     /**
      * Handle keyboard press events
@@ -415,7 +415,7 @@ private:
     /**
      * Check if a save-state slot exists on disk.
      */
-    bool check_slot_exists(const std::string& state_path) const;
+    static bool check_slot_exists(const std::string& state_path);
 
     /**
      * Build a human-readable slot label for the current ROM.
@@ -455,7 +455,7 @@ private:
     /**
      * Open a native file picker if one is available
      */
-    std::string browse_for_rom_file(std::string& error_message) const;
+    static std::string browse_for_rom_file(std::string& error_message);
     
     /**
      * Render controller configuration dialog

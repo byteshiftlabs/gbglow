@@ -31,8 +31,8 @@ namespace gbglow {
 using namespace constants::application;
 
 Screenshot::Screenshot()
+    : screenshot_dir_(get_screenshot_dir())
 {
-    screenshot_dir_ = get_screenshot_dir();
 }
 
 bool Screenshot::capture(const std::vector<u8>& framebuffer, const std::string& rom_name)
@@ -81,7 +81,7 @@ const std::string& Screenshot::get_last_screenshot_path() const
     return last_screenshot_path_;
 }
 
-std::string Screenshot::get_screenshot_dir() const
+std::string Screenshot::get_screenshot_dir()
 {
     // Use ~/Pictures/gbglow/ on Ubuntu 24.04.
     const char* home = std::getenv("HOME");
@@ -132,7 +132,7 @@ std::string Screenshot::generate_filename(const std::string& rom_name) const
     return filename.str();
 }
 
-std::string Screenshot::extract_rom_name(const std::string& rom_path) const
+std::string Screenshot::extract_rom_name(const std::string& rom_path)
 {
     // Find last slash (path separator)
     size_t last_slash = rom_path.find_last_of("/\\");
