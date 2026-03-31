@@ -325,7 +325,7 @@ void PPU::step(Cycles cycles) {
                     // Write STAT mode bits before evaluating the IRQ line (S2)
                     {
                         u8 stat_register = memory_.read(REG_STAT);
-                        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+                        stat_register &= STAT_MODE_MASK;
                         memory_.write_io_register(REG_STAT, stat_register);
                     }
                     update_stat_irq_line();
@@ -951,7 +951,7 @@ void PPU::set_cartridge(const Cartridge* cartridge) {
     cartridge_ = cartridge;
 }
 
-void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
+void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) {
     // CGB format: gggrrrrr 0bbbbbgg (little-endian, stored as 2 bytes)
     // Extract 5-bit values
     u8 r5 = (rgb555 >> CGB_RGB555_RED_SHIFT) & CGB_RGB555_CHANNEL_MASK;
