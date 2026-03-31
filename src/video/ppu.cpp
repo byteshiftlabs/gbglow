@@ -743,7 +743,7 @@ u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, b
     return pixel;
 }
 
-bool PPU::is_sprite_priority(u8 sprite_flags, u8 bg_color) const {
+bool PPU::is_sprite_priority(u8 sprite_flags, u8 bg_color) {
     // Priority bit: 0 = sprite above background, 1 = sprite behind background colors 1-3
     bool behind_bg = (sprite_flags & (BIT_1 << SPRITE_FLAG_PRIORITY_BIT)) != BIT_0;
     

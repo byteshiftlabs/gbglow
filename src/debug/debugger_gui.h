@@ -128,7 +128,7 @@ public:
     /**
      * Apply debug color theme
      */
-    void apply_debug_theme();
+    static void apply_debug_theme();
     
 private:
     Debugger* debugger_;
@@ -178,9 +178,9 @@ private:
     void render_sprites_window();
     
     // Helper methods
-    std::string format_flags(u8 f) const;
-    void render_register_row(const char* name, u16 value, bool highlight = false);
-    void render_register_row_8(const char* name, u8 value, bool highlight = false);
+    static std::string format_flags(u8 f);
+    static void render_register_row(const char* name, u16 value, bool highlight = false);
+    static void render_register_row_8(const char* name, u8 value, bool highlight = false);
 };
 
 } // namespace gbglow

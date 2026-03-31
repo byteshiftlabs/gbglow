@@ -381,7 +381,7 @@ void DebuggerGUI::render_menu_bar() {
     }
 }
 
-std::string DebuggerGUI::format_flags(u8 f) const {
+std::string DebuggerGUI::format_flags(u8 f) {
     std::string result;
     result += (f & Registers::FLAG_Z) ? 'Z' : '-';
     result += (f & Registers::FLAG_N) ? 'N' : '-';
