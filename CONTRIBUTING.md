@@ -43,7 +43,7 @@ cd gbglow
 
 3. **Verify** the full build pipeline passes:
    ```bash
-   ./build.sh
+   ./build.sh --bootstrap-cppcheck --clean
    ```
    Zero warnings, zero cppcheck findings, all tests green.
 
@@ -69,14 +69,10 @@ cd gbglow
 Run cppcheck against your changes before submitting:
 
 ```bash
-cppcheck --enable=all --inline-suppr --quiet \
-    --suppress=missingIncludeSystem \
-    --suppress=missingInclude \
-    --suppressions-list=cppcheck.suppressions \
-    -I src/ src/
+./build.sh --bootstrap-cppcheck --clean
 ```
 
-If a finding cannot be cleanly fixed (e.g., an intentional public API method that is not called internally), add an entry to `cppcheck.suppressions` with a justification comment explaining why.
+This bootstraps the pinned ``cppcheck`` version used in CI into ``.tools/`` when needed, then runs the same static-analysis command as the pipeline. If a finding cannot be cleanly fixed (e.g., an intentional public API method that is not called internally), add an entry to `cppcheck.suppressions` with a justification comment explaining why.
 
 ## Tests
 
