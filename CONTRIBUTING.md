@@ -76,7 +76,13 @@ This bootstraps the pinned ``cppcheck`` version used in CI into ``.tools/`` when
 
 ## Tests
 
-Add tests for any new public API in `tests/test_basic.cpp`. Test names follow the pattern `test_<module>_<scenario>_<expected>`.
+Add tests for any new public API in the relevant test target under `tests/`:
+
+- `tests/test_core.cpp`
+- `tests/test_persistence.cpp`
+- `tests/test_ppu.cpp`
+
+Test names follow the pattern `test_<module>_<scenario>_<expected>`.
 
 **Current coverage**: CPU registers, memory read/write, basic instructions, and cartridge loading. PPU rendering, APU audio, and save-state round-trip tests are not yet covered — contributions welcome.
 
