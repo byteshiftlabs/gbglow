@@ -19,7 +19,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         -O3
         -march=native
         -mtune=native
-        -ffast-math
         -funroll-loops
         -finline-functions
         -fomit-frame-pointer
