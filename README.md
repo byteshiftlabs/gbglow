@@ -9,6 +9,8 @@ A Game Boy emulator written in C++17.
 
 gbglow includes CPU, PPU, audio, cartridge, input, save-state, and debugger components.
 
+The current release target is Ubuntu 24.04. Release builds are tuned for the local machine by default, so packaged binaries should be produced on the system you intend to run them on.
+
 Supported cartridge families:
 
 - ROM-only
@@ -59,6 +61,8 @@ Required tools:
 - cppcheck
 
 The debugger UI uses Dear ImGui. It is fetched automatically during CMake configure, so no separate manual install is needed.
+
+Screenshots are supported in the emulator with `F12` and are saved to a local `gbglow` screenshot directory.
 
 ## Testing
 
