@@ -663,8 +663,8 @@ void Display::render_menu_bar() {
 void Display::render_about_dialog() {
     ImGui::SetNextWindowSize(ImVec2(400, 250), ImGuiCond_FirstUseEver);
     
-    if (ImGui::Begin("About EmuGBC", &show_about_dialog_)) {
-        ImGui::Text("EmuGBC");
+    if (ImGui::Begin("About GBCrush", &show_about_dialog_)) {
+        ImGui::Text("GBCrush");
         ImGui::Text("Game Boy Color Emulator");
         ImGui::Separator();
         
@@ -910,7 +910,7 @@ void Display::save_key_bindings() {
         return;
     }
     
-    file << "# EmuGBC Key Bindings Configuration\n";
+    file << "# GBCrush Key Bindings Configuration\n";
     file << "# Format: action=SDLK_keyname\n";
     file << "# \n";
     file << "# Available keys: https://wiki.libsdl.org/SDL2/SDLKeycodeLookup\n";

@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace emugbc {
+namespace gbcrush {
 
 // Forward declarations
 class Cartridge;
@@ -98,4 +98,4 @@ private:
     PPU* ppu_;  // Non-owning pointer, set by Emulator
 };
 
-} // namespace emugbc
+} // namespace gbcrush

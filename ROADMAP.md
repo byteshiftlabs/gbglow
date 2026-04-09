@@ -1,4 +1,4 @@
-# EmuGBC Development Roadmap
+# GBCrush Development Roadmap
 
 ## Project Goal
 Create a crystal-clear, educational Game Boy Color emulator capable of running commercial games, particularly Pokémon titles.
