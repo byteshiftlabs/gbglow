@@ -1,7 +1,7 @@
 /**
  * EmuGBC - Game Boy Color Emulator
  * 
- * A crystal-clear, educational Game Boy Color emulator implementation.
+ * An educational Game Boy Color emulator implementation.
  * Every line of code is designed to teach how the hardware works.
  * 
  * Main entry point - demonstrates ROM loading and continuous execution.
