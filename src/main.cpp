@@ -1,7 +1,7 @@
 /**
  * EmuGBC - Game Boy Color Emulator
  * 
- * A crystal-clear, educational Game Boy Color emulator implementation.
+ * An educational Game Boy Color emulator implementation.
  * Every line of code is designed to teach how the hardware works.
  * 
  * Main entry point - demonstrates ROM loading and continuous execution.
@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
     
     std::string rom_path = argv[1];
     
-    emugbc::Emulator emulator;
+    gbcrush::Emulator emulator;
     
     if (!emulator.load_rom(rom_path))
     {

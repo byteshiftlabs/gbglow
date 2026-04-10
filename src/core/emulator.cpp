@@ -317,7 +317,7 @@ bool Emulator::save_state(int slot) {
     }
     
     // Write header with version
-    const char header[] = "EMUGBC_STATE_V2";
+    const char header[] = "GBCRUSH_STATE_V2";
     file.write(header, sizeof(header));
     
     // Save CPU state (registers)
@@ -381,10 +381,10 @@ bool Emulator::load_state(int slot) {
     
     // Verify header - support both V1 and V2
     char header[16];
-    file.read(header, sizeof("EMUGBC_STATE_V2"));
+    file.read(header, sizeof("GBCRUSH_STATE_V2"));
     std::string header_str(header);
     
-    if (header_str == "EMUGBC_STATE_V2") {
+    if (header_str == "GBCRUSH_STATE_V2") {
         // Load V2 format with full state
         
         // Load CPU state
@@ -435,7 +435,7 @@ bool Emulator::load_state(int slot) {
         timer.write_tma(tma);
         timer.write_tac(tac);
         
-    } else if (header_str == "EMUGBC_STATE_V1") {
+    } else if (header_str == "GBCRUSH_STATE_V1") {
         // Load V1 format (legacy - incomplete state)
         auto& regs = cpu_->registers();
         file.read(reinterpret_cast<char*>(&regs.a), sizeof(regs.a));
