@@ -1,6 +1,6 @@
 #include "registers.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 void Registers::set_flag(Flags flag, bool value)
 {
@@ -30,4 +30,4 @@ void Registers::reset()
     pc = 0x0100;  // Cartridge entry point
 }
 
-} // namespace emugbc
+} // namespace gbcrush

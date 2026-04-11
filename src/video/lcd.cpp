@@ -1,9 +1,9 @@
 #include "lcd.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 LCD::LCD() {
     // TODO: Initialize LCD state
 }
 
-} // namespace emugbc
+} // namespace gbcrush

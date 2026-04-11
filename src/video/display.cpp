@@ -12,7 +12,7 @@
 #include <ctime>
 #include <sys/stat.h>
 
-namespace emugbc {
+namespace gbcrush {
 
 Display::Display()
     : window_(nullptr)
@@ -965,4 +965,4 @@ std::string Display::sdl_keycode_to_string(int keycode) {
     return "SDLK_UNKNOWN";
 }
 
-} // namespace emugbc
+} // namespace gbcrush
