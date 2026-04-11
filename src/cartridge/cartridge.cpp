@@ -8,7 +8,7 @@
 #include "mbc3.h"
 #include "mbc5.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 // Cartridge header offsets per Game Boy cartridge specification
 namespace {
@@ -241,4 +241,4 @@ void ROMOnly::write(u16 address, u8 value) {
     (void)value;
 }
 
-} // namespace emugbc
+} // namespace gbcrush

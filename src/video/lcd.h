@@ -2,7 +2,7 @@
 
 #include "../core/types.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 /**
  * LCD Controller
@@ -18,4 +18,4 @@ private:
     // TODO: LCD state
 };
 
-} // namespace emugbc
+} // namespace gbcrush

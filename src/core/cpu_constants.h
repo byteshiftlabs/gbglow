@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace emugbc {
+namespace gbcrush {
 
 // ============================================================================
 // CPU Instruction Cycle Counts (in M-cycles, where 1 M-cycle = 4 T-states)
@@ -107,4 +107,4 @@ constexpr u8 BCD_BYTE_MAX = 0x99;               // Maximum BCD byte value
 constexpr u16 HL_INCREMENT = 1;
 constexpr u16 HL_DECREMENT = 1;
 
-} // namespace emugbc
+} // namespace gbcrush
