@@ -50,7 +50,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
         {
             u8 value = memory_.read(regs_.hl());
             bool carry = (value & kBit7) != 0;
-            value = (value << kBitShift) | (carry ? kBitShift : 0);
+            value = (value << kBitShift) | (carry ? kBit0 : 0);
             memory_.write(regs_.hl(), value);
             regs_.set_flag(Registers::FLAG_Z, value == 0);
             regs_.set_flag(Registers::FLAG_N, false);
@@ -62,7 +62,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
         {
             u8& reg = get_reg(reg_index);
             bool carry = (reg & kBit7) != 0;
-            reg = (reg << kBitShift) | (carry ? kBitShift : 0);
+            reg = (reg << kBitShift) | (carry ? kBit0 : 0);
             regs_.set_flag(Registers::FLAG_Z, reg == 0);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
@@ -107,7 +107,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
             u8 value = memory_.read(regs_.hl());
             bool old_carry = regs_.get_flag(Registers::FLAG_C);
             bool new_carry = (value & kBit7) != 0;
-            value = (value << kBitShift) | (old_carry ? kBitShift : 0);
+            value = (value << kBitShift) | (old_carry ? kBit0 : 0);
             memory_.write(regs_.hl(), value);
             regs_.set_flag(Registers::FLAG_Z, value == 0);
             regs_.set_flag(Registers::FLAG_N, false);
@@ -120,7 +120,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
             u8& reg = get_reg(reg_index);
             bool old_carry = regs_.get_flag(Registers::FLAG_C);
             bool new_carry = (reg & kBit7) != 0;
-            reg = (reg << kBitShift) | (old_carry ? kBitShift : 0);
+            reg = (reg << kBitShift) | (old_carry ? kBit0 : 0);
             regs_.set_flag(Registers::FLAG_Z, reg == 0);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
