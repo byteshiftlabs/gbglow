@@ -750,7 +750,7 @@ Cycles CPU::execute_instruction(u8 opcode)
         case 0x07:  // RLCA - Rotate A left
         {
             bool carry = (regs_.a & kBit7) != 0;
-            regs_.a = (regs_.a << kBitShift) | (carry ? kBitShift : 0);
+            regs_.a = (regs_.a << kBitShift) | (carry ? kBit0 : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
@@ -762,7 +762,7 @@ Cycles CPU::execute_instruction(u8 opcode)
         {
             bool old_carry = regs_.get_flag(Registers::FLAG_C);
             bool new_carry = (regs_.a & kBit7) != 0;
-            regs_.a = (regs_.a << kBitShift) | (old_carry ? kBitShift : 0);
+            regs_.a = (regs_.a << kBitShift) | (old_carry ? kBit0 : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
