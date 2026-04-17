@@ -56,6 +56,7 @@ public:
     
     // Get cartridge pointer (may be null)
     Cartridge* cartridge();
+    const Cartridge* cartridge() const;
     
     // Read/Write operations
     u8 read(u16 address) const;
