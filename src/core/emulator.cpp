@@ -410,8 +410,26 @@ bool Emulator::load_state(int slot) {
         // Load memory state
         size_t mem_size;
         file.read(reinterpret_cast<char*>(&mem_size), sizeof(mem_size));
+        
+        // Validate memory size (expected size is ~25KB for Memory serialization)
+        constexpr size_t EXPECTED_MEM_SIZE = 24996;  // VRAM + banks + WRAM + OAM + HRAM + IO + flags
+        constexpr size_t MAX_VALID_SIZE = EXPECTED_MEM_SIZE * 2;  // Allow some margin
+        if (mem_size == 0 || mem_size > MAX_VALID_SIZE) {
+            std::cerr << "Corrupt save state: invalid memory size " << mem_size << std::endl;
+            file.close();
+            return false;
+        }
+        
         std::vector<u8> mem_data(mem_size);
         file.read(reinterpret_cast<char*>(mem_data.data()), mem_size);
+        
+        // Verify we read enough data
+        if (!file.good()) {
+            std::cerr << "Corrupt save state: truncated memory data" << std::endl;
+            file.close();
+            return false;
+        }
+        
         size_t offset = 0;
         memory_->deserialize(mem_data.data(), offset);
         
