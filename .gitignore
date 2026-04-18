@@ -28,5 +28,4 @@ debug_test
 *.state
 *.ini
 venv/
-.docs-venv/
 docs/_build/

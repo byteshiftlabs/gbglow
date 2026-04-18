@@ -9,7 +9,7 @@ A Game Boy emulator written in C++17.
 
 gbglow includes CPU, PPU, audio, cartridge, input, save-state, and debugger components.
 
-The current release target is Ubuntu 24.04. Release builds stay portable by default. Host-specific tuning is available when you explicitly ask for it.
+The current release target is Ubuntu 24.04. Release builds are tuned for the local machine by default, so packaged binaries should be produced on the system you intend to run them on.
 
 Supported cartridge families:
 
@@ -24,22 +24,8 @@ Supported cartridge families:
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 ./build.sh
-
-# Optional: enable host-specific tuning for a personal build on this machine
-./build.sh --native-tuning
-
-# 3. Run a ROM
 ./run.sh path/to/game.gb
 ```
-
-## Beginner Ramp-Up
-
-If you are new to the emulator, use this order:
-
-1. Run `./build.sh` and launch a known-good ROM with `./run.sh path/to/game.gb`.
-2. Run `cd build && ctest --output-on-failure` so you understand the current automated test surface.
-3. Rebuild the docs only if you are changing public documentation or developer docs.
-4. Read [ROADMAP.md](ROADMAP.md) before opening larger emulator accuracy or tooling changes so you stay aligned with the current priorities.
 
 ## Controls
 
@@ -62,11 +48,6 @@ If you are new to the emulator, use this order:
 
 Current support target: Ubuntu 24.04.
 
-Dear ImGui is fetched automatically during CMake configure.
-
-Release builds stay portable by default. If you want `-march=native` and `-mtune=native`, opt in explicitly with `./build.sh --native-tuning` or `-DGBGLOW_ENABLE_NATIVE_TUNING=ON` during CMake configure.
-
-Install on Ubuntu 24.04:
 ```bash
 sudo apt install build-essential cmake libsdl2-dev pkg-config cppcheck zenity
 ```
@@ -112,18 +93,8 @@ Current test targets:
 Build the docs with:
 
 ```bash
-python3 -m venv .docs-venv
-source .docs-venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r docs/requirements.txt
-make -C docs html
-
-# Open docs/_build/html/index.html in your browser
+cd docs && pip install -r requirements.txt && make html
 ```
-
-On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
-
-See [ROADMAP.md](ROADMAP.md) for the current validation, documentation, and follow-up work priorities.
 
 ## License
 

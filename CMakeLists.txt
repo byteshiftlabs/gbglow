@@ -13,22 +13,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-option(GBGLOW_ENABLE_NATIVE_TUNING "Enable host-specific -march/-mtune optimizations" OFF)
-
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    # Keep release builds portable by default; native tuning is opt-in.
+    # Core optimizations for the supported Ubuntu 24.04 toolchain.
     add_compile_options(
         -O3
+        -march=native
+        -mtune=native
         -funroll-loops
         -finline-functions
         -fomit-frame-pointer
     )
-    if(GBGLOW_ENABLE_NATIVE_TUNING)
-        add_compile_options(
-            -march=native
-            -mtune=native
-        )
-    endif()
     add_link_options(-s)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
