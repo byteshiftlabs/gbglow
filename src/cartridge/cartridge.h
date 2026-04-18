@@ -55,6 +55,14 @@ public:
     bool is_cgb_supported() const;  // Returns true if game supports CGB features
     bool is_cgb_only() const;        // Returns true if game requires CGB hardware
     
+    // RAM access for save states
+    std::vector<u8> get_ram_data() const { return ram_; }
+    void set_ram_data(const std::vector<u8>& data) { 
+        if (data.size() <= ram_.size()) {
+            std::copy(data.begin(), data.end(), ram_.begin());
+        }
+    }
+    
 protected:
     /**
      * Constructor for derived cartridge types
