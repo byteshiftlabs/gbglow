@@ -86,6 +86,37 @@ void DebuggerGUI::set_docking_mode(bool enabled) {
     docking_mode_ = enabled;
 }
 
+void DebuggerGUI::apply_debug_theme() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    
+    // Dark blue/purple theme for debugger
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.08f, 0.12f, 1.00f);
+    style.Colors[ImGuiCol_ChildBg] = ImVec4(0.06f, 0.06f, 0.10f, 1.00f);
+    style.Colors[ImGuiCol_PopupBg] = ImVec4(0.10f, 0.10f, 0.14f, 1.00f);
+    style.Colors[ImGuiCol_Border] = ImVec4(0.30f, 0.30f, 0.50f, 0.50f);
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.12f, 0.12f, 0.18f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(0.20f, 0.20f, 0.30f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgActive] = ImVec4(0.25f, 0.25f, 0.40f, 1.00f);
+    style.Colors[ImGuiCol_TitleBg] = ImVec4(0.10f, 0.10f, 0.20f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgActive] = ImVec4(0.15f, 0.15f, 0.35f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.08f, 0.08f, 0.15f, 1.00f);
+    style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.18f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.06f, 0.06f, 0.10f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.25f, 0.25f, 0.40f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.35f, 0.35f, 0.55f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.45f, 0.45f, 0.70f, 1.00f);
+    style.Colors[ImGuiCol_CheckMark] = ImVec4(0.50f, 0.70f, 1.00f, 1.00f);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.20f, 0.25f, 0.40f, 1.00f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.35f, 0.55f, 1.00f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.40f, 0.45f, 0.70f, 1.00f);
+    style.Colors[ImGuiCol_Header] = ImVec4(0.20f, 0.25f, 0.40f, 1.00f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.30f, 0.35f, 0.55f, 1.00f);
+    style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.40f, 0.45f, 0.70f, 1.00f);
+    style.Colors[ImGuiCol_Separator] = ImVec4(0.30f, 0.30f, 0.50f, 0.50f);
+    style.Colors[ImGuiCol_Text] = ImVec4(0.85f, 0.90f, 1.00f, 1.00f);
+    style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.60f, 1.00f);
+}
+
 void DebuggerGUI::render() {
     if (!debugger_ || !debugger_->is_attached()) {
         return;
@@ -190,9 +221,18 @@ void DebuggerGUI::render_register_row_8(const char* name, u8 value, bool highlig
 }
 
 void DebuggerGUI::render_registers_window() {
-    ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+    // Fixed position: right of emulator panel
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(485, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(200, 350), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("CPU Registers", &show_registers_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("CPU Registers", docking_mode_ ? nullptr : &show_registers_, flags)) {
         const Registers* regs = debugger_->get_registers();
         
         if (regs) {
@@ -259,9 +299,18 @@ void DebuggerGUI::render_registers_window() {
 }
 
 void DebuggerGUI::render_disassembly_window() {
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+    // Fixed position: below registers
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(485, 375), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(400, 405), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("Disassembly", &show_disassembly_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Disassembly", docking_mode_ ? nullptr : &show_disassembly_, flags)) {
         // Controls
         ImGui::Checkbox("Follow PC", &follow_pc_);
         ImGui::SameLine();
@@ -362,9 +411,18 @@ void DebuggerGUI::render_disassembly_window() {
 }
 
 void DebuggerGUI::render_memory_window() {
-    ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    // Fixed position: right of registers
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(690, 20), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(585, 350), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("Memory Viewer", &show_memory_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Memory Viewer", docking_mode_ ? nullptr : &show_memory_, flags)) {
         // Controls
         ImGui::SetNextItemWidth(60);
         if (ImGui::InputText("Address", memory_goto_address_, sizeof(memory_goto_address_),
@@ -454,9 +512,18 @@ void DebuggerGUI::render_memory_window() {
 }
 
 void DebuggerGUI::render_breakpoints_window() {
-    ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
+    // Fixed position: below emulator
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(0, 455), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(240, 325), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(250, 300), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("Breakpoints", &show_breakpoints_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Breakpoints", docking_mode_ ? nullptr : &show_breakpoints_, flags)) {
         // Add breakpoint
         ImGui::SetNextItemWidth(60);
         if (ImGui::InputText("##bp_addr", breakpoint_address_, sizeof(breakpoint_address_),
@@ -522,9 +589,18 @@ void DebuggerGUI::render_breakpoints_window() {
 }
 
 void DebuggerGUI::render_watches_window() {
-    ImGui::SetNextWindowSize(ImVec2(300, 250), ImGuiCond_FirstUseEver);
+    // Fixed position: right of breakpoints
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(245, 455), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(240, 325), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(300, 250), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("Watches", &show_watches_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Watches", docking_mode_ ? nullptr : &show_watches_, flags)) {
         // Add watch
         ImGui::SetNextItemWidth(60);
         ImGui::InputText("##watch_addr", watch_address_, sizeof(watch_address_),
@@ -605,9 +681,18 @@ void DebuggerGUI::render_watches_window() {
 }
 
 void DebuggerGUI::render_stack_window() {
-    ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+    // Fixed position: right of disassembly
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(890, 375), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(180, 405), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("Stack", &show_stack_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("Stack", docking_mode_ ? nullptr : &show_stack_, flags)) {
         const Registers* regs = debugger_->get_registers();
         
         if (regs) {
@@ -643,9 +728,18 @@ void DebuggerGUI::render_stack_window() {
 }
 
 void DebuggerGUI::render_io_registers_window() {
-    ImGui::SetNextWindowSize(ImVec2(350, 400), ImGuiCond_FirstUseEver);
+    // Fixed position: right of stack
+    if (docking_mode_) {
+        ImGui::SetNextWindowPos(ImVec2(1075, 375), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(200, 405), ImGuiCond_Always);
+    } else {
+        ImGui::SetNextWindowSize(ImVec2(350, 400), ImGuiCond_FirstUseEver);
+    }
     
-    if (ImGui::Begin("I/O Registers", &show_io_registers_)) {
+    ImGuiWindowFlags flags = docking_mode_ ? 
+        (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
+    
+    if (ImGui::Begin("I/O Registers", docking_mode_ ? nullptr : &show_io_registers_, flags)) {
         ImGui::BeginChild("IORegs", ImVec2(0, 0), true);
         
         // Helper lambda for register display

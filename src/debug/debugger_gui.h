@@ -104,6 +104,11 @@ public:
     bool is_paused() const { return paused_; }
     void set_paused(bool paused) { paused_ = paused; }
     
+    /**
+     * Apply debug color theme
+     */
+    void apply_debug_theme();
+    
 private:
     Debugger* debugger_;
     bool visible_;
