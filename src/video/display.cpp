@@ -820,6 +820,7 @@ void Display::render_menu_bar() {
                 ImGui::MenuItem("Watches", nullptr, &debugger_gui_->show_watches());
                 ImGui::MenuItem("Stack", nullptr, &debugger_gui_->show_stack());
                 ImGui::MenuItem("I/O Registers", nullptr, &debugger_gui_->show_io_registers());
+                ImGui::MenuItem("Sprites (OAM)", nullptr, &debugger_gui_->show_sprites());
                 
                 ImGui::Separator();
                 

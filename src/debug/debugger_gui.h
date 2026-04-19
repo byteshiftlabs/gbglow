@@ -97,6 +97,7 @@ public:
     bool& show_watches() { return show_watches_; }
     bool& show_stack() { return show_stack_; }
     bool& show_io_registers() { return show_io_registers_; }
+    bool& show_sprites() { return show_sprites_; }
     
     /**
      * Get pause state
@@ -125,6 +126,7 @@ private:
     bool show_watches_;
     bool show_stack_;
     bool show_io_registers_;
+    bool show_sprites_;
     
     // Memory viewer state
     u16 memory_view_address_;
@@ -153,6 +155,7 @@ private:
     void render_watches_window();
     void render_stack_window();
     void render_io_registers_window();
+    void render_sprites_window();
     
     // Helper methods
     std::string format_flags(u8 f) const;
