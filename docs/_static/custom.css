@@ -1,0 +1,15 @@
+/* Fix tables to not scroll horizontally */
+.wy-table-responsive {
+    overflow-x: visible !important;
+}
+
+.wy-table-responsive table {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
+.wy-table-responsive td,
+.wy-table-responsive th {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}

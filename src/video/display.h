@@ -19,6 +19,8 @@ namespace gbcrush {
 
 class Joypad;
 class Gamepad;
+class Debugger;
+class DebuggerGUI;
 
 /**
  * Display Output System
@@ -50,6 +52,16 @@ public:
      * Returns true on success, false on failure
      */
     bool initialize(const std::string& title, int scale_factor);
+    
+    /**
+     * Attach debugger for GUI rendering
+     */
+    void attach_debugger(Debugger* debugger);
+    
+    /**
+     * Get debugger GUI (for checking pause state, etc.)
+     */
+    DebuggerGUI* get_debugger_gui();
     
     /**
      * Update display with framebuffer data
@@ -195,6 +207,9 @@ private:
     
     // Gamepad support
     std::unique_ptr<Gamepad> gamepad_;
+    
+    // Debugger GUI
+    std::unique_ptr<DebuggerGUI> debugger_gui_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup

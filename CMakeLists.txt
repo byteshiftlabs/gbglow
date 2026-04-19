@@ -75,6 +75,11 @@ set(AUDIO_SOURCES
     src/audio/apu.cpp
 )
 
+set(DEBUG_SOURCES
+    src/debug/debugger.cpp
+    src/debug/debugger_gui.cpp
+)
+
 # ImGui sources
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 set(IMGUI_SOURCES
@@ -94,6 +99,7 @@ add_executable(gbcrush
     ${CARTRIDGE_SOURCES}
     ${INPUT_SOURCES}
     ${AUDIO_SOURCES}
+    ${DEBUG_SOURCES}
     ${IMGUI_SOURCES}
 )
 

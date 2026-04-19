@@ -1,6 +1,8 @@
 #include "display.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
+#include "../debug/debugger.h"
+#include "../debug/debugger_gui.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -22,6 +24,7 @@ Display::Display()
     , audio_device_(0)
     , imgui_context_(nullptr)
     , gamepad_(std::make_unique<Gamepad>())
+    , debugger_gui_(std::make_unique<DebuggerGUI>())
     , should_close_(false)
     , turbo_mode_(false)
     , scale_factor_(DEFAULT_SCALE)
@@ -84,6 +87,16 @@ Display::~Display() {
     }
     
     SDL_Quit();
+}
+
+void Display::attach_debugger(Debugger* debugger) {
+    if (debugger_gui_) {
+        debugger_gui_->attach(debugger);
+    }
+}
+
+DebuggerGUI* Display::get_debugger_gui() {
+    return debugger_gui_.get();
 }
 
 bool Display::initialize(const std::string& title, int scale_factor) {
@@ -249,6 +262,11 @@ void Display::update(const std::vector<u8>& framebuffer) {
         render_controller_config();
     }
     
+    // Render debugger GUI if visible
+    if (debugger_gui_) {
+        debugger_gui_->render();
+    }
+    
     // Render ImGui
     ImGui::Render();
     ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer_);
@@ -361,6 +379,33 @@ void Display::handle_keydown(int key, Joypad* joypad) {
     // M key toggles mute
     if (key == SDLK_m) {
         toggle_mute();
+        return;
+    }
+    
+    // F12 key toggles debugger
+    if (key == SDLK_F12) {
+        if (debugger_gui_) {
+            debugger_gui_->toggle_visible();
+        }
+        return;
+    }
+    
+    // F5 key continues/pauses in debugger
+    if (key == SDLK_F5) {
+        if (debugger_gui_ && debugger_gui_->is_visible()) {
+            if (debugger_gui_->should_pause()) {
+                debugger_gui_->continue_execution();
+            }
+        }
+        return;
+    }
+    
+    // F10 key for step in debugger
+    if (key == SDLK_F10 || key == SDLK_F11) {
+        if (debugger_gui_ && debugger_gui_->is_visible() && debugger_gui_->should_pause()) {
+            debugger_gui_->clear_step_request();
+            // The step request will be set by the GUI button
+        }
         return;
     }
     
@@ -634,6 +679,15 @@ void Display::render_menu_bar() {
             
             if (ImGui::MenuItem("Mute Audio", "M", is_muted_)) {
                 toggle_mute();
+            }
+            
+            ImGui::Separator();
+            
+            bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
+            if (ImGui::MenuItem("Debugger", "F12", debugger_visible)) {
+                if (debugger_gui_) {
+                    debugger_gui_->toggle_visible();
+                }
             }
             
             ImGui::EndMenu();
