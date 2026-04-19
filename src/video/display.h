@@ -64,6 +64,16 @@ public:
     DebuggerGUI* get_debugger_gui();
     
     /**
+     * Check if in debugger mode (full window with docking)
+     */
+    bool is_debugger_mode() const;
+    
+    /**
+     * Enter/exit debugger mode (resizes window)
+     */
+    void set_debugger_mode(bool enabled);
+    
+    /**
      * Update display with framebuffer data
      * Framebuffer is 160×144 RGBA pixels
      */
@@ -210,6 +220,9 @@ private:
     
     // Debugger GUI
     std::unique_ptr<DebuggerGUI> debugger_gui_;
+    bool debugger_mode_;  // True when in full debugger view
+    int original_width_;  // Store original window size
+    int original_height_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup
