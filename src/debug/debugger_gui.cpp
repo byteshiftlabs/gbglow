@@ -846,7 +846,7 @@ void DebuggerGUI::render_io_registers_window() {
 }
 
 void DebuggerGUI::render_sprites_window() {
-    // Fixed position: below emulator, right of breakpoints/watches
+    // Fixed position: below emulator
     if (docking_mode_) {
         ImGui::SetNextWindowPos(ImVec2(0, 455), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(480, 325), ImGuiCond_Always);
@@ -863,134 +863,139 @@ void DebuggerGUI::render_sprites_window() {
         bool sprites_enabled = (lcdc & 0x02) != 0;
         bool large_sprites = (lcdc & 0x04) != 0;  // 8x16 mode
         
+        // Get palettes
+        u8 obp0 = debugger_->read_memory(0xFF48);
+        u8 obp1 = debugger_->read_memory(0xFF49);
+        
+        // DMG grayscale colors (sprite color 0 is always transparent)
+        auto get_color = [](u8 palette, int color_idx) -> ImU32 {
+            if (color_idx == 0) return IM_COL32(0, 0, 0, 0);  // Transparent
+            int shade = (palette >> (color_idx * 2)) & 0x03;
+            // 0=white, 1=light gray, 2=dark gray, 3=black
+            const u8 shades[] = {255, 170, 85, 0};
+            u8 c = shades[shade];
+            return IM_COL32(c, c, c, 255);
+        };
+        
         // Display sprite mode info
         if (sprites_enabled) {
-            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Sprites: ENABLED");
+            ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "ON");
         } else {
-            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Sprites: DISABLED");
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "OFF");
         }
         ImGui::SameLine();
-        ImGui::Text("| Size: %s", large_sprites ? "8x16" : "8x8");
-        ImGui::SameLine();
-        ImGui::TextDisabled("(OAM: $FE00-$FE9F)");
+        ImGui::Text("| %s | OBP0:%02X OBP1:%02X", large_sprites ? "8x16" : "8x8", obp0, obp1);
         
         ImGui::Separator();
         
-        // Column headers
-        ImGui::BeginChild("SpriteList", ImVec2(0, 0), true);
+        // Sprite grid - show all 40 sprites as actual graphics
+        ImGui::BeginChild("SpriteGrid", ImVec2(0, 0), true);
         
-        ImGui::Columns(7, "SpriteColumns", true);
-        ImGui::SetColumnWidth(0, 35);  // #
-        ImGui::SetColumnWidth(1, 55);  // Addr
-        ImGui::SetColumnWidth(2, 70);  // Position
-        ImGui::SetColumnWidth(3, 45);  // Tile
-        ImGui::SetColumnWidth(4, 50);  // Flags
-        ImGui::SetColumnWidth(5, 95);  // Attributes
-        ImGui::SetColumnWidth(6, 80);  // Status
-        
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "#");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Addr");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "X, Y");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Tile");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Attr");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Flags");
-        ImGui::NextColumn();
-        ImGui::TextColored(ImVec4(0.7f, 0.7f, 1.0f, 1.0f), "Status");
-        ImGui::NextColumn();
-        ImGui::Separator();
-        
-        // OAM is at $FE00-$FE9F, 40 sprites, 4 bytes each
         const u16 OAM_START = 0xFE00;
+        const u16 TILE_DATA = 0x8000;  // Sprites always use $8000 addressing
         const int NUM_SPRITES = 40;
+        const float PIXEL_SIZE = 2.0f;  // Scale factor for pixels
+        const int SPRITE_HEIGHT = large_sprites ? 16 : 8;
+        const float CELL_WIDTH = 8 * PIXEL_SIZE + 4;
+        const float CELL_HEIGHT = SPRITE_HEIGHT * PIXEL_SIZE + 20;  // Extra for label
+        
+        int sprites_per_row = static_cast<int>(ImGui::GetContentRegionAvail().x / CELL_WIDTH);
+        if (sprites_per_row < 1) sprites_per_row = 1;
+        
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
         
         int visible_count = 0;
         
         for (int i = 0; i < NUM_SPRITES; ++i) {
-            u16 addr = OAM_START + (i * 4);
+            u16 oam_addr = OAM_START + (i * 4);
             
-            u8 y_pos = debugger_->read_memory(addr);      // Y position + 16
-            u8 x_pos = debugger_->read_memory(addr + 1);  // X position + 8
-            u8 tile = debugger_->read_memory(addr + 2);   // Tile number
-            u8 attr = debugger_->read_memory(addr + 3);   // Attributes
+            u8 y_pos = debugger_->read_memory(oam_addr);
+            u8 x_pos = debugger_->read_memory(oam_addr + 1);
+            u8 tile_num = debugger_->read_memory(oam_addr + 2);
+            u8 attr = debugger_->read_memory(oam_addr + 3);
             
-            // Check if sprite is on screen (Y: 0-159 visible area is 16-160, X: 0-167 visible is 8-168)
-            bool on_screen = (y_pos > 0 && y_pos < 160) && (x_pos > 0 && x_pos < 168);
+            // In 8x16 mode, bit 0 of tile number is ignored
+            if (large_sprites) {
+                tile_num &= 0xFE;
+            }
             
-            // Parse attributes
-            bool priority = (attr & 0x80) != 0;  // 0=Above BG, 1=Behind BG colors 1-3
             bool y_flip = (attr & 0x40) != 0;
             bool x_flip = (attr & 0x20) != 0;
-            bool palette = (attr & 0x10) != 0;   // 0=OBP0, 1=OBP1 (DMG)
-            // CGB: bits 0-2 = palette, bit 3 = VRAM bank
+            bool use_obp1 = (attr & 0x10) != 0;
+            u8 palette = use_obp1 ? obp1 : obp0;
             
-            // Highlight visible sprites
-            if (on_screen) {
-                visible_count++;
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.5f, 1.0f));
+            bool on_screen = (y_pos > 0 && y_pos < 160) && (x_pos > 0 && x_pos < 168);
+            if (on_screen) visible_count++;
+            
+            // Calculate grid position
+            int col = i % sprites_per_row;
+            int row = i / sprites_per_row;
+            
+            ImVec2 cell_pos = ImGui::GetCursorScreenPos();
+            cell_pos.x += col * CELL_WIDTH;
+            cell_pos.y += row * CELL_HEIGHT;
+            
+            // Draw border (yellow for visible, gray for off-screen)
+            ImU32 border_color = on_screen ? IM_COL32(255, 255, 100, 255) : IM_COL32(80, 80, 80, 255);
+            draw_list->AddRect(
+                ImVec2(cell_pos.x, cell_pos.y),
+                ImVec2(cell_pos.x + 8 * PIXEL_SIZE + 2, cell_pos.y + SPRITE_HEIGHT * PIXEL_SIZE + 2),
+                border_color
+            );
+            
+            // Draw sprite pixels
+            for (int tile_row = 0; tile_row < SPRITE_HEIGHT; ++tile_row) {
+                int actual_row = y_flip ? (SPRITE_HEIGHT - 1 - tile_row) : tile_row;
+                
+                // Calculate which tile and row within tile
+                int tile_offset = (actual_row >= 8) ? 1 : 0;
+                int row_in_tile = actual_row & 7;
+                
+                u8 current_tile = tile_num + tile_offset;
+                u16 tile_addr = TILE_DATA + (current_tile * 16) + (row_in_tile * 2);
+                
+                u8 byte1 = debugger_->read_memory(tile_addr);
+                u8 byte2 = debugger_->read_memory(tile_addr + 1);
+                
+                for (int px = 0; px < 8; ++px) {
+                    int actual_px = x_flip ? px : (7 - px);
+                    
+                    int color_idx = ((byte1 >> actual_px) & 1) | (((byte2 >> actual_px) & 1) << 1);
+                    ImU32 color = get_color(palette, color_idx);
+                    
+                    if (color_idx != 0) {  // Don't draw transparent pixels
+                        float x = cell_pos.x + 1 + (7 - px) * PIXEL_SIZE;
+                        float y = cell_pos.y + 1 + tile_row * PIXEL_SIZE;
+                        draw_list->AddRectFilled(
+                            ImVec2(x, y),
+                            ImVec2(x + PIXEL_SIZE, y + PIXEL_SIZE),
+                            color
+                        );
+                    }
+                }
             }
             
-            // Sprite number
-            ImGui::Text("%02d", i);
-            ImGui::NextColumn();
-            
-            // Address
-            ImGui::Text("$%04X", addr);
-            ImGui::NextColumn();
-            
-            // Screen position (adjusted from OAM values)
-            int screen_x = static_cast<int>(x_pos) - 8;
-            int screen_y = static_cast<int>(y_pos) - 16;
-            ImGui::Text("%3d,%3d", screen_x, screen_y);
-            ImGui::NextColumn();
-            
-            // Tile number
-            ImGui::Text("$%02X", tile);
-            ImGui::NextColumn();
-            
-            // Raw attributes
-            ImGui::Text("$%02X", attr);
-            ImGui::NextColumn();
-            
-            // Decoded flags
-            std::string flags_str;
-            if (x_flip) flags_str += "H";
-            if (y_flip) flags_str += "V";
-            if (priority) flags_str += "B";
-            flags_str += palette ? " OBP1" : " OBP0";
-            ImGui::Text("%s", flags_str.c_str());
-            ImGui::NextColumn();
-            
-            // Status
-            if (on_screen) {
-                ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "Visible");
-            } else if (y_pos == 0 || y_pos >= 160) {
-                ImGui::TextDisabled("Off-Y");
-            } else {
-                ImGui::TextDisabled("Off-X");
-            }
-            ImGui::NextColumn();
-            
-            if (on_screen) {
-                ImGui::PopStyleColor();
-            }
+            // Draw sprite number below
+            char label[8];
+            snprintf(label, sizeof(label), "%02d", i);
+            draw_list->AddText(
+                ImVec2(cell_pos.x + 2, cell_pos.y + SPRITE_HEIGHT * PIXEL_SIZE + 3),
+                on_screen ? IM_COL32(255, 255, 100, 255) : IM_COL32(150, 150, 150, 255),
+                label
+            );
         }
         
-        ImGui::Columns(1);
+        // Reserve space for the grid
+        int total_rows = (NUM_SPRITES + sprites_per_row - 1) / sprites_per_row;
+        ImGui::Dummy(ImVec2(sprites_per_row * CELL_WIDTH, total_rows * CELL_HEIGHT));
+        
         ImGui::EndChild();
         
         // Status bar
         ImGui::Separator();
-        ImGui::Text("Visible sprites: %d/40", visible_count);
-        if (visible_count > 10) {
-            ImGui::SameLine();
-            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), 
-                "(Note: GB can only show 10 sprites per scanline)");
-        }
+        ImGui::Text("Visible: %d/40", visible_count);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(yellow = on screen)");
     }
     ImGui::End();
 }
