@@ -857,7 +857,7 @@ void DebuggerGUI::render_sprites_window() {
     ImGuiWindowFlags flags = docking_mode_ ? 
         (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
     
-    if (ImGui::Begin("Sprites (OAM)", docking_mode_ ? nullptr : &show_sprites_, flags)) {
+    if (ImGui::Begin("Sprite Layer", docking_mode_ ? nullptr : &show_sprites_, flags)) {
         // LCDC register to check sprite settings
         u8 lcdc = debugger_->read_memory(0xFF40);
         bool sprites_enabled = (lcdc & 0x02) != 0;
@@ -888,31 +888,58 @@ void DebuggerGUI::render_sprites_window() {
         
         ImGui::Separator();
         
-        // Sprite grid - show all 40 sprites as actual graphics
-        ImGui::BeginChild("SpriteGrid", ImVec2(0, 0), true);
+        // Screen-like view showing sprites at their actual positions
+        // Game Boy screen is 160x144, we'll scale it to fit
+        const int GB_WIDTH = 160;
+        const int GB_HEIGHT = 144;
+        const float SCALE = 1.8f;  // Scale to make it visible
+        const float SCREEN_W = GB_WIDTH * SCALE;
+        const float SCREEN_H = GB_HEIGHT * SCALE;
         
-        const u16 OAM_START = 0xFE00;
-        const u16 TILE_DATA = 0x8000;  // Sprites always use $8000 addressing
-        const int NUM_SPRITES = 40;
-        const float PIXEL_SIZE = 2.0f;  // Scale factor for pixels
-        const int SPRITE_HEIGHT = large_sprites ? 16 : 8;
-        const float CELL_WIDTH = 8 * PIXEL_SIZE + 4;
-        const float CELL_HEIGHT = SPRITE_HEIGHT * PIXEL_SIZE + 20;  // Extra for label
-        
-        int sprites_per_row = static_cast<int>(ImGui::GetContentRegionAvail().x / CELL_WIDTH);
-        if (sprites_per_row < 1) sprites_per_row = 1;
+        ImGui::BeginChild("SpriteScreen", ImVec2(SCREEN_W + 10, SCREEN_H + 10), true);
         
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 screen_pos = ImGui::GetCursorScreenPos();
+        
+        // Draw screen background (dark)
+        draw_list->AddRectFilled(
+            screen_pos,
+            ImVec2(screen_pos.x + SCREEN_W, screen_pos.y + SCREEN_H),
+            IM_COL32(20, 20, 30, 255)
+        );
+        
+        // Draw screen border
+        draw_list->AddRect(
+            screen_pos,
+            ImVec2(screen_pos.x + SCREEN_W, screen_pos.y + SCREEN_H),
+            IM_COL32(100, 100, 150, 255)
+        );
+        
+        const u16 OAM_START = 0xFE00;
+        const u16 TILE_DATA = 0x8000;
+        const int NUM_SPRITES = 40;
+        const int SPRITE_HEIGHT = large_sprites ? 16 : 8;
         
         int visible_count = 0;
         
-        for (int i = 0; i < NUM_SPRITES; ++i) {
+        // Draw all sprites at their screen positions (reverse order for correct priority)
+        for (int i = NUM_SPRITES - 1; i >= 0; --i) {
             u16 oam_addr = OAM_START + (i * 4);
             
             u8 y_pos = debugger_->read_memory(oam_addr);
             u8 x_pos = debugger_->read_memory(oam_addr + 1);
             u8 tile_num = debugger_->read_memory(oam_addr + 2);
             u8 attr = debugger_->read_memory(oam_addr + 3);
+            
+            // Convert to screen coordinates (OAM stores Y+16, X+8)
+            int screen_x = static_cast<int>(x_pos) - 8;
+            int screen_y = static_cast<int>(y_pos) - 16;
+            
+            // Skip sprites completely off-screen
+            if (screen_y <= -SPRITE_HEIGHT || screen_y >= GB_HEIGHT) continue;
+            if (screen_x <= -8 || screen_x >= GB_WIDTH) continue;
+            
+            visible_count++;
             
             // In 8x16 mode, bit 0 of tile number is ignored
             if (large_sprites) {
@@ -924,27 +951,11 @@ void DebuggerGUI::render_sprites_window() {
             bool use_obp1 = (attr & 0x10) != 0;
             u8 palette = use_obp1 ? obp1 : obp0;
             
-            bool on_screen = (y_pos > 0 && y_pos < 160) && (x_pos > 0 && x_pos < 168);
-            if (on_screen) visible_count++;
-            
-            // Calculate grid position
-            int col = i % sprites_per_row;
-            int row = i / sprites_per_row;
-            
-            ImVec2 cell_pos = ImGui::GetCursorScreenPos();
-            cell_pos.x += col * CELL_WIDTH;
-            cell_pos.y += row * CELL_HEIGHT;
-            
-            // Draw border (yellow for visible, gray for off-screen)
-            ImU32 border_color = on_screen ? IM_COL32(255, 255, 100, 255) : IM_COL32(80, 80, 80, 255);
-            draw_list->AddRect(
-                ImVec2(cell_pos.x, cell_pos.y),
-                ImVec2(cell_pos.x + 8 * PIXEL_SIZE + 2, cell_pos.y + SPRITE_HEIGHT * PIXEL_SIZE + 2),
-                border_color
-            );
-            
-            // Draw sprite pixels
+            // Draw sprite pixels at screen position
             for (int tile_row = 0; tile_row < SPRITE_HEIGHT; ++tile_row) {
+                int py = screen_y + tile_row;
+                if (py < 0 || py >= GB_HEIGHT) continue;
+                
                 int actual_row = y_flip ? (SPRITE_HEIGHT - 1 - tile_row) : tile_row;
                 
                 // Calculate which tile and row within tile
@@ -958,44 +969,78 @@ void DebuggerGUI::render_sprites_window() {
                 u8 byte2 = debugger_->read_memory(tile_addr + 1);
                 
                 for (int px = 0; px < 8; ++px) {
+                    int pix_x = screen_x + px;
+                    if (pix_x < 0 || pix_x >= GB_WIDTH) continue;
+                    
                     int actual_px = x_flip ? px : (7 - px);
                     
                     int color_idx = ((byte1 >> actual_px) & 1) | (((byte2 >> actual_px) & 1) << 1);
-                    ImU32 color = get_color(palette, color_idx);
                     
                     if (color_idx != 0) {  // Don't draw transparent pixels
-                        float x = cell_pos.x + 1 + (7 - px) * PIXEL_SIZE;
-                        float y = cell_pos.y + 1 + tile_row * PIXEL_SIZE;
+                        ImU32 color = get_color(palette, color_idx);
+                        
+                        float draw_x = screen_pos.x + pix_x * SCALE;
+                        float draw_y = screen_pos.y + py * SCALE;
+                        
                         draw_list->AddRectFilled(
-                            ImVec2(x, y),
-                            ImVec2(x + PIXEL_SIZE, y + PIXEL_SIZE),
+                            ImVec2(draw_x, draw_y),
+                            ImVec2(draw_x + SCALE, draw_y + SCALE),
                             color
                         );
                     }
                 }
             }
-            
-            // Draw sprite number below
-            char label[8];
-            snprintf(label, sizeof(label), "%02d", i);
-            draw_list->AddText(
-                ImVec2(cell_pos.x + 2, cell_pos.y + SPRITE_HEIGHT * PIXEL_SIZE + 3),
-                on_screen ? IM_COL32(255, 255, 100, 255) : IM_COL32(150, 150, 150, 255),
-                label
+        }
+        
+        // Draw scanline indicator (current LY)
+        u8 ly = debugger_->read_memory(0xFF44);
+        if (ly < GB_HEIGHT) {
+            float ly_y = screen_pos.y + ly * SCALE;
+            draw_list->AddLine(
+                ImVec2(screen_pos.x, ly_y),
+                ImVec2(screen_pos.x + SCREEN_W, ly_y),
+                IM_COL32(255, 100, 100, 150),
+                1.0f
             );
         }
         
-        // Reserve space for the grid
-        int total_rows = (NUM_SPRITES + sprites_per_row - 1) / sprites_per_row;
-        ImGui::Dummy(ImVec2(sprites_per_row * CELL_WIDTH, total_rows * CELL_HEIGHT));
-        
+        ImGui::Dummy(ImVec2(SCREEN_W, SCREEN_H));
         ImGui::EndChild();
         
-        // Status bar
-        ImGui::Separator();
-        ImGui::Text("Visible: %d/40", visible_count);
+        // Info panel on the right
         ImGui::SameLine();
-        ImGui::TextDisabled("(yellow = on screen)");
+        ImGui::BeginChild("SpriteInfo", ImVec2(0, 0), true);
+        
+        ImGui::Text("Sprites on screen: %d", visible_count);
+        ImGui::Text("Scanline (LY): %d", ly);
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "-- Red line = LY");
+        ImGui::Separator();
+        
+        // List visible sprites with their info
+        ImGui::Text("Active sprites:");
+        ImGui::BeginChild("SpriteList", ImVec2(0, 0), false);
+        
+        for (int i = 0; i < NUM_SPRITES; ++i) {
+            u16 oam_addr = OAM_START + (i * 4);
+            u8 y_pos = debugger_->read_memory(oam_addr);
+            u8 x_pos = debugger_->read_memory(oam_addr + 1);
+            u8 tile_num = debugger_->read_memory(oam_addr + 2);
+            u8 attr = debugger_->read_memory(oam_addr + 3);
+            
+            int sx = static_cast<int>(x_pos) - 8;
+            int sy = static_cast<int>(y_pos) - 16;
+            
+            // Only show on-screen sprites
+            if (sy > -SPRITE_HEIGHT && sy < GB_HEIGHT && sx > -8 && sx < GB_WIDTH) {
+                bool use_obp1 = (attr & 0x10) != 0;
+                ImGui::Text("#%02d (%3d,%3d) T:%02X %s", 
+                    i, sx, sy, tile_num, use_obp1 ? "P1" : "P0");
+            }
+        }
+        
+        ImGui::EndChild();
+        ImGui::EndChild();
     }
     ImGui::End();
 }
