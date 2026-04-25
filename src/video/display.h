@@ -19,6 +19,9 @@ namespace gbcrush {
 
 class Joypad;
 class Gamepad;
+class Debugger;
+class DebuggerGUI;
+class RecentRoms;
 
 /**
  * Display Output System
@@ -50,6 +53,26 @@ public:
      * Returns true on success, false on failure
      */
     bool initialize(const std::string& title, int scale_factor);
+    
+    /**
+     * Attach debugger for GUI rendering
+     */
+    void attach_debugger(Debugger* debugger);
+    
+    /**
+     * Get debugger GUI (for checking pause state, etc.)
+     */
+    DebuggerGUI* get_debugger_gui();
+    
+    /**
+     * Check if in debugger mode (full window with docking)
+     */
+    bool is_debugger_mode() const;
+    
+    /**
+     * Enter/exit debugger mode (resizes window)
+     */
+    void set_debugger_mode(bool enabled);
     
     /**
      * Update display with framebuffer data
@@ -138,6 +161,11 @@ public:
     void set_rom_path(const std::string& rom_path);
     
     /**
+     * Set recent ROMs manager
+     */
+    void set_recent_roms(RecentRoms* recent_roms);
+    
+    /**
      * Queue audio samples for playback
      * @param samples Vector of stereo samples (left, right) as 8-bit unsigned values (0-255)
      */
@@ -195,6 +223,15 @@ private:
     
     // Gamepad support
     std::unique_ptr<Gamepad> gamepad_;
+    
+    // Debugger GUI
+    std::unique_ptr<DebuggerGUI> debugger_gui_;
+    bool debugger_mode_;  // True when in full debugger view
+    int original_width_;  // Store original window size
+    int original_height_;
+    
+    // Recent ROMs (not owned, just a pointer)
+    RecentRoms* recent_roms_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup

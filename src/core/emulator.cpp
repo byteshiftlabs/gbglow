@@ -1,6 +1,7 @@
 #include "emulator.h"
 #include "timer.h"
 #include "../audio/apu.h"
+#include "../debug/debugger_gui.h"
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
@@ -14,7 +15,13 @@ Emulator::Emulator() {
     memory_ = std::make_unique<Memory>();
     cpu_ = std::make_unique<CPU>(*memory_);
     ppu_ = std::make_unique<PPU>(*memory_);
+    debugger_ = std::make_unique<Debugger>();
+    recent_roms_ = std::make_unique<RecentRoms>();
     memory_->set_ppu(ppu_.get());
+    
+    // Attach debugger to CPU, Memory, and PPU
+    debugger_->attach(cpu_.get(), memory_.get(), ppu_.get());
+    
     // Note: Joypad is owned by Memory, not Emulator
     
     // Try to load boot ROM (optional - emulator works without it)
@@ -33,6 +40,9 @@ bool Emulator::load_rom(const std::string& path) {
         auto cartridge = Cartridge::load_rom_from_file(path);
         memory_->load_cartridge(std::move(cartridge));
         rom_path_ = path;
+        
+        // Add to recent ROMs list
+        recent_roms_->add_rom(path);
         
         // Load save file if it exists
         std::string save_path = get_save_path();
@@ -79,6 +89,10 @@ void Emulator::run_cycles(Cycles cycles) {
     }
 }
 
+Debugger& Emulator::debugger() {
+    return *debugger_;
+}
+
 void Emulator::run(const std::string& window_title, int scale_factor) {
     // Initialize display
     Display display;
@@ -87,10 +101,16 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
         return;
     }
     
+    // Attach debugger to display
+    display.attach_debugger(debugger_.get());
+    
     // Set ROM path in display for slot tracking
     display.set_rom_path(rom_path_);
     
-    std::cout << "Emulator running. Press ESC to exit." << std::endl;
+    // Pass recent ROMs manager to display
+    display.set_recent_roms(recent_roms_.get());
+    
+    std::cout << "Emulator running. Press ESC to exit, F12 to open debugger." << std::endl;
     std::cout << "Controls: Arrow keys = D-pad, Z = A, X = B, Enter = Start, Shift = Select" << std::endl;
     
     // Main game loop - use audio-based synchronization for consistent timing
@@ -162,9 +182,37 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             display.clear_state_request();
         }
         
-        // Skip frame processing if paused
-        if (display.is_paused()) {
-            // Still update display to show menu bar
+        // Check debugger pause state
+        DebuggerGUI* debugger_gui = display.get_debugger_gui();
+        bool debugger_paused = debugger_gui && debugger_gui->should_pause();
+        
+        // Handle debugger step request
+        if (debugger_paused && debugger_gui->step_requested()) {
+            // Execute single instruction
+            Cycles cpu_cycles = cpu_->step();
+            cpu_->handle_interrupts();
+            ppu_->step(cpu_cycles);
+            memory_->apu().step(cpu_cycles);
+            
+            // Record execution for debugger
+            debugger_->record_execution(cpu_->registers().pc);
+            
+            debugger_gui->clear_step_request();
+            
+            // Update display after step
+            const auto& framebuffer = ppu_->get_rgba_framebuffer();
+            display.update(framebuffer);
+            continue;
+        }
+        
+        // Handle debugger continue
+        if (debugger_gui && debugger_gui->should_continue()) {
+            debugger_gui->clear_continue();
+        }
+        
+        // Skip frame processing if paused (either by menu or debugger)
+        if (display.is_paused() || debugger_paused) {
+            // Still update display to show menu bar and debugger windows
             if (ppu_->frame_ready()) {
                 const auto& framebuffer = ppu_->get_rgba_framebuffer();
                 display.update(framebuffer);
@@ -516,4 +564,8 @@ bool Emulator::delete_state(int slot) {
     return false;  // File doesn't exist or couldn't be deleted
 }
 
-} // namespace gbcrush
+RecentRoms& Emulator::recent_roms() {
+    return *recent_roms_;
+}
+
+}  // namespace gbcrush
