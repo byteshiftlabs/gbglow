@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# EmuGBC Run Script
+# GBCrush Run Script
 # Builds (if needed) and runs the emulator
 
 set -e  # Exit on error
@@ -28,13 +28,13 @@ if [ ! -f "$ROM_FILE" ]; then
 fi
 
 # Build if executable doesn't exist
-if [ ! -f "build/emugbc" ]; then
+if [ ! -f "build/gbcrush" ]; then
     echo -e "${YELLOW}Executable not found. Building...${NC}"
     ./build.sh
 fi
 
 # Run the emulator
-echo -e "${GREEN}=== Starting EmuGBC ===${NC}"
+echo -e "${GREEN}=== Starting GBCrush ===${NC}"
 echo -e "${YELLOW}ROM: $ROM_FILE${NC}"
 echo ""
 echo -e "${GREEN}Controls:${NC}"
@@ -46,4 +46,4 @@ echo "  Shift = Select"
 echo "  ESC = Exit"
 echo ""
 
-./build/emugbc "$ROM_FILE"
+./build/gbcrush "$ROM_FILE"

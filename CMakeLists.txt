@@ -80,6 +80,10 @@ set(DEBUG_SOURCES
     src/debug/debugger_gui.cpp
 )
 
+set(UI_SOURCES
+    src/ui/recent_roms.cpp
+)
+
 # ImGui sources
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
 set(IMGUI_SOURCES
@@ -100,6 +104,7 @@ add_executable(gbcrush
     ${INPUT_SOURCES}
     ${AUDIO_SOURCES}
     ${DEBUG_SOURCES}
+    ${UI_SOURCES}
     ${IMGUI_SOURCES}
 )
 
