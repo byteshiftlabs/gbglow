@@ -19,6 +19,7 @@ namespace gbcrush {
 
 class Joypad;
 class Gamepad;
+class Screenshot;
 
 /**
  * Display Output System
@@ -186,6 +187,23 @@ public:
      */
     bool is_muted() const;
     
+    /**
+     * Check if screenshot was requested
+     */
+    bool screenshot_requested() const;
+    
+    /**
+     * Clear screenshot request flag
+     */
+    void clear_screenshot_request();
+    
+    /**
+     * Capture screenshot to file
+     * @param framebuffer RGBA framebuffer data
+     * @param rom_path Path to currently loaded ROM
+     */
+    void capture_screenshot(const std::vector<u8>& framebuffer, const std::string& rom_path);
+    
 private:
     SDL_Window* window_;
     SDL_Renderer* renderer_;
@@ -195,6 +213,10 @@ private:
     
     // Gamepad support
     std::unique_ptr<Gamepad> gamepad_;
+    
+    // Screenshot support
+    std::unique_ptr<Screenshot> screenshot_;
+    bool screenshot_requested_;
     
     bool should_close_;
     bool turbo_mode_;  // Space key held for speedup
