@@ -44,6 +44,7 @@ echo "  X = B button"
 echo "  Enter = Start"
 echo "  Shift = Select"
 echo "  ESC = Exit"
+echo "  F12 = Screenshot"
 echo ""
 
 ./build/gbcrush "$ROM_FILE"

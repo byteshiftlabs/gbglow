@@ -210,6 +210,13 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             debugger_gui->clear_continue();
         }
         
+        // Handle screenshot request
+        if (display.screenshot_requested()) {
+            const auto& framebuffer = ppu_->get_rgba_framebuffer();
+            display.capture_screenshot(framebuffer, rom_path_);
+            display.clear_screenshot_request();
+        }
+        
         // Skip frame processing if paused (either by menu or debugger)
         if (display.is_paused() || debugger_paused) {
             // Still update display to show menu bar and debugger windows
