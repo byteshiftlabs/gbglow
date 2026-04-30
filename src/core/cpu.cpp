@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "cpu.h"
 #include "cpu_constants.h"
 #include <iostream>
@@ -304,8 +308,15 @@ void CPU::serialize(std::vector<u8>& data) const
     data.push_back(stopped_ ? 1 : 0);
 }
 
-void CPU::deserialize(const u8* data, size_t& offset)
+void CPU::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    constexpr size_t REGISTER_BYTES = 8;   // a, f, b, c, d, e, h, l
+    constexpr size_t SP_BYTES = 2;
+    constexpr size_t PC_BYTES = 2;
+    constexpr size_t FLAG_BYTES = 3;        // ime, halted, stopped
+    constexpr size_t CPU_STATE_SIZE = REGISTER_BYTES + SP_BYTES + PC_BYTES + FLAG_BYTES;
+    if (offset + CPU_STATE_SIZE > data_size) return;
+
     // Registers
     regs_.a = data[offset++];
     regs_.f = data[offset++];

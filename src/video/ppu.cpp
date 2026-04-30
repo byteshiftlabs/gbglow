@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "ppu.h"
 
 #include <iostream>
@@ -738,8 +742,21 @@ void PPU::serialize(std::vector<u8>& data) const
     // We don't save framebuffer or scanline_sprites as they're reconstructed
 }
 
-void PPU::deserialize(const u8* data, size_t& offset)
+void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    constexpr size_t MODE_BYTE = 1;         // mode_
+    constexpr size_t DOTS_BYTES = 2;         // dots_ (u16)
+    constexpr size_t LY_BYTE = 1;            // ly_
+    constexpr size_t FRAME_READY_BYTE = 1;   // frame_ready_
+    constexpr size_t WIN_LINE_BYTE = 1;      // window_line_counter_
+    constexpr size_t BCPS_BYTE = 1;          // bcps_
+    constexpr size_t OCPS_BYTE = 1;          // ocps_
+    constexpr size_t BG_PALETTE_BYTES = 64;  // bg_palette_ram_
+    constexpr size_t OBJ_PALETTE_BYTES = 64; // obj_palette_ram_
+    constexpr size_t PPU_STATE_SIZE = MODE_BYTE + DOTS_BYTES + LY_BYTE + FRAME_READY_BYTE
+        + WIN_LINE_BYTE + BCPS_BYTE + OCPS_BYTE + BG_PALETTE_BYTES + OBJ_PALETTE_BYTES;
+    if (offset + PPU_STATE_SIZE > data_size) return;
+
     // PPU mode and timing
     mode_ = static_cast<Mode>(data[offset++]);
     dots_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);

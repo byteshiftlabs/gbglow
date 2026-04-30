@@ -1,7 +1,7 @@
 Architecture
 ============
 
-GBCrush follows a modular architecture with clear component separation.
+gbglow follows a modular architecture with clear component separation.
 
 .. toctree::
    :maxdepth: 1

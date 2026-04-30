@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "memory.h"
 
 #include <cstring>
@@ -500,8 +504,22 @@ void Memory::serialize(std::vector<u8>& data) const
     data.push_back(interrupt_enable_);
 }
 
-void Memory::deserialize(const u8* data, size_t& offset)
+void Memory::deserialize(const u8* data, size_t data_size, size_t& offset)
 {
+    // Component sizes matching serialize() output
+    constexpr size_t VRAM_BYTES = 16384;   // vram_ array (CGB: 2 banks x 8KB)
+    constexpr size_t VRAM_BANK_BYTE = 1;   // vram_bank_ selector
+    constexpr size_t SPEED_SWITCH_BYTE = 1; // speed_switch_ register
+    constexpr size_t WRAM_BYTES = 8192;    // wram_ array
+    constexpr size_t OAM_BYTES = 160;      // oam_ array
+    constexpr size_t HRAM_BYTES = 128;     // hram_ array
+    constexpr size_t IO_BYTES = 128;       // io_regs_ array
+    constexpr size_t BOOT_ROM_BYTE = 1;    // boot_rom_enabled_ flag
+    constexpr size_t IE_BYTE = 1;          // interrupt_enable_ register
+    constexpr size_t MEMORY_STATE_SIZE = VRAM_BYTES + VRAM_BANK_BYTE + SPEED_SWITCH_BYTE
+        + WRAM_BYTES + OAM_BYTES + HRAM_BYTES + IO_BYTES + BOOT_ROM_BYTE + IE_BYTE;
+    if (offset + MEMORY_STATE_SIZE > data_size) return;
+
     // VRAM
     deserialize_array(vram_, data, offset);
     
