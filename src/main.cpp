@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 /**
@@ -16,7 +16,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     if (argc < 2)
     {

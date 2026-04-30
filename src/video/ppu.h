@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #pragma once
@@ -72,8 +72,12 @@ public:
     bool frame_ready() const;
     void clear_frame_ready();
     
-    // Get framebuffer (160x144, grayscale 0-3)
-    const std::array<u8, 160 * 144>& framebuffer() const;
+    // Screen dimensions
+    static constexpr int SCREEN_WIDTH = 160;
+    static constexpr int SCREEN_HEIGHT = 144;
+
+    // Get framebuffer (SCREEN_WIDTH x SCREEN_HEIGHT, grayscale 0-3)
+    const std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT>& framebuffer() const;
     
     // Get RGBA framebuffer for display (160x144x4 bytes)
     std::vector<u8> get_rgba_framebuffer() const;
@@ -89,7 +93,7 @@ public:
     void write_ocpd(u8 value);  // Write 0xFF6B
     
     // Cartridge access for CGB mode detection
-    void set_cartridge(const Cartridge* cart);
+    void set_cartridge(const Cartridge* cartridge);
     
     // Serialization for save states
     void serialize(std::vector<u8>& data) const;
@@ -107,8 +111,8 @@ private:
     u8 ly_;              // Current scanline (LY register)
     bool frame_ready_;
     
-    // Framebuffer: 160x144 pixels, each pixel is 0-3 (grayscale)
-    std::array<u8, 160 * 144> framebuffer_;
+    // Framebuffer: SCREEN_WIDTH x SCREEN_HEIGHT pixels, each pixel is 0-3 (grayscale)
+    std::array<u8, SCREEN_WIDTH * SCREEN_HEIGHT> framebuffer_;
     
     // CGB Color Palette Memory
     std::array<u8, 64> bg_palette_ram_;   // 8 palettes × 4 colors × 2 bytes

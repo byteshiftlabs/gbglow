@@ -14,7 +14,6 @@ add_executable(test_basic
     ../src/input/joypad.cpp
     ../src/audio/apu.cpp
     ../src/video/ppu.cpp
-    ../src/video/lcd.cpp
 )
 
 target_include_directories(test_basic PRIVATE

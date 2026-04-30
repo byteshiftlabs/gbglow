@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "display.h"
@@ -131,7 +131,7 @@ void Display::set_debugger_mode(bool enabled) {
         
         // Resize to debugger mode (larger window for docking layout)
         // 1280x800 gives good space for emulator + debug panels
-        SDL_SetWindowSize(window_, 1280, 800);
+        SDL_SetWindowSize(window_, DEBUGGER_WINDOW_WIDTH, DEBUGGER_WINDOW_HEIGHT);
         SDL_SetWindowPosition(window_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         
         // Recreate texture at original emulator size (it will be rendered inside ImGui)
@@ -284,7 +284,7 @@ void Display::update(const std::vector<u8>& framebuffer) {
     );
     
     // Clear renderer
-    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer_, CLEAR_COLOR_R, CLEAR_COLOR_G, CLEAR_COLOR_B, CLEAR_COLOR_A);
     SDL_RenderClear(renderer_);
     
     // In debugger mode, we use ImGui for the entire layout
@@ -622,8 +622,8 @@ void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
         // Convert U8 to S16: (sample - 128) * 128
         // Hardware uses U8, we use S16 for better quality
         // *128 gives moderate amplification (-16384 to +16256 range)
-        interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - 128) * 128);   // Left
-        interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - 128) * 128);  // Right
+        interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - AUDIO_U8_MIDPOINT) * AUDIO_U8_SCALE);   // Left
+        interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - AUDIO_U8_MIDPOINT) * AUDIO_U8_SCALE);  // Right
     }
     
     // Queue audio data
@@ -1072,7 +1072,7 @@ bool Display::check_slot_exists(const std::string& state_path) const {
 }
 
 std::string Display::get_slot_label(int slot, const std::string& rom_path) const {
-    char label[128];
+    char label[SLOT_LABEL_SIZE];
     
     // Build state path from rom_path first
     std::string state_path;

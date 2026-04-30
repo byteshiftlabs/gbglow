@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cartridge.h"
@@ -22,6 +22,12 @@ namespace {
     constexpr u16 HEADER_RAM_SIZE_OFFSET = 0x0149;
     constexpr int TITLE_MAX_LENGTH = 16;
     constexpr size_t MIN_HEADER_SIZE = 0x0150;  // Minimum ROM size for valid header
+    
+    // Memory map boundaries for ROM-only cartridges
+    constexpr u16 ROM_END = 0x8000;
+    constexpr u16 RAM_START = 0xA000;
+    constexpr u16 RAM_END = 0xC000;
+    constexpr u8 UNMAPPED_VALUE = 0xFF;
 
     // Cartridge type codes from Game Boy hardware specification
     constexpr u8 CART_ROM_ONLY              = 0x00;
@@ -136,12 +142,12 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
     }
     
     // Read cartridge type and RAM size from header
-    const u8 cartridge_type = rom_data[HEADER_CARTRIDGE_TYPE_OFFSET];
+    const u8 cart_type = rom_data[HEADER_CARTRIDGE_TYPE_OFFSET];
     const u8 ram_size_code = rom_data[HEADER_RAM_SIZE_OFFSET];
     const size_t ram_size = get_ram_size(ram_size_code);
     
     // Create appropriate cartridge type based on header
-    switch (cartridge_type) {
+    switch (cart_type) {
         case CART_ROM_ONLY:
             return std::make_unique<ROMOnly>(std::move(rom_data));
             
@@ -171,7 +177,7 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
             
         default:
             throw std::runtime_error("Unsupported cartridge type: 0x" + 
-                                    std::to_string(cartridge_type));
+                                    std::to_string(cart_type));
     }
 }
 
@@ -251,17 +257,17 @@ ROMOnly::ROMOnly(std::vector<u8> rom_data)
 }
 
 u8 ROMOnly::read(u16 address) const {
-    if (address < 0x8000) {
+    if (address < ROM_END) {
         // ROM area
         if (address < rom_.size()) {
             return rom_[address];
         }
-        return 0xFF;
-    } else if (address >= 0xA000 && address < 0xC000) {
+        return UNMAPPED_VALUE;
+    } else if (address >= RAM_START && address < RAM_END) {
         // No external RAM in ROM-only cartridges
-        return 0xFF;
+        return UNMAPPED_VALUE;
     }
-    return 0xFF;
+    return UNMAPPED_VALUE;
 }
 
 void ROMOnly::write(u16 address, u8 value) {

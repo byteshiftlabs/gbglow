@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
@@ -36,8 +36,8 @@ Emulator::Emulator()
 
 bool Emulator::load_rom(const std::string& path) {
     try {
-        auto cartridge = Cartridge::load_rom_from_file(path);
-        memory_->load_cartridge(std::move(cartridge));
+        auto loaded_cartridge = Cartridge::load_rom_from_file(path);
+        memory_->load_cartridge(std::move(loaded_cartridge));
         rom_path_ = path;
         
         // Add to recent ROMs list
@@ -45,8 +45,8 @@ bool Emulator::load_rom(const std::string& path) {
         
         // Load save file if it exists
         std::string save_path = get_save_path();
-        if (auto* cart = memory_->cartridge()) {
-            if (cart->load_ram_from_file(save_path)) {
+        if (auto* saved_cartridge = memory_->cartridge()) {
+            if (saved_cartridge->load_ram_from_file(save_path)) {
                 std::cout << "Loaded save file: " << save_path << std::endl;
             }
         }

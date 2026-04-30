@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
@@ -70,7 +70,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // RRC - Rotate Right Circular
-    if (opcode >= 0x08 && opcode <= 0x0F)
+    if (opcode <= 0x0F)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -98,7 +98,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // RL - Rotate Left through Carry
-    if (opcode >= 0x10 && opcode <= 0x17)
+    if (opcode <= 0x17)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -128,7 +128,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // RR - Rotate Right through Carry
-    if (opcode >= 0x18 && opcode <= 0x1F)
+    if (opcode <= 0x1F)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -158,7 +158,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // SLA - Shift Left Arithmetic
-    if (opcode >= 0x20 && opcode <= 0x27)
+    if (opcode <= 0x27)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -186,7 +186,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // SRA - Shift Right Arithmetic (preserve sign bit)
-    if (opcode >= 0x28 && opcode <= 0x2F)
+    if (opcode <= 0x2F)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -214,7 +214,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // SWAP - Swap nibbles
-    if (opcode >= 0x30 && opcode <= 0x37)
+    if (opcode <= 0x37)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -240,7 +240,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // SRL - Shift Right Logical
-    if (opcode >= 0x38 && opcode <= 0x3F)
+    if (opcode <= 0x3F)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -268,7 +268,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // BIT - Test bit
-    if (opcode >= 0x40 && opcode <= 0x7F)
+    if (opcode <= 0x7F)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -291,7 +291,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
     }
     
     // RES - Reset bit
-    if (opcode >= 0x80 && opcode <= 0xBF)
+    if (opcode <= 0xBF)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {
@@ -308,8 +308,7 @@ Cycles CPU::execute_cb_instruction(u8 opcode)
         }
     }
     
-    // SET - Set bit
-    if (opcode >= 0xC0)
+    // SET - Set bit (opcode 0xC0-0xFF)
     {
         if (reg_index == MEMORY_HL_REGISTER_INDEX)
         {

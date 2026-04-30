@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (C) 2025 gbglow Contributors
+// Copyright (C) 2025-2026 gbglow Contributors
 // This file is part of gbglow. See LICENSE for details.
 
 #include "emulator.h"
@@ -217,9 +217,9 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
     }
     
     // Save RAM to file on exit
-    if (auto* cart = memory_->cartridge()) {
+    if (auto* loaded_cartridge = memory_->cartridge()) {
         std::string save_path = get_save_path();
-        if (cart->save_ram_to_file(save_path)) {
+        if (loaded_cartridge->save_ram_to_file(save_path)) {
             std::cout << "Saved game data to: " << save_path << std::endl;
         }
     }
