@@ -2,7 +2,7 @@
 #include "../core/memory.h"
 #include <iostream>
 
-namespace gbcrush {
+namespace gbglow {
 
 Joypad::Joypad(Memory& memory)
     : memory_(memory)
@@ -171,4 +171,4 @@ void Joypad::request_interrupt() {
     memory_.write(REG_IF, if_reg | JOYPAD_INT_BIT);
 }
 
-} // namespace gbcrush
+} // namespace gbglow

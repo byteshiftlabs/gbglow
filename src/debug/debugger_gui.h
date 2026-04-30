@@ -3,7 +3,7 @@
 #include "../core/types.h"
 #include <string>
 
-namespace gbcrush {
+namespace gbglow {
 
 // Forward declarations
 class Debugger;
@@ -163,4 +163,4 @@ private:
     void render_register_row_8(const char* name, u8 value, bool highlight = false);
 };
 
-} // namespace gbcrush
+} // namespace gbglow

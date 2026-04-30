@@ -9,7 +9,7 @@
 #include "../video/ppu.h"
 #include "timer.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 // Memory map boundaries
 namespace {
@@ -530,4 +530,4 @@ void Memory::deserialize(const u8* data, size_t& offset)
     interrupt_enable_ = data[offset++];
 }
 
-} // namespace gbcrush
+} // namespace gbglow

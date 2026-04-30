@@ -17,7 +17,7 @@
 #include <vector>
 #include <ctime>
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * Entry in the recent ROMs list
@@ -75,4 +75,4 @@ private:
     std::string extract_filename(const std::string& path) const;
 };
 
-} // namespace gbcrush
+} // namespace gbglow

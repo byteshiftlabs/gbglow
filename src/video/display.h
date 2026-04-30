@@ -15,7 +15,7 @@ struct SDL_Texture;
 // Forward declare ImGui context
 struct ImGuiContext;
 
-namespace gbcrush {
+namespace gbglow {
 
 class Joypad;
 class Gamepad;
@@ -362,4 +362,4 @@ private:
     void render_controller_config();
 };
 
-} // namespace gbcrush
+} // namespace gbglow

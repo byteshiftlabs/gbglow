@@ -5,7 +5,7 @@
 #include "../cartridge/cartridge.h"
 #include <filesystem>
 
-namespace gbcrush {
+namespace gbglow {
 
 std::string SaveState::get_path(int slot, const std::string& rom_path) {
     // Replace extension with .stateN
@@ -231,4 +231,4 @@ void SaveState::read_bytes(std::ifstream& file, u8* data, size_t size) {
     file.read(reinterpret_cast<char*>(data), size);
 }
 
-} // namespace gbcrush
+} // namespace gbglow

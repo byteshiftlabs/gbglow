@@ -28,7 +28,7 @@ if [ ! -f "$ROM_FILE" ]; then
 fi
 
 # Build if executable doesn't exist
-if [ ! -f "build/gbcrush" ]; then
+if [ ! -f "build/gbglow" ]; then
     echo -e "${YELLOW}Executable not found. Building...${NC}"
     ./build.sh
 fi
@@ -47,4 +47,4 @@ echo "  ESC = Exit"
 echo "  F12 = Screenshot"
 echo ""
 
-./build/gbcrush "$ROM_FILE"
+./build/gbglow "$ROM_FILE"

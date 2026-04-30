@@ -25,8 +25,8 @@ Clone Repository
 
 .. code-block:: bash
 
-   git clone https://github.com/cmelnulabs/gbcrush.git
-   cd gbcrush
+   git clone https://github.com/cmelnulabs/gbglow.git
+   cd gbglow
 
 Build Steps
 ~~~~~~~~~~~
@@ -43,7 +43,7 @@ Build Steps
    # Build
    cmake --build .
    
-   # The executable is at: build/gbcrush
+   # The executable is at: build/gbglow
 
 Build Types
 ~~~~~~~~~~~
@@ -425,12 +425,12 @@ Use Debugger
 .. code-block:: bash
 
    # GDB
-   gdb ./gbcrush
+   gdb ./gbglow
    (gdb) break CPU::step
    (gdb) run tetris.gb
    
    # LLDB
-   lldb ./gbcrush
+   lldb ./gbglow
    (lldb) breakpoint set --name CPU::step
    (lldb) run tetris.gb
 
@@ -462,11 +462,11 @@ Run same ROM in multiple emulators:
 .. code-block:: bash
 
    # Generate execution trace
-   ./gbcrush --trace rom.gb > gbcrush_trace.txt
+   ./gbglow --trace rom.gb > gbglow_trace.txt
    
    # Compare with reference emulator
    ./bgb --trace rom.gb > bgb_trace.txt
-   diff gbcrush_trace.txt bgb_trace.txt
+   diff gbglow_trace.txt bgb_trace.txt
 
 Contributing
 ------------

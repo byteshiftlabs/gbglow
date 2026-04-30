@@ -19,7 +19,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace gbcrush {
+namespace gbglow {
 
 Screenshot::Screenshot()
 {
@@ -75,12 +75,12 @@ const std::string& Screenshot::get_last_screenshot_path() const
 
 std::string Screenshot::get_screenshot_dir() const
 {
-    // Use ~/Pictures/gbcrush/ on Linux/macOS
+    // Use ~/Pictures/gbglow/ on Linux/macOS
     const char* home = std::getenv("HOME");
     std::string base_dir;
     
     if (home) {
-        base_dir = std::string(home) + "/Pictures/gbcrush";
+        base_dir = std::string(home) + "/Pictures/gbglow";
     } else {
         // Fallback to current directory
         base_dir = "./screenshots";
@@ -95,9 +95,9 @@ std::string Screenshot::generate_filename(const std::string& rom_name) const
     std::time_t now = std::time(nullptr);
     std::tm* local_time = std::localtime(&now);
     
-    // Format: gbcrush_ROMNAME_YYYYMMDD_HHMMSS.png
+    // Format: gbglow_ROMNAME_YYYYMMDD_HHMMSS.png
     std::ostringstream filename;
-    filename << "gbcrush";
+    filename << "gbglow";
     
     // Add ROM name if provided
     if (!rom_name.empty()) {
@@ -146,4 +146,4 @@ std::string Screenshot::extract_rom_name(const std::string& rom_path) const
     return filename;
 }
 
-} // namespace gbcrush
+} // namespace gbglow

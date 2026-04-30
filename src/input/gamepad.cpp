@@ -5,7 +5,7 @@
 #include <sstream>
 #include <algorithm>
 
-namespace gbcrush {
+namespace gbglow {
 
 Gamepad::Gamepad()
     : deadzone_(DEFAULT_DEADZONE)
@@ -327,4 +327,4 @@ void Gamepad::save_config(const std::string& path) {
     file << "gamepad_deadzone=" << deadzone_ << "\n";
 }
 
-} // namespace gbcrush
+} // namespace gbglow

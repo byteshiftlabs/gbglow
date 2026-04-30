@@ -13,7 +13,7 @@
 #include <memory>
 #include <string>
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * Main emulator class that coordinates all components
@@ -162,4 +162,4 @@ private:
     static constexpr Cycles CYCLES_PER_FRAME = 70224;  // 154 scanlines × 456 dots
 };
 
-} // namespace gbcrush
+} // namespace gbglow

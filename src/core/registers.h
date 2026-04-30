@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * CPU Registers for the Sharp LR35902 (Game Boy CPU)
@@ -99,4 +99,4 @@ public:
     void reset();
 };
 
-} // namespace gbcrush
+} // namespace gbglow

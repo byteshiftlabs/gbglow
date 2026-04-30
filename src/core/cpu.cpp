@@ -2,7 +2,7 @@
 #include "cpu_constants.h"
 #include <iostream>
 
-namespace gbcrush {
+namespace gbglow {
 
 CPU::CPU(Memory& memory)
     : memory_(memory)
@@ -326,4 +326,4 @@ void CPU::deserialize(const u8* data, size_t& offset)
     stopped_ = data[offset++] != 0;
 }
 
-} // namespace gbcrush
+} // namespace gbglow

@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <sys/stat.h>
 
-namespace gbcrush {
+namespace gbglow {
 
 Display::Display()
     : window_(nullptr)
@@ -1230,4 +1230,4 @@ std::string Display::sdl_keycode_to_string(int keycode) {
     return "SDLK_UNKNOWN";
 }
 
-} // namespace gbcrush
+} // namespace gbglow

@@ -2,7 +2,7 @@
 
 #include "../core/types.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 /**
  * LCD Controller
@@ -18,4 +18,4 @@ private:
     // TODO: LCD state
 };
 
-} // namespace gbcrush
+} // namespace gbglow

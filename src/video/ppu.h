@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace gbcrush {
+namespace gbglow {
 
 class Memory;
 class Cartridge;
@@ -159,4 +159,4 @@ private:
     void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const;
 };
 
-} // namespace gbcrush
+} // namespace gbglow

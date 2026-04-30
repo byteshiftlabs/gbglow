@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <cstring>
 
-namespace gbcrush {
+namespace gbglow {
 
 DebuggerGUI::DebuggerGUI()
     : debugger_(nullptr)
@@ -1045,4 +1045,4 @@ void DebuggerGUI::render_sprites_window() {
     ImGui::End();
 }
 
-} // namespace gbcrush
+} // namespace gbglow

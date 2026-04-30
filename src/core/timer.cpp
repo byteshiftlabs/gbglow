@@ -1,7 +1,7 @@
 #include "timer.h"
 #include "memory.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 Timer::Timer(Memory& memory)
     : memory_(memory)
@@ -108,4 +108,4 @@ void Timer::request_timer_interrupt() {
     memory_.write(REG_IF, if_reg | TIMER_INT_BIT);
 }
 
-} // namespace gbcrush
+} // namespace gbglow

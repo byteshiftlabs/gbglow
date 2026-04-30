@@ -1,6 +1,6 @@
 #include "mbc1.h"
 
-namespace gbcrush {
+namespace gbglow {
 
 MBC1::MBC1(std::vector<u8> rom_data, size_t ram_size)
     : Cartridge(std::move(rom_data), ram_size)
@@ -89,4 +89,4 @@ void MBC1::write(u16 address, u8 value) {
     }
 }
 
-} // namespace gbcrush
+} // namespace gbglow

@@ -2,7 +2,7 @@
 #include "../core/memory.h"
 #include <algorithm>
 
-namespace gbcrush {
+namespace gbglow {
 
 // Noise table generation constants
 static constexpr int NOISE7_TABLE_SIZE = 16;      // 128 bits = 16 bytes
@@ -1045,4 +1045,4 @@ void APU::deserialize(const u8* data, size_t& offset)
     audio_buffer_.clear();
 }
 
-} // namespace gbcrush
+} // namespace gbglow

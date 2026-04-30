@@ -6,7 +6,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace gbcrush {
+namespace gbglow {
 
 Debugger::Debugger()
     : cpu_(nullptr)
@@ -698,4 +698,4 @@ std::vector<DisassembledInstruction> Debugger::disassemble_around_pc(int lines_b
     return result;
 }
 
-} // namespace gbcrush
+} // namespace gbglow
