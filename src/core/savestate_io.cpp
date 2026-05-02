@@ -105,11 +105,31 @@ bool Emulator::load_state(int slot) {
         return false;
     }
     
-    // Verify header - support both V1 and V2
-    char header[sizeof("GBGLOW_STATE_V2")] = {0};
-    file.read(header, sizeof(header) - 1);
-    std::string header_str(header);
-    
+    // Verify header - support GBGLOW V1/V2 and legacy GBCRUSH V1/V2
+    // New format: 15 bytes, no null terminator ("GBGLOW_STATE_V2")
+    // Old format: 16 bytes + 1 trailing null written by buggy code ("GBCRUSH_STATE_V2\0")
+    char header[18] = {0};
+    file.read(header, 15);
+    std::string header_str(header, 15);
+
+    if (header_str != "GBGLOW_STATE_V2" && header_str != "GBGLOW_STATE_V1") {
+        // Try reading 1 more byte to complete a potential 16-char GBCRUSH magic
+        char extra = 0;
+        file.read(&extra, 1);
+        header_str += extra;
+
+        if (header_str == "GBCRUSH_STATE_V2") {
+            file.read(&extra, 1); // consume the stray null from old buggy write
+            header_str = "GBGLOW_STATE_V2";
+        } else if (header_str == "GBCRUSH_STATE_V1") {
+            file.read(&extra, 1); // consume the stray null
+            header_str = "GBGLOW_STATE_V1";
+        } else {
+            file.close();
+            return false; // Unrecognized format
+        }
+    }
+
     if (header_str == "GBGLOW_STATE_V2") {
         // Load V2 format with full state
         
