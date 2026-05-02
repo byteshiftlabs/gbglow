@@ -1227,7 +1227,7 @@ int Display::parse_sdl_keycode(const std::string& keyname) {
     }
     
     // If it has SDLK_ prefix, try without it
-    if (keyname.find("SDLK_") == 0) {
+    if (keyname.rfind("SDLK_", 0) == 0) {
         std::string name_without_prefix = keyname.substr(5);
         code = SDL_GetKeyFromName(name_without_prefix.c_str());
         if (code != SDLK_UNKNOWN) {

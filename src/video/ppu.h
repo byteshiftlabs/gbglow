@@ -99,9 +99,6 @@ public:
     void serialize(std::vector<u8>& data) const;
     void deserialize(const u8* data, size_t data_size, size_t& offset);
     
-    // Render current frame to terminal as ASCII
-    void render_to_terminal() const;
-    
 private:
     Memory& memory_;
     const Cartridge* cartridge_;  // Non-owning pointer for CGB mode detection

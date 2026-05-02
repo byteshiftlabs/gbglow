@@ -53,7 +53,6 @@ set(CORE_SOURCES
     src/core/game_loop.cpp
     src/core/savestate_io.cpp
     src/core/timer.cpp
-    src/core/savestate.cpp
 )
 
 set(VIDEO_SOURCES

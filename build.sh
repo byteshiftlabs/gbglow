@@ -38,6 +38,24 @@ cmake --build . -j$(nproc)
 echo -e "${YELLOW}Running tests...${NC}"
 ctest --output-on-failure
 
+# Run static analysis
+echo -e "${YELLOW}Running static analysis...${NC}"
+cd ..
+cppcheck --enable=all --inline-suppr --quiet \
+    --suppress=missingIncludeSystem \
+    --suppress=missingInclude \
+    --suppress=unmatchedSuppression \
+    --suppressions-list=cppcheck.suppressions \
+    --error-exitcode=1 \
+    -I src/ src/ 2>&1
+CPPCHECK_EXIT=$?
+cd build
+if [ $CPPCHECK_EXIT -ne 0 ]; then
+    echo -e "${RED}Static analysis found issues — see output above.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Static analysis clean.${NC}"
+
 echo -e "${GREEN}=== Build Complete! ===${NC}"
 echo -e "${GREEN}Executable: build/gbglow${NC}"
 echo -e "${YELLOW}Usage: ./build/gbglow <rom_file>${NC}"
