@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 /**
  * Screenshot - Screen capture utility
  * 
@@ -13,6 +17,7 @@
 #include "../../external/stb/stb_image_write.h"
 #pragma GCC diagnostic pop
 
+#include <algorithm>
 #include <iostream>
 #include <filesystem>
 #include <ctime>
@@ -93,7 +98,7 @@ std::string Screenshot::generate_filename(const std::string& rom_name) const
 {
     // Get current time
     std::time_t now = std::time(nullptr);
-    std::tm* local_time = std::localtime(&now);
+    const std::tm* local_time = std::localtime(&now);
     
     // Format: gbglow_ROMNAME_YYYYMMDD_HHMMSS.png
     std::ostringstream filename;
@@ -133,15 +138,12 @@ std::string Screenshot::extract_rom_name(const std::string& rom_path) const
     // Remove extension
     size_t last_dot = filename.find_last_of('.');
     if (last_dot != std::string::npos) {
-        filename = filename.substr(0, last_dot);
+        filename.resize(last_dot);
     }
     
     // Replace spaces and special characters with underscores
-    for (char& c : filename) {
-        if (!std::isalnum(c) && c != '_' && c != '-') {
-            c = '_';
-        }
-    }
+    std::replace_if(filename.begin(), filename.end(),
+        [](char c) { return !std::isalnum(c) && c != '_' && c != '-'; }, '_');
     
     return filename;
 }

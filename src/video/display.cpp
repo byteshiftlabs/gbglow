@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "display.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
@@ -14,6 +18,8 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
+#include <cstdlib>
 #include <ctime>
 #include <algorithm>
 #include <sys/stat.h>
@@ -62,10 +68,16 @@ Display::Display()
     load_key_bindings();
     
     // Load gamepad configuration
-    gamepad_->load_config("config/keybindings.conf");
+    gamepad_->load_config(get_keybindings_path());
 }
 
 Display::~Display() {
+    // Shut down gamepad first — it calls SDL_GameControllerClose(),
+    // which must happen before SDL_Quit().
+    if (gamepad_) {
+        gamepad_.reset();
+    }
+
     // Clean up ImGui
     if (imgui_context_) {
         ImGui_ImplSDLRenderer2_Shutdown();
@@ -125,7 +137,7 @@ void Display::set_debugger_mode(bool enabled) {
         
         // Resize to debugger mode (larger window for docking layout)
         // 1280x800 gives good space for emulator + debug panels
-        SDL_SetWindowSize(window_, 1280, 800);
+        SDL_SetWindowSize(window_, DEBUGGER_WINDOW_WIDTH, DEBUGGER_WINDOW_HEIGHT);
         SDL_SetWindowPosition(window_, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
         
         // Recreate texture at original emulator size (it will be rendered inside ImGui)
@@ -278,7 +290,7 @@ void Display::update(const std::vector<u8>& framebuffer) {
     );
     
     // Clear renderer
-    SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer_, CLEAR_COLOR_R, CLEAR_COLOR_G, CLEAR_COLOR_B, CLEAR_COLOR_A);
     SDL_RenderClear(renderer_);
     
     // In debugger mode, we use ImGui for the entire layout
@@ -616,8 +628,8 @@ void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
         // Convert U8 to S16: (sample - 128) * 128
         // Hardware uses U8, we use S16 for better quality
         // *128 gives moderate amplification (-16384 to +16256 range)
-        interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - 128) * 128);   // Left
-        interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - 128) * 128);  // Right
+        interleaved[i * 2 + 0] = static_cast<i16>((samples[i].first - AUDIO_U8_MIDPOINT) * AUDIO_U8_SCALE);   // Left
+        interleaved[i * 2 + 1] = static_cast<i16>((samples[i].second - AUDIO_U8_MIDPOINT) * AUDIO_U8_SCALE);  // Right
     }
     
     // Queue audio data
@@ -924,8 +936,8 @@ void Display::render_menu_bar() {
 void Display::render_about_dialog() {
     ImGui::SetNextWindowSize(ImVec2(400, 250), ImGuiCond_FirstUseEver);
     
-    if (ImGui::Begin("About GBCrush", &show_about_dialog_)) {
-        ImGui::Text("GBCrush");
+    if (ImGui::Begin("About gbglow", &show_about_dialog_)) {
+        ImGui::Text("gbglow");
         ImGui::Text("Game Boy Color Emulator");
         ImGui::Separator();
         
@@ -1066,7 +1078,7 @@ bool Display::check_slot_exists(const std::string& state_path) const {
 }
 
 std::string Display::get_slot_label(int slot, const std::string& rom_path) const {
-    char label[128];
+    char label[SLOT_LABEL_SIZE];
     
     // Build state path from rom_path first
     std::string state_path;
@@ -1119,8 +1131,21 @@ void Display::set_recent_roms(RecentRoms* recent_roms) {
     recent_roms_ = recent_roms;
 }
 
+std::string Display::get_keybindings_path() const {
+    const char* xdg_config = std::getenv("XDG_CONFIG_HOME");
+    std::string base_dir;
+    if (xdg_config) {
+        base_dir = xdg_config;
+    } else {
+        const char* home = std::getenv("HOME");
+        base_dir = home ? std::string(home) + "/.config" : ".";
+    }
+    return base_dir + "/gbglow/keybindings.conf";
+}
+
 void Display::load_key_bindings() {
-    std::ifstream file("config/keybindings.conf");
+    std::string config_path = get_keybindings_path();
+    std::ifstream file(config_path);
     if (!file.is_open()) {
         std::cout << "No key bindings config found, using defaults" << std::endl;
         return;
@@ -1165,17 +1190,19 @@ void Display::load_key_bindings() {
     }
     
     file.close();
-    std::cout << "Loaded key bindings from config/keybindings.conf" << std::endl;
+    std::cout << "Loaded key bindings from " << config_path << std::endl;
 }
 
 void Display::save_key_bindings() {
-    std::ofstream file("config/keybindings.conf");
+    std::string config_path = get_keybindings_path();
+    std::filesystem::create_directories(std::filesystem::path(config_path).parent_path());
+    std::ofstream file(config_path);
     if (!file.is_open()) {
         std::cerr << "Failed to save key bindings config" << std::endl;
         return;
     }
     
-    file << "# GBCrush Key Bindings Configuration\n";
+    file << "# gbglow Key Bindings Configuration\n";
     file << "# Format: action=SDLK_keyname\n";
     file << "# \n";
     file << "# Available keys: https://wiki.libsdl.org/SDL2/SDLKeycodeLookup\n";
@@ -1192,7 +1219,7 @@ void Display::save_key_bindings() {
     file << "select=" << sdl_keycode_to_string(key_bindings_.select) << "\n";
     
     file.close();
-    std::cout << "Saved key bindings to config/keybindings.conf" << std::endl;
+    std::cout << "Saved key bindings to " << config_path << std::endl;
 }
 
 int Display::parse_sdl_keycode(const std::string& keyname) {
@@ -1206,7 +1233,7 @@ int Display::parse_sdl_keycode(const std::string& keyname) {
     }
     
     // If it has SDLK_ prefix, try without it
-    if (keyname.find("SDLK_") == 0) {
+    if (keyname.rfind("SDLK_", 0) == 0) {
         std::string name_without_prefix = keyname.substr(5);
         code = SDL_GetKeyFromName(name_without_prefix.c_str());
         if (code != SDLK_UNKNOWN) {

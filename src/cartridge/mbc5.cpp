@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "mbc5.h"
 
 namespace gbglow {
@@ -26,38 +30,38 @@ MBC5::MBC5(std::vector<u8> rom_data, size_t ram_size, bool has_rumble)
  * 0xA000-0xBFFF: External RAM (if enabled)
  */
 u8 MBC5::read(u16 address) const {
-    if (address < 0x4000) {
+    if (address < ROM_BANK_0_END) {
         // ROM Bank 0 (always mapped to first 16KB)
         if (address < rom_.size()) {
             return rom_[address];
         }
-        return 0xFF;
+        return UNMAPPED_VALUE;
     }
-    else if (address < 0x8000) {
+    else if (address < ROM_BANK_N_END) {
         // ROM Bank 1-511 (switchable)
         // MBC5 uses full 9-bit bank number, no automatic bank adjustment
-        size_t offset = (rom_bank_ * 0x4000) + (address - 0x4000);
+        size_t offset = (rom_bank_ * ROM_BANK_SIZE) + (address - ROM_BANK_0_END);
         if (offset < rom_.size()) {
             return rom_[offset];
         }
-        return 0xFF;
+        return UNMAPPED_VALUE;
     }
-    else if (address >= 0xA000 && address < 0xC000) {
+    else if (address >= RAM_START && address < RAM_END) {
         // External RAM
         if (!ram_enabled_ || ram_.empty()) {
-            return 0xFF;
+            return UNMAPPED_VALUE;
         }
         
         // Extract actual RAM bank (bits 0-3, ignoring rumble bit if present)
-        u8 actual_ram_bank = ram_bank_ & 0x0F;
-        size_t offset = (actual_ram_bank * 0x2000) + (address - 0xA000);
+        u8 actual_ram_bank = ram_bank_ & RAM_BANK_MASK;
+        size_t offset = (actual_ram_bank * RAM_BANK_SIZE) + (address - RAM_START);
         if (offset < ram_.size()) {
             return ram_[offset];
         }
-        return 0xFF;
+        return UNMAPPED_VALUE;
     }
     
-    return 0xFF;
+    return UNMAPPED_VALUE;
 }
 
 /**
@@ -70,38 +74,38 @@ u8 MBC5::read(u16 address) const {
  * 0xA000-0xBFFF: External RAM write
  */
 void MBC5::write(u16 address, u8 value) {
-    if (address < 0x2000) {
+    if (address < REG_RAM_ENABLE_END) {
         // RAM Enable
         // MBC5 checks lower nibble for 0x0A
-        ram_enabled_ = (value & 0x0F) == 0x0A;
+        ram_enabled_ = (value & RAM_ENABLE_MASK) == RAM_ENABLE_VALUE;
     }
-    else if (address < 0x3000) {
+    else if (address < REG_ROM_BANK_LOW_END) {
         // ROM Bank Number - Lower 8 bits
         // Update lower 8 bits, preserve 9th bit
-        rom_bank_ = (rom_bank_ & 0x100) | value;
+        rom_bank_ = (rom_bank_ & ROM_BANK_HIGH_BIT) | value;
     }
-    else if (address < 0x4000) {
+    else if (address < REG_ROM_BANK_HIGH_END) {
         // ROM Bank Number - 9th bit (upper bit)
         // Only bit 0 of value is used for the 9th bit of rom_bank_
-        rom_bank_ = (rom_bank_ & 0xFF) | ((value & 0x01) << 8);
+        rom_bank_ = (rom_bank_ & ROM_BANK_LOW_MASK) | ((value & ROM_BANK_9TH_BIT_MASK) << 8);
     }
-    else if (address < 0x6000) {
+    else if (address < REG_RAM_BANK_END) {
         // RAM Bank Number (0x0-0xF) and optional rumble
         if (has_rumble_) {
             // Bit 3 controls rumble motor
-            rumble_enabled_ = (value & 0x08) != 0;
+            rumble_enabled_ = (value & RUMBLE_BIT) != 0;
             // Lower 3 bits for RAM bank (0x0-0x7)
-            ram_bank_ = value & 0x07;
+            ram_bank_ = value & RAM_BANK_RUMBLE_MASK;
         } else {
             // Full 4 bits for RAM bank (0x0-0xF)
-            ram_bank_ = value & 0x0F;
+            ram_bank_ = value & RAM_BANK_MASK;
         }
     }
-    else if (address >= 0xA000 && address < 0xC000) {
+    else if (address >= RAM_START && address < RAM_END) {
         // External RAM write
         if (ram_enabled_ && !ram_.empty()) {
-            u8 actual_ram_bank = ram_bank_ & 0x0F;
-            size_t offset = (actual_ram_bank * 0x2000) + (address - 0xA000);
+            u8 actual_ram_bank = ram_bank_ & RAM_BANK_MASK;
+            size_t offset = (actual_ram_bank * RAM_BANK_SIZE) + (address - RAM_START);
             if (offset < ram_.size()) {
                 ram_[offset] = value;
             }

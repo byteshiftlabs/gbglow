@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# GBCrush Build Script
+# gbglow Build Script
 # Builds the Game Boy Color emulator
 
 set -e  # Exit on error
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== GBCrush Build Script ===${NC}"
+echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 # Clean previous build
 if [ -d "build" ]; then
@@ -37,6 +37,24 @@ cmake --build . -j$(nproc)
 # Run tests
 echo -e "${YELLOW}Running tests...${NC}"
 ctest --output-on-failure
+
+# Run static analysis
+echo -e "${YELLOW}Running static analysis...${NC}"
+cd ..
+cppcheck --enable=all --inline-suppr --quiet \
+    --suppress=missingIncludeSystem \
+    --suppress=missingInclude \
+    --suppress=unmatchedSuppression \
+    --suppressions-list=cppcheck.suppressions \
+    --error-exitcode=1 \
+    -I src/ src/ 2>&1
+CPPCHECK_EXIT=$?
+cd build
+if [ $CPPCHECK_EXIT -ne 0 ]; then
+    echo -e "${RED}Static analysis found issues — see output above.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Static analysis clean.${NC}"
 
 echo -e "${GREEN}=== Build Complete! ===${NC}"
 echo -e "${GREEN}Executable: build/gbglow${NC}"

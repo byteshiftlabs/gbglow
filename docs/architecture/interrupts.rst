@@ -294,7 +294,7 @@ On DMG, there's a HALT bug when IE & IF are both non-zero but IME is 0:
 * CPU does not halt
 * Next byte is executed twice
 
-This is not yet implemented in GBCrush.
+This is not yet implemented in gbglow.
 
 Nested Interrupts
 -----------------

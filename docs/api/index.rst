@@ -1,7 +1,7 @@
 API Reference
 =============
 
-This section documents the public API of GBCrush's core components.
+This section documents the public API of gbglow's core components.
 
 .. toctree::
    :maxdepth: 2
@@ -111,7 +111,7 @@ Basic usage example:
 Error Handling
 --------------
 
-GBCrush uses exceptions for error handling:
+gbglow uses exceptions for error handling:
 
 .. code-block:: cpp
 
@@ -133,7 +133,7 @@ Common exceptions:
 Thread Safety
 -------------
 
-GBCrush is **not thread-safe**. All API calls should be made from a single thread.
+gbglow is **not thread-safe**. All API calls should be made from a single thread.
 
 For multi-threaded applications:
 
@@ -147,7 +147,7 @@ Performance Considerations
 Cycle Accuracy
 ~~~~~~~~~~~~~~
 
-EmuGBC aims for cycle-accurate emulation:
+gbglow aims for cycle-accurate emulation:
 
 * Each instruction returns its exact cycle count
 * PPU operates at correct timing
