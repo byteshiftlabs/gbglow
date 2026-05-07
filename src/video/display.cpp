@@ -9,6 +9,7 @@
 #include "../debug/debugger_gui.h"
 #include "../ui/recent_roms.h"
 #include "../ui/screenshot.h"
+#include "../core/platform.h"
 #include <SDL2/SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -22,7 +23,6 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
-#include <sys/stat.h>
 
 namespace gbglow {
 
@@ -1073,8 +1073,7 @@ void Display::delete_slot_metadata(int slot) {
 }
 
 bool Display::check_slot_exists(const std::string& state_path) const {
-    struct stat buffer;
-    return (stat(state_path.c_str(), &buffer) == 0);
+    return std::filesystem::exists(state_path);
 }
 
 std::string Display::get_slot_label(int slot, const std::string& rom_path) const {
@@ -1101,19 +1100,25 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
     auto it = slot_metadata_.find(slot);
     if (it != slot_metadata_.end() && it->second.used) {
         // Format timestamp from cache
-        std::tm* tm_info = std::localtime(&it->second.timestamp);
+        std::tm tm_buf{};
+        portable_localtime(&it->second.timestamp, &tm_buf);
         char time_str[64];
-        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_buf);
         snprintf(label, sizeof(label), "Slot %d - %s", slot + 1, time_str);
         return label;
     }
     
-    // Get file modification time
-    struct stat file_stat;
-    if (stat(state_path.c_str(), &file_stat) == 0) {
-        std::tm* tm_info = std::localtime(&file_stat.st_mtime);
+    // Get file modification time via std::filesystem
+    std::error_code ec;
+    auto ftime = std::filesystem::last_write_time(state_path, ec);
+    if (!ec) {
+        auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+            ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+        std::time_t mtime = std::chrono::system_clock::to_time_t(sctp);
+        std::tm tm_buf{};
+        portable_localtime(&mtime, &tm_buf);
         char time_str[64];
-        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_buf);
         snprintf(label, sizeof(label), "Slot %d - %s", slot + 1, time_str);
         return label;
     }
@@ -1138,6 +1143,9 @@ std::string Display::get_keybindings_path() const {
         base_dir = xdg_config;
     } else {
         const char* home = std::getenv("HOME");
+#ifdef _WIN32
+        if (!home) home = std::getenv("USERPROFILE");
+#endif
         base_dir = home ? std::string(home) + "/.config" : ".";
     }
     return base_dir + "/gbglow/keybindings.conf";

@@ -45,7 +45,7 @@ unusedFunction:src/debug/debugger.cpp:266         // get_condition_name()
 unusedFunction:src/debug/debugger.cpp:661         // disassemble_around_pc()
 
 // --- DebuggerGUI visibility toggle (called by Display on F12 key) ---
-unusedFunction:src/debug/debugger_gui.cpp:131     // toggle_visible()
+unusedFunction:src/debug/debugger_gui.cpp:163     // toggle_visible()
 
 // --- Gamepad configuration API (called by keybinding UI in config/keybindings.conf) ---
 unusedFunction:src/input/gamepad.cpp:188          // is_connected()
@@ -64,3 +64,7 @@ unusedFunction:src/video/display.cpp:606          // get_sdl_error()
 unusedFunction:src/video/display.cpp:652          // has_pending_rom()
 unusedFunction:src/video/display.cpp:656          // get_pending_rom()
 unusedFunction:src/video/display.cpp:686          // is_muted()
+
+// --- CPU/PPU public API accessors ---
+unusedFunction:src/core/cpu.cpp:140               // is_halted()
+unusedFunction:src/video/ppu.cpp:518              // scanline()

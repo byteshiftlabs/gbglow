@@ -35,9 +35,7 @@ CMake - Cross-platform build configuration.
 
 Testing
 ~~~~~~~
-* Custom test suite
-* Blargg's test ROMs
-* Mooneye test suite compatibility
+* Custom unit test suite (CPU registers, memory, basic instructions)
 
 Game Boy Hardware Overview
 ---------------------------

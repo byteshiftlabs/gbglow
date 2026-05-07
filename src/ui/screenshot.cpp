@@ -9,6 +9,7 @@
  */
 
 #include "screenshot.h"
+#include "../core/platform.h"
 
 // Disable warnings for third-party STB library
 #pragma GCC diagnostic push
@@ -82,6 +83,9 @@ std::string Screenshot::get_screenshot_dir() const
 {
     // Use ~/Pictures/gbglow/ on Linux/macOS
     const char* home = std::getenv("HOME");
+#ifdef _WIN32
+    if (!home) home = std::getenv("USERPROFILE");
+#endif
     std::string base_dir;
     
     if (home) {
@@ -98,7 +102,9 @@ std::string Screenshot::generate_filename(const std::string& rom_name) const
 {
     // Get current time
     std::time_t now = std::time(nullptr);
-    const std::tm* local_time = std::localtime(&now);
+    std::tm tm_buf{};
+    portable_localtime(&now, &tm_buf);
+    const std::tm* local_time = &tm_buf;
     
     // Format: gbglow_ROMNAME_YYYYMMDD_HHMMSS.png
     std::ostringstream filename;

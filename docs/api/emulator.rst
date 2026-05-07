@@ -11,26 +11,37 @@ Class Declaration
    class Emulator {
    public:
        Emulator();
-       ~Emulator();
        
        bool load_rom(const std::string& path);
        void reset();
        
        void run_frame();
-       Cycles run_cycles(Cycles cycles);
+       void run_cycles(Cycles cycles);
+       void run(const std::string& window_title, int scale_factor = 4);
        
-       CPU& get_cpu();
-       PPU& get_ppu();
-       Memory& get_memory();
+       const PPU& ppu() const;
+       PPU& ppu();
+       const CPU& cpu() const;
+       CPU& cpu();
+       Joypad& joypad();
+       Memory& memory();
+       Cartridge* cartridge();
+       Debugger& debugger();
+       RecentRoms& recent_roms();
        
-       const CPU& get_cpu() const;
-       const PPU& get_ppu() const;
-       const Memory& get_memory() const;
+       std::string get_save_path() const;
+       bool save_state(int slot);
+       bool load_state(int slot);
+       bool delete_state(int slot);
+       std::string get_state_path(int slot) const;
        
    private:
-       Memory memory_;
-       CPU cpu_;
-       PPU ppu_;
+       std::unique_ptr<Memory> memory_;
+       std::unique_ptr<CPU> cpu_;
+       std::unique_ptr<PPU> ppu_;
+       std::unique_ptr<Debugger> debugger_;
+       std::unique_ptr<RecentRoms> recent_roms_;
+       std::string rom_path_;
    };
 
 Constructor
@@ -83,6 +94,8 @@ Loads a Game Boy ROM file.
 **Supported Formats**
    * ROM-only cartridges
    * MBC1 cartridges
+   * MBC3 cartridges (with RTC support)
+   * MBC5 cartridges (with rumble support)
    * Battery-backed RAM
 
 **Throws**
@@ -115,7 +128,7 @@ Executes exactly one frame (70224 cycles, ~16.67ms).
        emulator.run_frame();
        
        // Render frame
-       const auto& framebuffer = emulator.get_ppu().get_framebuffer();
+       const auto& framebuffer = emulator.ppu().framebuffer();
        render_to_screen(framebuffer);
        
        // Cap to 60 fps
@@ -200,13 +213,13 @@ Resets emulator to power-on state.
 Component Access
 ----------------
 
-get_cpu()
-~~~~~~~~~
+cpu()
+~~~~~
 
 .. code-block:: cpp
 
-   CPU& get_cpu();
-   const CPU& get_cpu() const;
+   CPU& cpu();
+   const CPU& cpu() const;
 
 Returns reference to CPU instance.
 
@@ -219,19 +232,19 @@ Returns reference to CPU instance.
 
 .. code-block:: cpp
 
-   const auto& cpu = emulator.get_cpu();
-   const auto& regs = cpu.get_registers();
+   const auto& emu_cpu = emulator.cpu();
+   const auto& regs = emu_cpu.registers();
    
    std::cout << "PC: " << std::hex << regs.pc << '\n';
    std::cout << "SP: " << std::hex << regs.sp << '\n';
 
-get_ppu()
-~~~~~~~~~
+ppu()
+~~~~~
 
 .. code-block:: cpp
 
-   PPU& get_ppu();
-   const PPU& get_ppu() const;
+   PPU& ppu();
+   const PPU& ppu() const;
 
 Returns reference to PPU instance.
 
@@ -244,8 +257,8 @@ Returns reference to PPU instance.
 
 .. code-block:: cpp
 
-   const auto& ppu = emulator.get_ppu();
-   const auto& fb = ppu.get_framebuffer();
+   const auto& emu_ppu = emulator.ppu();
+   const auto& fb = emu_ppu.framebuffer();
    
    // Render to screen
    for (int y = 0; y < 144; ++y) {
@@ -255,13 +268,12 @@ Returns reference to PPU instance.
        }
    }
 
-get_memory()
-~~~~~~~~~~~~
+memory()
+~~~~~~~~
 
 .. code-block:: cpp
 
-   Memory& get_memory();
-   const Memory& get_memory() const;
+   Memory& memory();
 
 Returns reference to Memory instance.
 
@@ -274,10 +286,10 @@ Returns reference to Memory instance.
 
 .. code-block:: cpp
 
-   const auto& memory = emulator.get_memory();
+   const auto& memory_ref = emulator.memory();
    
    // Read WRAM
-   u8 value = memory.read(0xC000);
+   u8 value = memory_ref.read(0xC000);
    
    // Dump memory region
    for (u16 addr = 0xC000; addr < 0xD000; ++addr) {
@@ -290,24 +302,28 @@ State Management
 Save States
 ~~~~~~~~~~~
 
-Not yet implemented. Future API:
-
 .. code-block:: cpp
 
-   class Emulator {
-   public:
-       // Save current state
-       std::vector<u8> save_state() const;
-       
-       // Restore saved state
-       void load_state(const std::vector<u8>& state);
-   };
+   // Save to slot 0
+   bool saved = emulator.save_state(0);
+   
+   // Load from slot 0
+   bool loaded = emulator.load_state(0);
+   
+   // Delete slot 0
+   bool deleted = emulator.delete_state(0);
+   
+   // Get file path for a slot
+   std::string path = emulator.get_state_path(0);
 
-**Will Include**
-   * All CPU registers
-   * All memory
-   * PPU state
-   * Cartridge state
+Save states include:
+
+* All CPU registers and flags
+* Complete memory state (WRAM, VRAM, HRAM, OAM)
+* PPU scanline and mode
+* Timer registers
+* APU state
+* Cartridge RAM
 
 Performance
 -----------
@@ -338,11 +354,6 @@ Example: Frame Skipping
    
    for (int frame = 0; frame < 180; ++frame) {
        emulator.run_frame();
-       
-       if (frame % (FRAME_SKIP + 1) == 0) {
-           // Only render some frames
-           emulator.get_ppu().render_to_terminal();
-       }
    }
 
 Thread Safety
@@ -366,7 +377,7 @@ For multi-threaded use:
    std::thread render_thread([&emulator, &frame_mutex]() {
        while (running) {
            std::lock_guard lock(frame_mutex);
-           const auto& fb = emulator.get_ppu().get_framebuffer();
+           const auto& fb = emulator.ppu().framebuffer();
            render(fb);
        }
    });
@@ -387,8 +398,8 @@ Example: Breakpoint Support
        
        void run_until_breakpoint() {
            while (true) {
-               auto& cpu = get_cpu();
-               u16 pc = cpu.get_registers().pc;
+               auto& dbg_cpu = cpu();
+               u16 pc = dbg_cpu.registers().pc;
                
                if (breakpoints_.count(pc)) {
                    std::cout << "Breakpoint at " << std::hex << pc << '\n';
@@ -409,12 +420,12 @@ Example: Instruction Tracing
 .. code-block:: cpp
 
    void trace_execution(Emulator& emulator, int num_instructions) {
-       auto& cpu = emulator.get_cpu();
-       auto& memory = emulator.get_memory();
+       auto& cpu = emulator.cpu();
+       auto& mem = emulator.memory();
        
        for (int i = 0; i < num_instructions; ++i) {
-           auto& regs = cpu.get_registers();
-           u8 opcode = memory.read(regs.pc);
+           auto& regs = cpu.registers();
+           u8 opcode = mem.read(regs.pc);
            
            std::cout << std::hex 
                      << "PC:" << regs.pc << " "

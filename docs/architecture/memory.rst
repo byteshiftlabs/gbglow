@@ -13,7 +13,7 @@ Memory Map
    ├──────────────┼──────────┼─────────────────────────────┤
    │ 0x0000-0x3FFF│   16KB   │ ROM Bank 0 (fixed)          │
    │ 0x4000-0x7FFF│   16KB   │ ROM Bank 1-N (switchable)   │
-   │ 0x8000-0x9FFF│    8KB   │ Video RAM (VRAM)            │
+   │ 0x8000-0x9FFF│  8/16KB  │ Video RAM (VRAM, 2 banks CGB)│
    │ 0xA000-0xBFFF│    8KB   │ External RAM (cartridge)    │
    │ 0xC000-0xCFFF│    4KB   │ Work RAM Bank 0 (WRAM)      │
    │ 0xD000-0xDFFF│    4KB   │ Work RAM Bank 1             │
@@ -269,7 +269,7 @@ Memory Class
        void write16(u16 address, u16 value);
        
    private:
-       std::array<u8, 0x2000> vram_;      // 8KB Video RAM
+       std::array<u8, 0x4000> vram_;      // 16KB Video RAM (CGB: 2 banks × 8KB)
        std::array<u8, 0x2000> wram_;      // 8KB Work RAM
        std::array<u8, 0x00A0> oam_;       // Object Attribute Memory
        std::array<u8, 0x0080> hram_;      // High RAM

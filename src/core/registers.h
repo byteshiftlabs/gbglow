@@ -24,18 +24,18 @@ namespace gbglow {
 class Registers {
 public:
     // 8-bit registers
-    u8 a;  // Accumulator
-    u8 f;  // Flags register
-    u8 b;
-    u8 c;
-    u8 d;
-    u8 e;
-    u8 h;
-    u8 l;
+    u8 a = 0;  // Accumulator
+    u8 f = 0;  // Flags register
+    u8 b = 0;
+    u8 c = 0;
+    u8 d = 0;
+    u8 e = 0;
+    u8 h = 0;
+    u8 l = 0;
     
     // 16-bit registers
-    u16 sp;  // Stack pointer
-    u16 pc;  // Program counter
+    u16 sp = 0;  // Stack pointer
+    u16 pc = 0;  // Program counter
     
     // Flag register bit positions
     enum Flags : u8 {

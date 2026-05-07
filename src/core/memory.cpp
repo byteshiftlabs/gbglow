@@ -13,26 +13,24 @@
 #include "../audio/apu.h"
 #include "../video/ppu.h"
 #include "timer.h"
+#include "io_registers.h"
 
 namespace gbglow {
+
+using namespace io_reg;
 
 // Memory map boundaries
 namespace {
     constexpr u16 ROM_END = 0x8000;
-    constexpr u16 VRAM_START = 0x8000;
     constexpr u16 VRAM_END = 0xA000;
     constexpr u16 EXTERNAL_RAM_START = 0xA000;
     constexpr u16 EXTERNAL_RAM_END = 0xC000;
-    constexpr u16 WRAM_START = 0xC000;
-    constexpr u16 WRAM_END = 0xE000;
     constexpr u16 ECHO_RAM_START = 0xE000;
     constexpr u16 ECHO_RAM_END = 0xFE00;
-    constexpr u16 OAM_START = 0xFE00;
     constexpr u16 OAM_END = 0xFEA0;
     constexpr u16 PROHIBITED_START = 0xFEA0;
-    constexpr u16 IO_REGISTERS_START = 0xFF00;
+    constexpr u16 IO_REGISTERS_START = IO_START;  // alias for io_reg::IO_START
     constexpr u16 IO_REGISTERS_END = 0xFF80;
-    constexpr u16 HRAM_START = 0xFF80;
     constexpr u16 HRAM_END = 0xFFFF;
     constexpr u16 INTERRUPT_ENABLE_REG = 0xFFFF;
     constexpr u16 JOYPAD_REG = 0xFF00;

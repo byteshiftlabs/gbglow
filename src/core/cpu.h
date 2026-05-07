@@ -43,7 +43,7 @@ public:
      */
     void reset();
     
-    // Access registers (for debugging)
+    // Access registers (const for debugger, mutable for save-state deserialization)
     const Registers& registers() const;
     Registers& registers();
     

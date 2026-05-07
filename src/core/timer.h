@@ -5,6 +5,8 @@
 #pragma once
 
 #include "types.h"
+#include <cstddef>
+#include <vector>
 
 namespace gbglow {
 
@@ -47,6 +49,10 @@ public:
     void write_tima(u8 value);
     void write_tma(u8 value);
     void write_tac(u8 value);
+    
+    // Serialization
+    void serialize(std::vector<u8>& data) const;
+    void deserialize(const u8* data, size_t data_size, size_t& offset);
     
 private:
     Memory& memory_;
