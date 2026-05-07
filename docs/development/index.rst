@@ -1,7 +1,7 @@
 Development Guide
 =================
 
-How to build, test, and contribute to GBCrush.
+How to build, test, and contribute to gbglow.
 
 Building from Source
 --------------------
@@ -129,7 +129,7 @@ Test Organization
 Writing Tests
 ~~~~~~~~~~~~~
 
-EmuGBC uses a simple assertion-based test framework:
+gbglow uses a simple assertion-based test framework:
 
 .. code-block:: cpp
 

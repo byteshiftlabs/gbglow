@@ -1,4 +1,4 @@
-# GBCrush Development Roadmap
+# gbglow Development Roadmap
 
 ## Project Goal
 Create an educational Game Boy Color emulator capable of running commercial games, particularly Pokémon titles.
@@ -801,7 +801,7 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ## 🛠️ Development Principles
 
 1. **Clarity over Cleverness** - Code must teach, not just execute
-2. **Standards Compliance** - 100% adherence to copilot-instructions.md
+2. **Standards Compliance** - Adherence to copilot-instructions.md + ai-dev-prompts/
 3. **Incremental Progress** - Small, testable commits
 4. **Documentation First** - Explain WHY before implementing
 5. **Test-Driven** - Validate with known-good test ROMs

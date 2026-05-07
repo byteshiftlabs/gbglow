@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "savestate.h"
 #include "cpu.h"
 #include "memory.h"
@@ -7,13 +11,28 @@
 
 namespace gbglow {
 
+// Game Boy memory map address constants for save state serialization
+namespace {
+    constexpr u16 WRAM_START   = 0xC000;
+    constexpr u16 WRAM_END     = 0xE000;
+    constexpr u16 HRAM_START   = 0xFF80;
+    constexpr u16 HRAM_END     = 0xFFFF;
+    constexpr u16 IO_REG_START = 0xFF00;
+    constexpr u16 IO_REG_END   = 0xFF80;
+    constexpr u16 IE_REG       = 0xFFFF;  // Interrupt Enable register
+    constexpr u16 VRAM_START   = 0x8000;
+    constexpr u16 VRAM_END     = 0xA000;
+    constexpr u16 OAM_START    = 0xFE00;
+    constexpr u16 OAM_END      = 0xFEA0;
+}
+
 std::string SaveState::get_path(int slot, const std::string& rom_path) {
     // Replace extension with .stateN
     std::string save_path = rom_path;
     
     size_t dot_pos = save_path.rfind('.');
     if (dot_pos != std::string::npos) {
-        save_path = save_path.substr(0, dot_pos);
+        save_path.resize(dot_pos);
     }
     
     save_path += ".state" + std::to_string(slot);
@@ -61,30 +80,30 @@ bool SaveState::save(int slot, const std::string& rom_path,
     
     // Save Memory state
     // Work RAM (8KB)
-    for (u16 addr = 0xC000; addr < 0xE000; addr++) {
+    for (u16 addr = WRAM_START; addr < WRAM_END; addr++) {
         write_u8(file, memory.read(addr));
     }
     
     // High RAM (127 bytes)
-    for (u16 addr = 0xFF80; addr < 0xFFFF; addr++) {
+    for (u16 addr = HRAM_START; addr < HRAM_END; addr++) {
         write_u8(file, memory.read(addr));
     }
     
     // I/O registers (0xFF00-0xFF7F)
-    for (u16 addr = 0xFF00; addr < 0xFF80; addr++) {
+    for (u16 addr = IO_REG_START; addr < IO_REG_END; addr++) {
         write_u8(file, memory.read(addr));
     }
     
     // Interrupt Enable register
-    write_u8(file, memory.read(0xFFFF));
+    write_u8(file, memory.read(IE_REG));
     
     // VRAM (8KB)
-    for (u16 addr = 0x8000; addr < 0xA000; addr++) {
+    for (u16 addr = VRAM_START; addr < VRAM_END; addr++) {
         write_u8(file, memory.read(addr));
     }
     
     // OAM (160 bytes)
-    for (u16 addr = 0xFE00; addr < 0xFEA0; addr++) {
+    for (u16 addr = OAM_START; addr < OAM_END; addr++) {
         write_u8(file, memory.read(addr));
     }
     
@@ -150,35 +169,39 @@ bool SaveState::load(int slot, const std::string& rom_path,
     
     // Load Memory state
     // Work RAM (8KB)
-    for (u16 addr = 0xC000; addr < 0xE000; addr++) {
+    for (u16 addr = WRAM_START; addr < WRAM_END; addr++) {
         memory.write(addr, read_u8(file));
     }
     
     // High RAM (127 bytes)
-    for (u16 addr = 0xFF80; addr < 0xFFFF; addr++) {
+    for (u16 addr = HRAM_START; addr < HRAM_END; addr++) {
         memory.write(addr, read_u8(file));
     }
     
     // I/O registers (0xFF00-0xFF7F)
-    for (u16 addr = 0xFF00; addr < 0xFF80; addr++) {
+    for (u16 addr = IO_REG_START; addr < IO_REG_END; addr++) {
         memory.write(addr, read_u8(file));
     }
     
     // Interrupt Enable register
-    memory.write(0xFFFF, read_u8(file));
+    memory.write(IE_REG, read_u8(file));
     
     // VRAM (8KB)
-    for (u16 addr = 0x8000; addr < 0xA000; addr++) {
+    for (u16 addr = VRAM_START; addr < VRAM_END; addr++) {
         memory.write(addr, read_u8(file));
     }
     
     // OAM (160 bytes)
-    for (u16 addr = 0xFE00; addr < 0xFEA0; addr++) {
+    for (u16 addr = OAM_START; addr < OAM_END; addr++) {
         memory.write(addr, read_u8(file));
     }
     
     // Load cartridge RAM if present
     u32 ram_size = read_u32(file);
+    constexpr u32 MAX_CARTRIDGE_RAM = 128 * 1024;  // Largest MBC RAM is 128KB
+    if (ram_size > MAX_CARTRIDGE_RAM) {
+        return false;
+    }
     if (ram_size > 0 && memory.cartridge()) {
         std::vector<u8> ram(ram_size);
         read_bytes(file, ram.data(), ram_size);
@@ -210,19 +233,19 @@ void SaveState::write_bytes(std::ofstream& file, const u8* data, size_t size) {
 }
 
 u8 SaveState::read_u8(std::ifstream& file) {
-    u8 value;
+    u8 value = 0;
     file.read(reinterpret_cast<char*>(&value), sizeof(value));
     return value;
 }
 
 u16 SaveState::read_u16(std::ifstream& file) {
-    u16 value;
+    u16 value = 0;
     file.read(reinterpret_cast<char*>(&value), sizeof(value));
     return value;
 }
 
 u32 SaveState::read_u32(std::ifstream& file) {
-    u32 value;
+    u32 value = 0;
     file.read(reinterpret_cast<char*>(&value), sizeof(value));
     return value;
 }

@@ -48,14 +48,16 @@ set(CORE_SOURCES
     src/core/memory.cpp
     src/core/registers.cpp
     src/core/instructions.cpp
+    src/core/instructions_cb.cpp
     src/core/emulator.cpp
+    src/core/game_loop.cpp
+    src/core/savestate_io.cpp
     src/core/timer.cpp
     src/core/savestate.cpp
 )
 
 set(VIDEO_SOURCES
     src/video/ppu.cpp
-    src/video/lcd.cpp
     src/video/display.cpp
 )
 

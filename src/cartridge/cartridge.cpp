@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "cartridge.h"
 
 #include <fstream>
@@ -17,6 +21,34 @@ namespace {
     constexpr u16 HEADER_CARTRIDGE_TYPE_OFFSET = 0x0147;
     constexpr u16 HEADER_RAM_SIZE_OFFSET = 0x0149;
     constexpr int TITLE_MAX_LENGTH = 16;
+    constexpr size_t MIN_HEADER_SIZE = 0x0150;  // Minimum ROM size for valid header
+    
+    // Memory map boundaries for ROM-only cartridges
+    constexpr u16 ROM_END = 0x8000;
+    constexpr u16 RAM_START = 0xA000;
+    constexpr u16 RAM_END = 0xC000;
+    constexpr u8 UNMAPPED_VALUE = 0xFF;
+
+    // Cartridge type codes from Game Boy hardware specification
+    constexpr u8 CART_ROM_ONLY              = 0x00;
+    constexpr u8 CART_MBC1                  = 0x01;
+    constexpr u8 CART_MBC1_RAM              = 0x02;
+    constexpr u8 CART_MBC1_RAM_BATTERY      = 0x03;
+    constexpr u8 CART_MBC2_BATTERY          = 0x06;
+    constexpr u8 CART_ROM_RAM_BATTERY       = 0x09;
+    constexpr u8 CART_MMM01_RAM_BATTERY     = 0x0D;
+    constexpr u8 CART_MBC3_TIMER_BATTERY    = 0x0F;
+    constexpr u8 CART_MBC3_TIMER_RAM_BAT    = 0x10;
+    constexpr u8 CART_MBC3                  = 0x11;
+    constexpr u8 CART_MBC3_RAM              = 0x12;
+    constexpr u8 CART_MBC3_RAM_BATTERY      = 0x13;
+    constexpr u8 CART_MBC5                  = 0x19;
+    constexpr u8 CART_MBC5_RAM              = 0x1A;
+    constexpr u8 CART_MBC5_RAM_BATTERY      = 0x1B;
+    constexpr u8 CART_MBC5_RUMBLE           = 0x1C;
+    constexpr u8 CART_MBC5_RUMBLE_RAM       = 0x1D;
+    constexpr u8 CART_MBC5_RUMBLE_RAM_BAT   = 0x1E;
+    constexpr u8 CART_HUC1_RAM_BATTERY      = 0xFF;
     
     // CGB flag values at 0x0143
     constexpr u8 CGB_FLAG_SUPPORTED = 0x80;  // Supports CGB functions (also works on DMG)
@@ -53,6 +85,9 @@ namespace {
 }
 
 void Cartridge::parse_header() {
+    // Minimum size for header fields (highest offset: 0x0149 RAM size)
+    if (rom_.size() < MIN_HEADER_SIZE) return;
+
     // Extract game title from header - null-terminated ASCII string
     // Located at fixed offset per cartridge format specification
     char title_buf[TITLE_MAX_LENGTH + 1] = {0};
@@ -74,16 +109,16 @@ void Cartridge::parse_header() {
     // Battery flag determines if external RAM needs persistent storage
     // Check against all known cartridge types with battery support
     has_battery_ = (
-        cartridge_type_ == 0x03 ||  // MBC1+RAM+BATTERY
-        cartridge_type_ == 0x06 ||  // MBC2+BATTERY
-        cartridge_type_ == 0x09 ||  // ROM+RAM+BATTERY
-        cartridge_type_ == 0x0D ||  // MMM01+RAM+BATTERY
-        cartridge_type_ == 0x0F ||  // MBC3+TIMER+BATTERY
-        cartridge_type_ == 0x10 ||  // MBC3+TIMER+RAM+BATTERY
-        cartridge_type_ == 0x13 ||  // MBC3+RAM+BATTERY
-        cartridge_type_ == 0x1B ||  // MBC5+RAM+BATTERY
-        cartridge_type_ == 0x1E ||  // MBC5+RUMBLE+RAM+BATTERY
-        cartridge_type_ == 0xFF     // HuC1+RAM+BATTERY
+        cartridge_type_ == CART_MBC1_RAM_BATTERY   ||
+        cartridge_type_ == CART_MBC2_BATTERY        ||
+        cartridge_type_ == CART_ROM_RAM_BATTERY     ||
+        cartridge_type_ == CART_MMM01_RAM_BATTERY   ||
+        cartridge_type_ == CART_MBC3_TIMER_BATTERY  ||
+        cartridge_type_ == CART_MBC3_TIMER_RAM_BAT  ||
+        cartridge_type_ == CART_MBC3_RAM_BATTERY    ||
+        cartridge_type_ == CART_MBC5_RAM_BATTERY    ||
+        cartridge_type_ == CART_MBC5_RUMBLE_RAM_BAT ||
+        cartridge_type_ == CART_HUC1_RAM_BATTERY
     );
 }
 
@@ -102,47 +137,47 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
     }
     
     // Check minimum size
-    if (size < 0x0150) {
+    if (size < static_cast<std::streamsize>(MIN_HEADER_SIZE)) {
         throw std::runtime_error("ROM file too small (invalid header)");
     }
     
     // Read cartridge type and RAM size from header
-    const u8 cartridge_type = rom_data[HEADER_CARTRIDGE_TYPE_OFFSET];
+    const u8 cart_type = rom_data[HEADER_CARTRIDGE_TYPE_OFFSET];
     const u8 ram_size_code = rom_data[HEADER_RAM_SIZE_OFFSET];
     const size_t ram_size = get_ram_size(ram_size_code);
     
     // Create appropriate cartridge type based on header
-    switch (cartridge_type) {
-        case 0x00: // ROM ONLY
+    switch (cart_type) {
+        case CART_ROM_ONLY:
             return std::make_unique<ROMOnly>(std::move(rom_data));
             
-        case 0x01: // MBC1
-        case 0x02: // MBC1+RAM
-        case 0x03: // MBC1+RAM+BATTERY
+        case CART_MBC1:
+        case CART_MBC1_RAM:
+        case CART_MBC1_RAM_BATTERY:
             return std::make_unique<MBC1>(std::move(rom_data), ram_size);
             
-        case 0x0F: // MBC3+TIMER+BATTERY
-        case 0x10: // MBC3+TIMER+RAM+BATTERY
+        case CART_MBC3_TIMER_BATTERY:
+        case CART_MBC3_TIMER_RAM_BAT:
             return std::make_unique<MBC3>(std::move(rom_data), ram_size, true);
             
-        case 0x11: // MBC3
-        case 0x12: // MBC3+RAM
-        case 0x13: // MBC3+RAM+BATTERY
+        case CART_MBC3:
+        case CART_MBC3_RAM:
+        case CART_MBC3_RAM_BATTERY:
             return std::make_unique<MBC3>(std::move(rom_data), ram_size, false);
             
-        case 0x19: // MBC5
-        case 0x1A: // MBC5+RAM
-        case 0x1B: // MBC5+RAM+BATTERY
+        case CART_MBC5:
+        case CART_MBC5_RAM:
+        case CART_MBC5_RAM_BATTERY:
             return std::make_unique<MBC5>(std::move(rom_data), ram_size, false);
             
-        case 0x1C: // MBC5+RUMBLE
-        case 0x1D: // MBC5+RUMBLE+RAM
-        case 0x1E: // MBC5+RUMBLE+RAM+BATTERY
+        case CART_MBC5_RUMBLE:
+        case CART_MBC5_RUMBLE_RAM:
+        case CART_MBC5_RUMBLE_RAM_BAT:
             return std::make_unique<MBC5>(std::move(rom_data), ram_size, true);
             
         default:
             throw std::runtime_error("Unsupported cartridge type: 0x" + 
-                                    std::to_string(cartridge_type));
+                                    std::to_string(cart_type));
     }
 }
 
@@ -222,17 +257,17 @@ ROMOnly::ROMOnly(std::vector<u8> rom_data)
 }
 
 u8 ROMOnly::read(u16 address) const {
-    if (address < 0x8000) {
+    if (address < ROM_END) {
         // ROM area
         if (address < rom_.size()) {
             return rom_[address];
         }
-        return 0xFF;
-    } else if (address >= 0xA000 && address < 0xC000) {
+        return UNMAPPED_VALUE;
+    } else if (address >= RAM_START && address < RAM_END) {
         // No external RAM in ROM-only cartridges
-        return 0xFF;
+        return UNMAPPED_VALUE;
     }
-    return 0xFF;
+    return UNMAPPED_VALUE;
 }
 
 void ROMOnly::write(u16 address, u8 value) {

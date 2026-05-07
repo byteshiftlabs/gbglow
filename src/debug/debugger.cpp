@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2025-2026 gbglow Contributors
+// This file is part of gbglow. See LICENSE for details.
+
 #include "debugger.h"
 #include "../core/cpu.h"
 #include "../core/memory.h"
@@ -5,6 +9,7 @@
 #include "../video/ppu.h"
 #include <sstream>
 #include <iomanip>
+#include <algorithm>
 
 namespace gbglow {
 
@@ -127,12 +132,12 @@ std::vector<u8> Debugger::read_memory_region(u16 start, u16 length) const {
 
 void Debugger::add_watch(u16 address, const std::string& label, bool break_on_change) {
     // Check if already watching this address
-    for (auto& watch : watches_) {
-        if (watch.address == address) {
-            watch.label = label;
-            watch.break_on_change = break_on_change;
-            return;
-        }
+    auto it = std::find_if(watches_.begin(), watches_.end(),
+        [address](const MemoryWatch& w) { return w.address == address; });
+    if (it != watches_.end()) {
+        it->label = label;
+        it->break_on_change = break_on_change;
+        return;
     }
     
     MemoryWatch watch;
@@ -156,17 +161,17 @@ const std::vector<MemoryWatch>& Debugger::get_watches() const {
 }
 
 bool Debugger::update_watches() {
-    bool should_break = false;
+    bool watch_triggered = false;
     for (auto& watch : watches_) {
         u8 current = read_memory(watch.address);
         if (current != watch.last_value) {
             if (watch.break_on_change) {
-                should_break = true;
+                watch_triggered = true;
             }
             watch.last_value = current;
         }
     }
-    return should_break;
+    return watch_triggered;
 }
 
 // === Execution History ===

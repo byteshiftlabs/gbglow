@@ -1,9 +1,9 @@
-GBCrush Documentation
-=====================
+gbglow Documentation
+====================
 
 **A Game Boy Color Emulator**
 
-Welcome to GBCrush, a Game Boy Color emulator implementation focused on code clarity, 
+Welcome to gbglow, a Game Boy Color emulator implementation focused on code clarity, 
 maintainability, and educational value. Every component is thoroughly documented with 
 references to actual Game Boy hardware behavior.
 
