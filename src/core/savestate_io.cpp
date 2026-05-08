@@ -54,8 +54,16 @@ bool Emulator::save_state(int slot) {
     memory_->apu().serialize(state_data);
     memory_->timer().serialize(state_data);
 
-    size_t data_size = state_data.size();
-    file.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+    // Serialise blob size as a 4-byte little-endian field so the format
+    // is portable across 32-bit/64-bit targets and host endianness.
+    const u32 data_size = static_cast<u32>(state_data.size());
+    const u8 size_bytes[4] = {
+        static_cast<u8>(data_size),
+        static_cast<u8>(data_size >> 8),
+        static_cast<u8>(data_size >> 16),
+        static_cast<u8>(data_size >> 24)
+    };
+    file.write(reinterpret_cast<const char*>(size_bytes), sizeof(size_bytes));
     file.write(reinterpret_cast<const char*>(state_data.data()), data_size);
 
     return file.good();
@@ -78,8 +86,14 @@ bool Emulator::load_state(int slot) {
         return false;
     }
 
-    size_t data_size = 0;
-    file.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
+    // Read 4-byte little-endian blob size
+    u8 size_bytes[4] = {};
+    file.read(reinterpret_cast<char*>(size_bytes), sizeof(size_bytes));
+    const u32 data_size =
+        static_cast<u32>(size_bytes[0])         |
+        (static_cast<u32>(size_bytes[1]) << 8)  |
+        (static_cast<u32>(size_bytes[2]) << 16) |
+        (static_cast<u32>(size_bytes[3]) << 24);
     if (data_size == 0 || data_size > STATE_MAX_BYTES) {
         std::cerr << "Corrupt save state: invalid data size " << data_size << std::endl;
         return false;
@@ -87,7 +101,7 @@ bool Emulator::load_state(int slot) {
 
     std::vector<u8> state_data(data_size);
     file.read(reinterpret_cast<char*>(state_data.data()), data_size);
-    if (!file.good()) {
+    if (file.fail()) {
         std::cerr << "Corrupt save state: truncated data" << std::endl;
         return false;
     }
@@ -98,6 +112,14 @@ bool Emulator::load_state(int slot) {
     ppu_->deserialize(state_data.data(), data_size, offset);
     memory_->apu().deserialize(state_data.data(), data_size, offset);
     memory_->timer().deserialize(state_data.data(), data_size, offset);
+
+    // Each deserializer silently guards on size and returns early on underflow.
+    // If offset did not advance to data_size the blob is corrupt or the build
+    // layout changed — reject rather than running with half-initialised state.
+    if (offset != static_cast<size_t>(data_size)) {
+        std::cerr << "Corrupt save state: component data size mismatch" << std::endl;
+        return false;
+    }
 
     return true;
 }

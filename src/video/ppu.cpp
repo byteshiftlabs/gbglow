@@ -813,34 +813,6 @@ void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const {
 // Serialization for Save States
 // ============================================================================
 
-void PPU::reset_frame_start()
-{
-    // V2 save states do not persist dots_ or window_line_counter_.
-    // Forcing mode=OAMSearch and dots=0 gives a deterministic timing
-    // entry point: one scanline may be skipped but rendering stabilises
-    // within a single frame. Preserves ly_ as set by the caller.
-    mode_ = Mode::OAMSearch;
-    dots_ = 0;
-    scanline_sprites_.clear();
-
-    // Best-effort restore for window_line_counter_: if the window Y position
-    // is at or before the current scanline, the counter equals ly_ (assuming
-    // the window was visible since WY). Resetting to 0 when WY=0 would cause
-    // every remaining scanline to re-render window tile row 0, producing
-    // full-screen vertical stripe corruption.
-    u8 wy = memory_.read(REG_WY);
-    window_line_counter_ = (ly_ >= wy) ? (ly_ - wy) : 0;
-
-    // Derive lcd_was_on_ from the LCDC register that was just restored
-    // by memory deserialization — same logic as PPU::deserialize().
-    lcd_was_on_ = (memory_.read(REG_LCDC) & LCDC_LCD_ENABLE_BIT) != 0;
-
-    // Sync STAT mode bits so the first memory.read(REG_STAT) is correct.
-    u8 stat = memory_.read(REG_STAT);
-    stat = (stat & STAT_MODE_MASK) | static_cast<u8>(mode_);
-    memory_.write(REG_STAT, stat);
-}
-
 void PPU::serialize(std::vector<u8>& data) const
 {
     // PPU mode and timing
@@ -895,13 +867,23 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     std::copy(data + offset, data + offset + obj_palette_ram_.size(), obj_palette_ram_.begin());
     offset += obj_palette_ram_.size();
     
-    // Sync lcd_was_on_ from the LCDC register that was just restored by
-    // memory deserialization (memory is always deserialized before PPU in V3).
-    // Without this, the constructor's default (true) would cause a false
-    // "LCD just turned off" edge on the first step() after loading a state
-    // that was saved while the LCD was disabled (e.g. mid-VBlank VRAM write),
-    // resetting LY/mode and corrupting the first rendered frame.
+    // Sync lcd_was_on_ from the LCDC register restored by memory deserialization
+    // (memory is always deserialized before PPU). Without this the constructor
+    // default (true) would produce a false "LCD just turned off" edge on the
+    // first step() call after loading a state saved mid-VBlank with LCD off.
     lcd_was_on_ = (memory_.read(REG_LCDC) & LCDC_LCD_ENABLE_BIT) != 0;
+
+    // Recompute stat_irq_line_ from restored state without firing an interrupt.
+    // The line state at the time of save is unknown; initialise to the current
+    // computed value so the next real mode/LY transition fires correctly.
+    {
+        u8 stat_register = memory_.read(REG_STAT);
+        stat_irq_line_ =
+            ((stat_register & STAT_HBLANK_INT_EN)  && mode_ == Mode::HBlank)    ||
+            ((stat_register & STAT_VBLANK_INT_EN)  && mode_ == Mode::VBlank)    ||
+            ((stat_register & STAT_OAM_INT_EN)     && mode_ == Mode::OAMSearch) ||
+            ((stat_register & STAT_COINCIDENCE_EN) && (stat_register & STAT_COINCIDENCE_FLAG));
+    }
 
     // Clear transient state
     scanline_sprites_.clear();

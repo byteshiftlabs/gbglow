@@ -68,12 +68,6 @@ public:
     void set_ly(u8 ly) { ly_ = ly; }
     void set_mode(u8 m) { mode_ = static_cast<Mode>(m); }
 
-    // Reset PPU to a consistent frame-start state when dots_ and
-    // window_line_counter_ cannot be recovered (e.g. V2 save states).
-    // Sets mode=OAMSearch, dots=0, window_line_counter=0, and derives
-    // lcd_was_on_ from the current LCDC register value in memory.
-    void reset_frame_start();
-    
     // Frame buffer access
     bool frame_ready() const;
     void clear_frame_ready();
