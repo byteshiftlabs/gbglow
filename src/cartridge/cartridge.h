@@ -67,6 +67,20 @@ public:
         }
     }
     
+    /**
+     * Serialize cartridge state (RAM + MBC registers) into save state data.
+     * Base implementation saves RAM with a u32 LE size prefix.
+     * MBC subclasses override to also save banking registers.
+     */
+    virtual void serialize(std::vector<u8>& data) const;
+    
+    /**
+     * Deserialize cartridge state from save state data.
+     * Base implementation restores RAM.
+     * MBC subclasses override to also restore banking registers.
+     */
+    virtual void deserialize(const u8* data, size_t data_size, size_t& offset);
+    
 protected:
     /**
      * Constructor for derived cartridge types

@@ -216,6 +216,71 @@ void MBC3::update_rtc()
     // This function exists for future frame-based updates if needed
 }
 
+void MBC3::serialize(std::vector<u8>& data) const
+{
+    Cartridge::serialize(data);
+
+    // MBC3 banking registers
+    data.push_back(ram_rtc_enabled_ ? 1 : 0);
+    data.push_back(rom_bank_);
+    data.push_back(ram_rtc_select_);
+    data.push_back(rtc_latched_ ? 1 : 0);
+    data.push_back(latch_data_last_);
+
+    // RTC registers (always saved; has_rtc_ is immutable from the ROM header)
+    data.push_back(rtc_seconds_);
+    data.push_back(rtc_minutes_);
+    data.push_back(rtc_hours_);
+    data.push_back(rtc_days_low_);
+    data.push_back(rtc_days_high_);
+
+    // RTC base time as i64 LE (portable across 32/64-bit time_t)
+    const int64_t base_time = static_cast<int64_t>(rtc_base_time_);
+    for (int i = 0; i < 8; i++) {
+        data.push_back(static_cast<u8>(base_time >> (i * 8)));
+    }
+
+    // RTC base days as u32 LE
+    data.push_back(static_cast<u8>(rtc_base_days_));
+    data.push_back(static_cast<u8>(rtc_base_days_ >> 8));
+    data.push_back(static_cast<u8>(rtc_base_days_ >> 16));
+    data.push_back(static_cast<u8>(rtc_base_days_ >> 24));
+}
+
+void MBC3::deserialize(const u8* data, size_t data_size, size_t& offset)
+{
+    Cartridge::deserialize(data, data_size, offset);
+
+    // 5 banking bytes + 5 RTC register bytes + 8 base_time + 4 base_days = 22
+    constexpr size_t MBC3_STATE_SIZE = 22;
+    if (offset + MBC3_STATE_SIZE > data_size) return;
+
+    ram_rtc_enabled_ = data[offset++] != 0;
+    rom_bank_        = data[offset++];
+    ram_rtc_select_  = data[offset++];
+    rtc_latched_     = data[offset++] != 0;
+    latch_data_last_ = data[offset++];
+
+    rtc_seconds_  = data[offset++];
+    rtc_minutes_  = data[offset++];
+    rtc_hours_    = data[offset++];
+    rtc_days_low_ = data[offset++];
+    rtc_days_high_= data[offset++];
+
+    int64_t base_time = 0;
+    for (int i = 0; i < 8; i++) {
+        base_time |= static_cast<int64_t>(data[offset++]) << (i * 8);
+    }
+    rtc_base_time_ = static_cast<std::time_t>(base_time);
+
+    rtc_base_days_ =
+        static_cast<u32>(data[offset])          |
+        (static_cast<u32>(data[offset + 1]) << 8)  |
+        (static_cast<u32>(data[offset + 2]) << 16) |
+        (static_cast<u32>(data[offset + 3]) << 24);
+    offset += 4;
+}
+
 bool MBC3::save_ram_to_file(const std::string& path) {
     // Only save if cartridge has battery
     if (!has_battery_) {

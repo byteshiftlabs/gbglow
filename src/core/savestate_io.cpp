@@ -53,6 +53,9 @@ bool Emulator::save_state(int slot) {
     ppu_->serialize(state_data);
     memory_->apu().serialize(state_data);
     memory_->timer().serialize(state_data);
+    if (auto* cart = memory_->cartridge()) {
+        cart->serialize(state_data);
+    }
 
     // Serialise blob size as a 4-byte little-endian field so the format
     // is portable across 32-bit/64-bit targets and host endianness.
@@ -112,6 +115,9 @@ bool Emulator::load_state(int slot) {
     ppu_->deserialize(state_data.data(), data_size, offset);
     memory_->apu().deserialize(state_data.data(), data_size, offset);
     memory_->timer().deserialize(state_data.data(), data_size, offset);
+    if (auto* cart = memory_->cartridge()) {
+        cart->deserialize(state_data.data(), data_size, offset);
+    }
 
     // Each deserializer silently guards on size and returns early on underflow.
     // If offset did not advance to data_size the blob is corrupt or the build

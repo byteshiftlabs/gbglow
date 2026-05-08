@@ -29,6 +29,9 @@ public:
     u8 read(u16 address) const override;
     void write(u16 address, u8 value) override;
     
+    void serialize(std::vector<u8>& data) const override;
+    void deserialize(const u8* data, size_t data_size, size_t& offset) override;
+    
 private:
     bool ram_enabled_;
     u8 rom_bank_;       // 5-bit ROM bank (0x01-0x1F)
