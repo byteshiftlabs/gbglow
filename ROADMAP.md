@@ -1,7 +1,7 @@
 # gbglow Development Roadmap
 
 ## Project Goal
-Create an educational Game Boy Color emulator capable of running commercial games, particularly Pokémon titles.
+Create an educational Game Boy Color emulator capable of running commercial games.
 
 ---
 
@@ -691,13 +691,24 @@ See `docs/architecture/apu.rst` for detailed implementation notes and lessons le
 
 **Goal:** Refine and enhance emulator functionality
 
-**Priority:** LOW - Quality of life improvements
+**Priority:** HIGH — next release target
 
-### Requirements
-- ✅ Save states
-- ✅ Debugger integration
+### Completed
+- ✅ Save states (multi-slot, portable `GBGLOW_STATE` format)
+- ✅ Debugger integration (ImGui overlay)
 - ✅ Memory viewer
-- Extended test suite
+- ✅ STAT IRQ rising-edge deduplication
+- ✅ LCD enable/disable gating
+- ✅ MBC state serialization (banking registers, RTC)
+
+### Next Release Goals
+- ⏳ Expand unit test coverage across all components
+- ⏳ Implement proper error handling and propagation system
+  - Custom exception hierarchy for domain-specific errors
+  - Structured logging (replace ad-hoc `std::cerr`)
+  - Constructor input validation
+  - SDL error reporting with `SDL_GetError()`
+  - Top-level exception handler in `main()`
 
 ---
 
@@ -747,70 +758,28 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 | 16: Color Support | ✅ Complete | 100% |
 | 17: Save Files | ✅ Complete | 100% |
 | 18: Audio | ✅ Complete | 100% |
-| 19: Polish | ⏳ In Progress | 75% |
+| 19: Polish | ⏳ In Progress | 60% |
 
-**Overall Progress: ~98%** 🎉 (All core phases 1-18 COMPLETE - Fully playable with audio and CGB color! Only Polish remains)
+**Overall Progress: ~98%** 🎉 (All core phases 1-18 COMPLETE — fully playable with audio and CGB color. v0.1.0 released!)
 
 ---
 
-## 🎮 Target Games
+## 🎮 Tested Games
 
-### Primary Targets (MVP)
-- ✅ Tetris (ROM-only) - Should work after Phase 5
-- 🎯 Pokémon Red/Blue/Yellow (MBC3) - Target for MVP
-- 🎯 Pokémon Gold/Silver/Crystal (MBC3+RTC) - Target after MVP
+- ✅ **Pokémon Red** (MBC3) — fully playable
+- 🔄 **Kirby Star Stacker** (MBC1+RAM+BATTERY, DMG) — under testing, working so far
 
-### Secondary Targets
-- Super Mario Land (ROM-only)
-- The Legend of Zelda: Link's Awakening (MBC5)
-- Kirby's Dream Land (ROM-only)
-- Metroid II (MBC1)
-
-### Stretch Goals
-- Pokémon Trading Card Game (MBC5)
-- Super Mario Bros. Deluxe (GBC, MBC5)
-- The Legend of Zelda: Oracle series (GBC, MBC5)
+More test targets to come in the following weeks/months.
 
 ---
 
 ## 📚 Testing Strategy
 
 ### Unit Tests
-- CPU instruction tests (Blargg's test ROMs)
+- CPU instruction tests
 - Memory system tests
 - Cartridge type tests
 - PPU rendering tests
-
-### Integration Tests
-- Full ROM execution tests
-- Save/load tests
-- Interrupt handling tests
-
-### Acceptance Tests
-- Can boot Pokémon Red
-- Can see title screen
-- Can start new game
-- Can walk around
-- Can enter battle
-- Can save game
-- Can load saved game
-
-#### 🔄 Next: Kirby Star Stacker (DMG)
-- Can boot Kirby Star Stacker (`MBC1+RAM+BATTERY`, DMG-only)
-- Title screen displays correctly
-- Gameplay is interactive and responsive
-- No graphical glitches during stacking sequences
-
----
-
-## 🛠️ Development Principles
-
-1. **Clarity over Cleverness** - Code must teach, not just execute
-2. **Standards Compliance** - Adherence to copilot-instructions.md + ai-dev-prompts/
-3. **Incremental Progress** - Small, testable commits
-4. **Documentation First** - Explain WHY before implementing
-5. **Test-Driven** - Validate with known-good test ROMs
-6. **Educational Value** - Reference implementation for learning
 
 ---
 
@@ -825,4 +794,4 @@ To run Pokémon Red/Blue/Yellow at a basic playable level:
 ---
 
 **Last Updated:** March 14, 2026
-**Current Focus:** 🎮 Testing Kirby Star Stacker (DMG, MBC1+RAM+BATTERY) — validating STAT interrupts, LCD enable gating and timer-driven game logic beyond the Pokémon baseline.
+**Current Focus:** 🎮 v0.1.0 released. Testing Kirby Star Stacker and expanding unit test coverage.

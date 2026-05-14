@@ -193,9 +193,12 @@ Code Style
 General Principles
 ~~~~~~~~~~~~~~~~~~
 
-* **Clarity over cleverness**
+* **Clarity over cleverness** — code must teach, not just execute
+* **Incremental progress** — small, testable commits
+* **Documentation first** — explain WHY before implementing
+* **Test-driven** — validate with known-good test ROMs
+* **Educational value** — reference implementation for learning
 * **Consistent naming**
-* **Well-documented code**
 * **Minimal dependencies**
 
 Naming Conventions
