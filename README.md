@@ -50,7 +50,7 @@ gbglow follows the classic emulator pipeline each frame:
 3. **APU** generates PCM samples that are queued to SDL2's audio device; the audio queue backpressure drives frame-rate synchronisation.
 4. **Display** (SDL2 + ImGui) blits the framebuffer, handles input, and renders the debugger overlay.
 
-Save states serialise the full machine snapshot (CPU registers, memory, PPU state, timer, audio) in the `GBGLOW_STATE_V2` binary format, stored next to the ROM file.
+Save states serialise the full machine snapshot (CPU registers, memory, PPU state, timer, audio, cartridge MBC registers) in the ``GBGLOW_STATE`` binary format, stored next to the ROM file.
 
 ## Project Structure
 

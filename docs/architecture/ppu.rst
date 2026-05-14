@@ -707,7 +707,6 @@ Future Enhancements
 Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
-* STAT interrupts (HBlank, OAM, LYC=LY)
 * Color support (CGB mode)
 * VRAM banking (CGB mode)
 * Cycle-accurate OAM DMA delay (currently instant)
@@ -724,4 +723,8 @@ Implemented Features
 * ✅ Hardware-accurate sprite visibility
 * ✅ Sprite flip (X and Y)
 * ✅ Proper 8x16 tile selection
+* ✅ STAT interrupts (HBlank, OAM, LYC=LY) with rising-edge deduplication
+* ✅ LCD enable/disable gating (mode reset on re-enable)
+* ✅ Window line counter (internal counter, serialized in save states)
+* ✅ PPU state serialization (scanline, mode, dots, palettes, window counter)
 
