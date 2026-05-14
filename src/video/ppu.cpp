@@ -36,11 +36,17 @@ namespace {
     // Palette manipulation
     constexpr u8 PALETTE_MASK = 0x03;
     
-    // VBlank interrupt bit
-    constexpr u8 VBLANK_INT_BIT = 0x01;
-    
-    // STAT mode mask
-    constexpr u8 STAT_MODE_MASK = 0xFC;
+    // Interrupt flag bits (IF register 0xFF0F)
+    constexpr u8 VBLANK_INT_BIT   = 0x01;  // Bit 0: VBlank
+    constexpr u8 STAT_INT_BIT     = 0x02;  // Bit 1: LCD STAT
+
+    // STAT register bits
+    constexpr u8 STAT_MODE_MASK        = 0xFC;  // Bits 0-1: current mode (R/O)
+    constexpr u8 STAT_COINCIDENCE_FLAG = 0x04;  // Bit 2: LYC=LY flag (R/O)
+    constexpr u8 STAT_HBLANK_INT_EN    = 0x08;  // Bit 3: HBlank interrupt enable
+    constexpr u8 STAT_VBLANK_INT_EN    = 0x10;  // Bit 4: VBlank interrupt enable
+    constexpr u8 STAT_OAM_INT_EN       = 0x20;  // Bit 5: OAM Search interrupt enable
+    constexpr u8 STAT_COINCIDENCE_EN   = 0x40;  // Bit 6: LYC=LY interrupt enable
     
     // Tile addressing
     constexpr u16 TILE_DATA_SIGNED_BASE = 0x9000;
@@ -121,6 +127,8 @@ PPU::PPU(Memory& memory)
     , dots_(0)
     , ly_(0)
     , frame_ready_(false)
+    , lcd_was_on_(true)
+    , stat_irq_line_(false)
     , bcps_(0)
     , ocps_(0)
     , window_line_counter_(0) {
@@ -129,69 +137,169 @@ PPU::PPU(Memory& memory)
     obj_palette_ram_.fill(0);     // Initialize to black (sprites unused by default)
 }
 
+// Recompute the combined STAT IRQ OR-gate (mode-enable bits | LYC=LY enable) and
+// fire IF bit 1 only when the line transitions low→high.  Real GB hardware routes
+// all STAT conditions through a single OR gate; multiple simultaneous condition
+// assertions must produce exactly one interrupt edge, not one per condition.
+void PPU::update_stat_irq_line() {
+    u8 stat_register = memory_.read(REG_STAT);
+    bool line_high =
+        ((stat_register & STAT_HBLANK_INT_EN)  && mode_ == Mode::HBlank)    ||
+        ((stat_register & STAT_VBLANK_INT_EN)  && mode_ == Mode::VBlank)    ||
+        ((stat_register & STAT_OAM_INT_EN)     && mode_ == Mode::OAMSearch) ||
+        ((stat_register & STAT_COINCIDENCE_EN) && (stat_register & STAT_COINCIDENCE_FLAG));
+    if (line_high && !stat_irq_line_) {
+        u8 interrupt_flags = memory_.read(REG_IF);
+        memory_.write(REG_IF, interrupt_flags | STAT_INT_BIT);
+    }
+    stat_irq_line_ = line_high;
+}
+
+// Update STAT bit 2 (LYC=LY coincidence flag) then let update_stat_irq_line()
+// decide whether to fire the STAT interrupt.
+void PPU::update_lyc_coincidence() {
+    u8 ly_compare = memory_.read(REG_LYC);
+    u8 stat_register = memory_.read(REG_STAT);
+    if (ly_ == ly_compare) {
+        stat_register |= STAT_COINCIDENCE_FLAG;
+    } else {
+        stat_register &= ~STAT_COINCIDENCE_FLAG;
+    }
+    memory_.write(REG_STAT, stat_register);
+    update_stat_irq_line();
+}
+
 void PPU::step(Cycles cycles) {
+    u8 lcdc = memory_.read(REG_LCDC);
+
+    // LCDC bit 7: LCD enable. When clear the PPU is completely off.
+    // LY is forced to 0, mode is forced to HBlank (0), no interrupts fire.
+    // Games disable the LCD during VBlank to safely write VRAM.
+    if (!(lcdc & LCDC_LCD_ENABLE_BIT)) {
+        if (lcd_was_on_) {
+            // LCD just turned off — reset PPU state
+            ly_ = 0;
+            dots_ = 0;
+            mode_ = Mode::HBlank;
+            memory_.write(REG_LY, 0);
+            u8 stat_register = memory_.read(REG_STAT);
+            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::HBlank);
+            memory_.write(REG_STAT, stat_register);
+            stat_irq_line_ = false;  // IRQ line is low while LCD is off
+            lcd_was_on_ = false;
+        }
+        return;
+    }
+
+    // LCD was just turned on — start from beginning of frame
+    if (!lcd_was_on_) {
+        ly_ = 0;
+        dots_ = 0;
+        mode_ = Mode::OAMSearch;
+        window_line_counter_ = 0;
+        lcd_was_on_ = true;
+        // Sync STAT mode bits and LYC=LY flag for the new frame start
+        u8 stat_register = memory_.read(REG_STAT);
+        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::OAMSearch);
+        memory_.write(REG_STAT, stat_register);
+        update_lyc_coincidence();  // LY=0; fires STAT interrupt if LYC=0 and enabled
+    }
+
     // Each cycle advances the PPU by 1 dot
     for (Cycles i = 0; i < cycles; i++) {
         dots_++;
-        
+
         switch (mode_) {
             case Mode::OAMSearch:
                 if (dots_ >= DOTS_OAM_SEARCH) {
                     // Search OAM for sprites on this scanline
                     search_oam();
                     mode_ = Mode::Transfer;
+                    // No STAT interrupt for Transfer (mode 3)
                 }
                 break;
-                
+
             case Mode::Transfer:
                 if (dots_ >= DOTS_TRANSFER_END) {
                     // Render this scanline
                     render_scanline();
                     mode_ = Mode::HBlank;
+                    // Write STAT mode bits before evaluating the IRQ line (S2)
+                    {
+                        u8 stat_register = memory_.read(REG_STAT);
+                        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+                        memory_.write(REG_STAT, stat_register);
+                    }
+                    update_stat_irq_line();
                 }
                 break;
-                
+
             case Mode::HBlank:
                 if (dots_ >= DOTS_PER_SCANLINE) {
                     dots_ = 0;
                     ly_++;
-                    
+
                     if (ly_ >= SCANLINES_VISIBLE) {
                         // Enter VBlank
                         mode_ = Mode::VBlank;
                         frame_ready_ = true;
-                        
-                        // Set VBlank flag in IF register
-                        u8 if_reg = memory_.read(REG_IF);
-                        memory_.write(REG_IF, if_reg | VBLANK_INT_BIT);
+
+                        // VBlank interrupt (always)
+                        u8 interrupt_flags = memory_.read(REG_IF);
+                        memory_.write(REG_IF, interrupt_flags | VBLANK_INT_BIT);
+
+                        // Write STAT mode bits before evaluating the IRQ line (S2)
+                        {
+                            u8 stat_register = memory_.read(REG_STAT);
+                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+                            memory_.write(REG_STAT, stat_register);
+                        }
                     } else {
                         mode_ = Mode::OAMSearch;
+                        // Write STAT mode bits before evaluating the IRQ line (S2)
+                        {
+                            u8 stat_register = memory_.read(REG_STAT);
+                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+                            memory_.write(REG_STAT, stat_register);
+                        }
                     }
+
+                    // Update LYC=LY coincidence then fire STAT if conditions are met
+                    update_lyc_coincidence();
                 }
                 break;
-                
+
             case Mode::VBlank:
                 if (dots_ >= DOTS_PER_SCANLINE) {
                     dots_ = 0;
                     ly_++;
-                    
+
                     if (ly_ >= SCANLINES_TOTAL) {
                         // End of VBlank, restart frame
                         ly_ = 0;
                         window_line_counter_ = 0;  // Reset window counter for new frame
                         mode_ = Mode::OAMSearch;
+                        // Write STAT mode bits before evaluating the IRQ line (S2)
+                        {
+                            u8 stat_register = memory_.read(REG_STAT);
+                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+                            memory_.write(REG_STAT, stat_register);
+                        }
                     }
+
+                    // Update LYC=LY coincidence then fire STAT if conditions are met
+                    update_lyc_coincidence();
                 }
                 break;
         }
-        
+
         // Update LY register
         memory_.write(REG_LY, ly_);
-        
-        // Update STAT register with current mode
-        u8 stat = memory_.read(REG_STAT);
-        stat = (stat & STAT_MODE_MASK) | static_cast<u8>(mode_);
-        memory_.write(REG_STAT, stat);
+
+        // Update STAT register mode bits (idempotent after transition sites already wrote them)
+        u8 stat_register = memory_.read(REG_STAT);
+        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+        memory_.write(REG_STAT, stat_register);
     }
 }
 
@@ -759,6 +867,24 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     std::copy(data + offset, data + offset + obj_palette_ram_.size(), obj_palette_ram_.begin());
     offset += obj_palette_ram_.size();
     
+    // Sync lcd_was_on_ from the LCDC register restored by memory deserialization
+    // (memory is always deserialized before PPU). Without this the constructor
+    // default (true) would produce a false "LCD just turned off" edge on the
+    // first step() call after loading a state saved mid-VBlank with LCD off.
+    lcd_was_on_ = (memory_.read(REG_LCDC) & LCDC_LCD_ENABLE_BIT) != 0;
+
+    // Recompute stat_irq_line_ from restored state without firing an interrupt.
+    // The line state at the time of save is unknown; initialise to the current
+    // computed value so the next real mode/LY transition fires correctly.
+    {
+        u8 stat_register = memory_.read(REG_STAT);
+        stat_irq_line_ =
+            ((stat_register & STAT_HBLANK_INT_EN)  && mode_ == Mode::HBlank)    ||
+            ((stat_register & STAT_VBLANK_INT_EN)  && mode_ == Mode::VBlank)    ||
+            ((stat_register & STAT_OAM_INT_EN)     && mode_ == Mode::OAMSearch) ||
+            ((stat_register & STAT_COINCIDENCE_EN) && (stat_register & STAT_COINCIDENCE_FLAG));
+    }
+
     // Clear transient state
     scanline_sprites_.clear();
 }

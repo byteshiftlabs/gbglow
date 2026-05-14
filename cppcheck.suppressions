@@ -66,5 +66,8 @@ unusedFunction:src/video/display.cpp:656          // get_pending_rom()
 unusedFunction:src/video/display.cpp:686          // is_muted()
 
 // --- CPU/PPU public API accessors ---
+unusedFunction:src/core/cpu.cpp:130               // ime()
+unusedFunction:src/core/cpu.cpp:135               // set_ime()
 unusedFunction:src/core/cpu.cpp:140               // is_halted()
-unusedFunction:src/video/ppu.cpp:518              // scanline()
+unusedFunction:src/core/cpu.cpp:280               // set_halted()
+unusedFunction:src/video/ppu.cpp:626              // scanline()

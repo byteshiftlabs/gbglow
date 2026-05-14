@@ -5,6 +5,7 @@
 #include "emulator.h"
 #include "../audio/apu.h"
 #include "../debug/debugger_gui.h"
+#include "timer.h"
 #include <iostream>
 #include <fstream>
 #include <chrono>
@@ -110,6 +111,7 @@ void Emulator::run(const std::string& window_title, int scale_factor) {
             // Execute single instruction (step() handles interrupts internally)
             Cycles cpu_cycles = cpu_->step();
             ppu_->step(cpu_cycles);
+            memory_->timer().step(cpu_cycles);
             memory_->apu().step(cpu_cycles);
             
             // Record execution for debugger

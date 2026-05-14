@@ -4,6 +4,7 @@
 
 #include "emulator.h"
 #include "../audio/apu.h"
+#include "timer.h"
 #include <stdexcept>
 #include <iostream>
 
@@ -78,6 +79,9 @@ void Emulator::run_cycles(Cycles cycles) {
         
         // Run PPU for the same number of cycles
         ppu_->step(cpu_cycles);
+        
+        // Run timer for clock divider and TIMA overflow interrupts
+        memory_->timer().step(cpu_cycles);
         
         // Run APU for audio generation
         memory_->apu().step(cpu_cycles);

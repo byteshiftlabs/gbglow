@@ -113,4 +113,29 @@ void MBC5::write(u16 address, u8 value) {
     }
 }
 
+void MBC5::serialize(std::vector<u8>& data) const
+{
+    Cartridge::serialize(data);
+    data.push_back(ram_enabled_ ? 1 : 0);
+    // rom_bank_ is u16 — save as 2-byte LE
+    data.push_back(static_cast<u8>(rom_bank_ & 0xFF));
+    data.push_back(static_cast<u8>((rom_bank_ >> 8) & 0xFF));
+    data.push_back(ram_bank_);
+    data.push_back(rumble_enabled_ ? 1 : 0);
+}
+
+void MBC5::deserialize(const u8* data, size_t data_size, size_t& offset)
+{
+    Cartridge::deserialize(data, data_size, offset);
+
+    constexpr size_t MBC5_STATE_SIZE = 5;  // 1 + 2 + 1 + 1
+    if (offset + MBC5_STATE_SIZE > data_size) return;
+
+    ram_enabled_    = data[offset++] != 0;
+    rom_bank_       = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    offset += 2;
+    ram_bank_       = data[offset++];
+    rumble_enabled_ = data[offset++] != 0;
+}
+
 } // namespace gbglow
