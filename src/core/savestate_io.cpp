@@ -78,7 +78,7 @@ bool Emulator::load_state(int slot) {
     std::string header(kHeaderLength, '\0');
     file.read(header.data(), static_cast<std::streamsize>(kHeaderLength));
     if (header != kHeader) {
-        std::cerr << "Save state not recognised — resave to update format" << std::endl;
+        std::cerr << "Corrupt save state: invalid header" << std::endl;
         return false;
     }
 
