@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "../core/constants.h"
+
 #include <string>
 #include <vector>
 #include <ctime>
@@ -58,7 +60,7 @@ public:
     
 private:
     // Maximum number of recent ROMs to track
-    static constexpr size_t MAX_RECENT_ROMS = 10;
+    static constexpr size_t MAX_RECENT_ROMS = constants::recent_roms::kMaxEntries;
     
     // List of recent ROM entries (sorted newest first)
     std::vector<RecentRomEntry> recent_roms_;
