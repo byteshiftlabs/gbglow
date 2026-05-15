@@ -3,6 +3,7 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "display.h"
+#include "../core/constants.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
 #include "../debug/debugger.h"
@@ -21,10 +22,77 @@
 #include <iomanip>
 #include <filesystem>
 #include <cstdlib>
+#include <cstdio>
 #include <ctime>
 #include <algorithm>
 
 namespace gbglow {
+
+using namespace constants::application;
+using namespace constants::emulator;
+using namespace constants::savestate;
+
+namespace {
+
+bool is_executable_file(const std::filesystem::path& path) {
+    std::error_code error;
+    const auto status = std::filesystem::status(path, error);
+    if (error || !std::filesystem::exists(status)) {
+        return false;
+    }
+
+    const auto perms = status.permissions();
+    return (perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+           (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none;
+}
+
+bool command_exists(const char* command_name) {
+    const char* path_env = std::getenv("PATH");
+    if (!path_env || !*path_env) {
+        return false;
+    }
+
+    std::stringstream path_stream(path_env);
+    std::string path_entry;
+    while (std::getline(path_stream, path_entry, ':')) {
+        if (path_entry.empty()) {
+            continue;
+        }
+
+        if (is_executable_file(std::filesystem::path(path_entry) / command_name)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::string run_command_and_capture_stdout(const char* command) {
+    FILE* pipe = popen(command, "r");
+    if (!pipe) {
+        return {};
+    }
+
+    std::string output;
+    char buffer[512];
+    while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+    }
+
+    const int exit_code = pclose(pipe);
+    if (exit_code != 0) {
+        return {};
+    }
+
+    while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+        output.pop_back();
+    }
+
+    return output;
+}
+
+}  // namespace
 
 Display::Display()
     : window_(nullptr)
@@ -48,12 +116,15 @@ Display::Display()
     , is_paused_(false)
     , show_about_dialog_(false)
     , show_controller_config_(false)
+    , open_rom_dialog_requested_(false)
     , speed_multiplier_(1.0f)
     , save_state_slot_(-1)
     , load_state_slot_(-1)
     , delete_state_slot_(-1)
     , waiting_for_key_(-1)
 {
+    open_rom_path_buffer_.fill('\0');
+
     // Initialize default key bindings
     key_bindings_.up = SDLK_UP;
     key_bindings_.down = SDLK_DOWN;
@@ -221,7 +292,7 @@ bool Display::initialize(const std::string& title, int scale_factor) {
     // Set up audio specification
     SDL_AudioSpec audio_spec;
     SDL_zero(audio_spec);
-    audio_spec.freq = 44100;              // 44.1 kHz sample rate
+    audio_spec.freq = static_cast<int>(kAudioSampleRate);
     audio_spec.format = AUDIO_S16SYS;     // 16-bit signed audio
     audio_spec.channels = 2;              // Stereo
     audio_spec.samples = 512;             // Smaller buffer for lower latency
@@ -361,6 +432,8 @@ void Display::update(const std::vector<u8>& framebuffer) {
     if (show_controller_config_) {
         render_controller_config();
     }
+
+    render_open_rom_dialog();
     
     // Render ImGui
     ImGui::Render();
@@ -398,8 +471,9 @@ void Display::poll_events(Joypad* joypad) {
                 break;
                 
             case SDL_KEYDOWN:
-                if (!imgui_wants_keyboard || waiting_for_rebind) {
-                    handle_keydown(event.key.keysym.sym, joypad);
+                if (!imgui_wants_keyboard || waiting_for_rebind ||
+                    is_global_shortcut(event.key.keysym.sym, event.key.keysym.mod)) {
+                    handle_keydown(event.key.keysym.sym, event.key.keysym.mod, joypad);
                 }
                 break;
                 
@@ -435,7 +509,15 @@ void Display::poll_events(Joypad* joypad) {
     }
 }
 
-void Display::handle_keydown(int key, Joypad* joypad) {
+bool Display::is_global_shortcut(int key, int modifiers) const {
+    if ((modifiers & KMOD_CTRL) != 0) {
+        return key == SDLK_o || key == SDLK_r;
+    }
+
+    return (key >= SDLK_F1 && key <= SDLK_F12) || key == SDLK_ESCAPE;
+}
+
+void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
     // If waiting for key rebinding, capture it
     if (waiting_for_key_ >= 0) {
         switch (waiting_for_key_) {
@@ -456,6 +538,29 @@ void Display::handle_keydown(int key, Joypad* joypad) {
     // ESC key closes window
     if (key == SDLK_ESCAPE) {
         should_close_ = true;
+        return;
+    }
+
+    const bool ctrl_pressed = (modifiers & KMOD_CTRL) != 0;
+    const bool shift_pressed = (modifiers & KMOD_SHIFT) != 0;
+
+    if (ctrl_pressed && key == SDLK_o) {
+        request_open_rom_dialog();
+        return;
+    }
+
+    if (ctrl_pressed && key == SDLK_r) {
+        should_reset_ = true;
+        return;
+    }
+
+    if (key >= SDLK_F1 && key < SDLK_F1 + kHotkeySlotCount) {
+        const int slot = key - SDLK_F1;
+        if (shift_pressed) {
+            load_state_slot_ = slot;
+        } else {
+            save_state_slot_ = slot;
+        }
         return;
     }
     
@@ -507,11 +612,10 @@ void Display::handle_keydown(int key, Joypad* joypad) {
         return;
     }
     
-    // F10 key for step in debugger
+    // F10 key for step over in debugger
     if (key == SDLK_F10) {
         if (debugger_gui_ && debugger_mode_ && debugger_gui_->is_paused()) {
-            debugger_gui_->clear_step_request();
-            // The step request will be set by the GUI button
+            debugger_gui_->request_step_over();
         }
         return;
     }
@@ -728,9 +832,7 @@ void Display::render_menu_bar() {
         // File Menu
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O")) {
-                // For now, just show a message - file dialog would need nativefiledialog or similar
-                std::cout << "Open ROM dialog would appear here" << std::endl;
-                // In a real implementation, you'd use a file dialog library
+                request_open_rom_dialog();
             }
             
             ImGui::Separator();
@@ -777,7 +879,7 @@ void Display::render_menu_bar() {
             
             if (ImGui::BeginMenu("Save State")) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
                     if (ImGui::MenuItem(label.c_str())) {
                         save_state_slot_ = i;
@@ -788,7 +890,7 @@ void Display::render_menu_bar() {
             
             if (ImGui::BeginMenu("Load State")) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
                     // Disable menu item if slot is free
                     bool is_free = (label.find("free") != std::string::npos);
@@ -801,7 +903,7 @@ void Display::render_menu_bar() {
             
             if (ImGui::BeginMenu("Delete State")) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
                     // Disable menu item if slot is free
                     bool is_free = (label.find("free") != std::string::npos);
@@ -825,7 +927,7 @@ void Display::render_menu_bar() {
             ImGui::Separator();
             
             bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
-            if (ImGui::MenuItem("Debugger", "F12", debugger_visible)) {
+            if (ImGui::MenuItem("Debugger", "F11", debugger_visible)) {
                 if (debugger_gui_) {
                     if (debugger_mode_) {
                         // In debugger mode, toggle exits debugger mode
@@ -856,9 +958,8 @@ void Display::render_menu_bar() {
                     }
                 }
                 
-                if (ImGui::MenuItem("Step", "F10", false, paused)) {
-                    debugger_gui_->clear_step_request();
-                    // Request step through DebuggerGUI
+                if (ImGui::MenuItem("Step Over", "F10", false, paused)) {
+                    debugger_gui_->request_step_over();
                 }
                 
                 ImGui::Separator();
@@ -875,7 +976,7 @@ void Display::render_menu_bar() {
                 
                 ImGui::Separator();
                 
-                if (ImGui::MenuItem("Exit Debugger", "F12")) {
+                if (ImGui::MenuItem("Exit Debugger", "F11")) {
                     set_debugger_mode(false);
                     debugger_gui_->set_visible(false);
                 }
@@ -963,6 +1064,99 @@ void Display::render_about_dialog() {
         }
     }
     ImGui::End();
+}
+
+void Display::request_open_rom_dialog() {
+    open_rom_dialog_requested_ = true;
+    open_rom_error_message_.clear();
+
+    const std::string& initial_path = current_rom_path_.empty() ? pending_rom_path_ : current_rom_path_;
+    open_rom_path_buffer_.fill('\0');
+    if (!initial_path.empty()) {
+        std::snprintf(open_rom_path_buffer_.data(), open_rom_path_buffer_.size(), "%s", initial_path.c_str());
+    }
+}
+
+std::string Display::browse_for_rom_file(std::string& error_message) const {
+    error_message.clear();
+
+    if (command_exists("zenity")) {
+        const std::string zenity_command =
+            std::string("zenity --file-selection --title='") + kOpenRomDialogTitle + "' "
+            "--file-filter='Game Boy ROMs | *.gb *.gbc *.bin *.rom' "
+            "--file-filter='All Files | *' 2>/dev/null";
+        return run_command_and_capture_stdout(zenity_command.c_str());
+    }
+
+    if (command_exists("kdialog")) {
+        const char* kdialog_command =
+            "kdialog --getopenfilename \"$HOME\" '*.gb *.gbc *.bin *.rom|Game Boy ROMs' 2>/dev/null";
+        return run_command_and_capture_stdout(kdialog_command);
+    }
+
+    error_message = "No native file picker found. Install zenity or kdialog, or enter the ROM path manually.";
+    return {};
+}
+
+void Display::render_open_rom_dialog() {
+    if (open_rom_dialog_requested_) {
+        ImGui::OpenPopup(kOpenRomDialogTitle);
+        open_rom_dialog_requested_ = false;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_Appearing);
+    if (ImGui::BeginPopupModal(kOpenRomDialogTitle, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("Enter a ROM path manually or use Browse when a native file picker is available.");
+        ImGui::Spacing();
+
+        ImGui::SetNextItemWidth(420.0f);
+        if (ImGui::InputText("ROM Path", open_rom_path_buffer_.data(), open_rom_path_buffer_.size(),
+                             ImGuiInputTextFlags_EnterReturnsTrue)) {
+            open_rom_error_message_.clear();
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Browse")) {
+            std::string browse_error;
+            const std::string selected_path = browse_for_rom_file(browse_error);
+            if (!selected_path.empty()) {
+                std::snprintf(open_rom_path_buffer_.data(), open_rom_path_buffer_.size(), "%s", selected_path.c_str());
+                open_rom_error_message_.clear();
+            } else if (!browse_error.empty() && browse_error != "No ROM selected.") {
+                open_rom_error_message_ = browse_error;
+            }
+        }
+
+        if (!open_rom_error_message_.empty()) {
+            ImGui::Spacing();
+            ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f), "%s", open_rom_error_message_.c_str());
+        }
+
+        ImGui::Spacing();
+        if (ImGui::Button("Open", ImVec2(120.0f, 0.0f))) {
+            const std::filesystem::path rom_path = open_rom_path_buffer_.data();
+            std::error_code error;
+            if (rom_path.empty()) {
+                open_rom_error_message_ = "Enter a ROM path first.";
+            } else if (!std::filesystem::exists(rom_path, error) || error) {
+                open_rom_error_message_ = "Selected ROM path does not exist.";
+            } else if (!std::filesystem::is_regular_file(rom_path, error) || error) {
+                open_rom_error_message_ = "Selected path is not a file.";
+            } else {
+                pending_rom_path_ = rom_path.string();
+                open_rom_error_message_.clear();
+                ImGui::CloseCurrentPopup();
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120.0f, 0.0f))) {
+            open_rom_error_message_.clear();
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 void Display::render_controller_config() {
@@ -1143,12 +1337,9 @@ std::string Display::get_keybindings_path() const {
         base_dir = xdg_config;
     } else {
         const char* home = std::getenv("HOME");
-#ifdef _WIN32
-        if (!home) home = std::getenv("USERPROFILE");
-#endif
         base_dir = home ? std::string(home) + "/.config" : ".";
     }
-    return base_dir + "/gbglow/keybindings.conf";
+    return base_dir + "/" + kConfigDirectoryName + "/" + kKeybindingsFileName;
 }
 
 void Display::load_key_bindings() {

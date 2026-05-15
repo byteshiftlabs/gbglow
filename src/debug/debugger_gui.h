@@ -70,6 +70,16 @@ public:
      * Clear step request
      */
     void clear_step_request();
+
+    /**
+     * Request a single-instruction step
+     */
+    void request_step();
+
+    /**
+     * Request step over for the current instruction when possible.
+     */
+    void request_step_over();
     
     /**
      * Signal that execution should continue

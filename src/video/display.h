@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include "../core/constants.h"
 #include "../core/types.h"
+#include <array>
 #include <vector>
 #include <string>
 #include <map>
@@ -270,10 +272,13 @@ private:
     bool is_paused_;
     bool show_about_dialog_;
     bool show_controller_config_;
+    bool open_rom_dialog_requested_;
     float speed_multiplier_;  // 0.5, 1.0, 2.0, 4.0
     int save_state_slot_;  // -1 = none, 0-9 = save to slot
     int load_state_slot_;  // -1 = none, 0-9 = load from slot
     int delete_state_slot_;  // -1 = none, 0-9 = delete slot
+    std::array<char, constants::display::kOpenRomPathBufferSize> open_rom_path_buffer_;
+    std::string open_rom_error_message_;
     
     // Key bindings
     struct KeyBindings {
@@ -308,29 +313,30 @@ private:
     std::string current_rom_path_;  // Track current ROM path for slot labels
     
     // Game Boy LCD dimensions
-    static constexpr int LCD_WIDTH = 160;
-    static constexpr int LCD_HEIGHT = 144;
-    static constexpr int BYTES_PER_PIXEL = 4;  // RGBA
+    static constexpr int LCD_WIDTH = constants::display::kLcdWidth;
+    static constexpr int LCD_HEIGHT = constants::display::kLcdHeight;
+    static constexpr int BYTES_PER_PIXEL = constants::display::kBytesPerPixel;
     
     // Default scale factor
-    static constexpr int DEFAULT_SCALE = 4;
+    static constexpr int DEFAULT_SCALE = constants::display::kDefaultScale;
     
     // Debugger mode window dimensions
-    static constexpr int DEBUGGER_WINDOW_WIDTH = 1280;
-    static constexpr int DEBUGGER_WINDOW_HEIGHT = 800;
+    static constexpr int DEBUGGER_WINDOW_WIDTH = constants::display::kDebuggerWindowWidth;
+    static constexpr int DEBUGGER_WINDOW_HEIGHT = constants::display::kDebuggerWindowHeight;
     
     // Audio conversion constants (U8 hardware format to S16)
-    static constexpr int AUDIO_U8_MIDPOINT = 128;
-    static constexpr int AUDIO_U8_SCALE = 128;
+    static constexpr int AUDIO_U8_MIDPOINT = constants::display::kAudioU8Midpoint;
+    static constexpr int AUDIO_U8_SCALE = constants::display::kAudioU8Scale;
     
     // SDL clear color (opaque black)
-    static constexpr u8 CLEAR_COLOR_R = 0;
-    static constexpr u8 CLEAR_COLOR_G = 0;
-    static constexpr u8 CLEAR_COLOR_B = 0;
-    static constexpr u8 CLEAR_COLOR_A = 255;
+    static constexpr u8 CLEAR_COLOR_R = constants::display::kClearColorR;
+    static constexpr u8 CLEAR_COLOR_G = constants::display::kClearColorG;
+    static constexpr u8 CLEAR_COLOR_B = constants::display::kClearColorB;
+    static constexpr u8 CLEAR_COLOR_A = constants::display::kClearColorA;
     
     // Savestate slot label buffer size
-    static constexpr size_t SLOT_LABEL_SIZE = 128;
+    static constexpr size_t SLOT_LABEL_SIZE = constants::display::kSlotLabelSize;
+    static constexpr size_t OPEN_ROM_PATH_BUFFER_SIZE = constants::display::kOpenRomPathBufferSize;
     
     /**
      * Convert SDL error to readable message
@@ -365,7 +371,12 @@ private:
     /**
      * Handle keyboard press events
      */
-    void handle_keydown(int key, Joypad* joypad);
+    void handle_keydown(int key, int modifiers, Joypad* joypad);
+
+    /**
+     * Check whether a shortcut should still be handled while ImGui owns the keyboard
+     */
+    bool is_global_shortcut(int key, int modifiers) const;
     
     /**
      * Handle keyboard release events
@@ -381,6 +392,21 @@ private:
      * Render about dialog
      */
     void render_about_dialog();
+
+    /**
+     * Queue the Open ROM modal for display
+     */
+    void request_open_rom_dialog();
+
+    /**
+     * Render the Open ROM modal dialog
+     */
+    void render_open_rom_dialog();
+
+    /**
+     * Open a native file picker if one is available
+     */
+    std::string browse_for_rom_file(std::string& error_message) const;
     
     /**
      * Render controller configuration dialog
