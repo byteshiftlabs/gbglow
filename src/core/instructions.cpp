@@ -3,17 +3,12 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
-#include "cpu_constants.h"
+#include "constants.h"
 #include <stdexcept>
 
 namespace gbglow {
 
-// CGB register addresses
-namespace {
-    constexpr u16 CGB_KEY1 = 0xFF4D;  // Speed switch register
-    constexpr u8 CGB_SPEED_PREPARE_BIT = 0x01;  // KEY1 bit 0: prepare speed switch
-    constexpr u8 CGB_SPEED_TOGGLE_BIT = 0x80;   // KEY1 bit 7: current speed (toggle)
-}
+using namespace constants::cpu;
 
 /**
  * Execute a single CPU instruction

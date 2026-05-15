@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "../core/constants.h"
 #include "../core/types.h"
 #include <string>
 #include <vector>
@@ -54,9 +55,9 @@ private:
     std::string screenshot_dir_;
     
     // Game Boy LCD dimensions
-    static constexpr int LCD_WIDTH = 160;
-    static constexpr int LCD_HEIGHT = 144;
-    static constexpr int CHANNELS = 4;  // RGBA
+    static constexpr int LCD_WIDTH = constants::display::kLcdWidth;
+    static constexpr int LCD_HEIGHT = constants::display::kLcdHeight;
+    static constexpr int CHANNELS = constants::display::kBytesPerPixel;
     
     /**
      * Get screenshots directory path

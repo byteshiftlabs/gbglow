@@ -10,6 +10,8 @@
 
 namespace gbglow {
 
+using namespace constants::emulator;
+
 Emulator::Emulator()
     : memory_(std::make_unique<Memory>())
     , cpu_(std::make_unique<CPU>(*memory_))
@@ -66,7 +68,6 @@ void Emulator::reset() {
 
 void Emulator::run_frame() {
     // One frame = ~70224 cycles (59.7 fps)
-    // 154 scanlines × 456 dots = 70224 cycles
     run_cycles(CYCLES_PER_FRAME);
 }
 

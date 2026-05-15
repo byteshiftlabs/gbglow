@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "constants.h"
 #include "types.h"
 #include "cpu.h"
 #include "memory.h"
@@ -153,11 +154,11 @@ private:
     std::string rom_path_;  // Path to loaded ROM file
     
     // Game Boy refresh rate: ~59.73 Hz
-    static constexpr double FRAME_RATE = 59.73;
-    static constexpr double FRAME_TIME_MS = 1000.0 / FRAME_RATE;  // ~16.74 ms
+    static constexpr double FRAME_RATE = constants::emulator::kFrameRateHz;
+    static constexpr double FRAME_TIME_MS = constants::emulator::kFrameTimeMs;
     
     // Cycles per frame
-    static constexpr Cycles CYCLES_PER_FRAME = 70224;  // 154 scanlines × 456 dots
+    static constexpr Cycles CYCLES_PER_FRAME = constants::emulator::kCyclesPerFrame;
 };
 
 } // namespace gbglow

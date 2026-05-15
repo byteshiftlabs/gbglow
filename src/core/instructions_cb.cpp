@@ -3,10 +3,12 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
-#include "cpu_constants.h"
+#include "constants.h"
 #include <stdexcept>
 
 namespace gbglow {
+
+using namespace constants::cpu;
 
 /**
  * Execute CB-prefixed instruction

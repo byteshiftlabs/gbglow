@@ -9,6 +9,7 @@
  */
 
 #include "screenshot.h"
+#include "../core/constants.h"
 #include "../core/platform.h"
 
 // Disable warnings for third-party STB library
@@ -26,6 +27,8 @@
 #include <sstream>
 
 namespace gbglow {
+
+using namespace constants::application;
 
 Screenshot::Screenshot()
 {
@@ -69,8 +72,7 @@ bool Screenshot::capture(const std::vector<u8>& framebuffer, const std::string& 
         std::cerr << "Failed to write screenshot: " << last_screenshot_path_ << std::endl;
         return false;
     }
-    
-    std::cout << "Screenshot saved: " << last_screenshot_path_ << std::endl;
+
     return true;
 }
 
@@ -81,15 +83,12 @@ const std::string& Screenshot::get_last_screenshot_path() const
 
 std::string Screenshot::get_screenshot_dir() const
 {
-    // Use ~/Pictures/gbglow/ on Linux/macOS
+    // Use ~/Pictures/gbglow/ on Ubuntu 24.04.
     const char* home = std::getenv("HOME");
-#ifdef _WIN32
-    if (!home) home = std::getenv("USERPROFILE");
-#endif
     std::string base_dir;
     
     if (home) {
-        base_dir = std::string(home) + "/Pictures/gbglow";
+        base_dir = std::string(home) + "/Pictures/" + kScreenshotDirectoryName;
     } else {
         // Fallback to current directory
         base_dir = "./screenshots";
@@ -108,7 +107,7 @@ std::string Screenshot::generate_filename(const std::string& rom_name) const
     
     // Format: gbglow_ROMNAME_YYYYMMDD_HHMMSS.png
     std::ostringstream filename;
-    filename << "gbglow";
+    filename << kName;
     
     // Add ROM name if provided
     if (!rom_name.empty()) {
