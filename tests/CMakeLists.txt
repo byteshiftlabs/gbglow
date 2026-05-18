@@ -15,6 +15,8 @@ add_executable(test_basic
     ../src/cartridge/mbc3.cpp
     ../src/cartridge/mbc5.cpp
     ../src/debug/debugger.cpp
+    ../src/debug/debugger_gui.cpp
+    ../src/input/gamepad.cpp
     ../src/input/joypad.cpp
     ../src/audio/apu.cpp
     ../src/video/ppu.cpp
@@ -24,5 +26,7 @@ add_executable(test_basic
 target_include_directories(test_basic PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
+
+target_link_libraries(test_basic PRIVATE imgui_backend ${SDL2_LIBRARIES})
 
 add_test(NAME basic_tests COMMAND test_basic)

@@ -25,6 +25,8 @@
 #include <cstdio>
 #include <ctime>
 #include <algorithm>
+#include <limits>
+#include <sys/wait.h>
 
 namespace gbglow {
 
@@ -33,6 +35,59 @@ using namespace constants::emulator;
 using namespace constants::savestate;
 
 namespace {
+
+struct CommandResult {
+    std::string output;
+    int exit_code;
+    bool launched;
+};
+
+void trim_in_place(std::string& value) {
+    const size_t first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        value.clear();
+        return;
+    }
+
+    const size_t last = value.find_last_not_of(" \t\r\n");
+    value = value.substr(first, last - first + 1);
+}
+
+bool write_text_file_atomically(const std::filesystem::path& path, const std::string& contents) {
+    const std::filesystem::path temp_path = path.string() + ".tmp";
+
+    {
+        std::ofstream file(temp_path, std::ios::trunc);
+        if (!file.is_open()) {
+            return false;
+        }
+
+        file << contents;
+        if (!file.good()) {
+            file.close();
+            std::error_code remove_error;
+            std::filesystem::remove(temp_path, remove_error);
+            return false;
+        }
+    }
+
+    std::error_code error;
+    std::filesystem::rename(temp_path, path, error);
+    if (!error) {
+        return true;
+    }
+
+    std::filesystem::remove(path, error);
+    error.clear();
+    std::filesystem::rename(temp_path, path, error);
+    if (!error) {
+        return true;
+    }
+
+    std::error_code remove_error;
+    std::filesystem::remove(temp_path, remove_error);
+    return false;
+}
 
 bool is_executable_file(const std::filesystem::path& path) {
     std::error_code error;
@@ -68,10 +123,10 @@ bool command_exists(const char* command_name) {
     return false;
 }
 
-std::string run_command_and_capture_stdout(const char* command) {
+CommandResult run_command_and_capture_stdout(const char* command) {
     FILE* pipe = popen(command, "r");
     if (!pipe) {
-        return {};
+        return {{}, -1, false};
     }
 
     std::string output;
@@ -80,16 +135,17 @@ std::string run_command_and_capture_stdout(const char* command) {
         output += buffer;
     }
 
-    const int exit_code = pclose(pipe);
-    if (exit_code != 0) {
-        return {};
+    const int wait_status = pclose(pipe);
+    int exit_code = wait_status;
+    if (wait_status != -1 && WIFEXITED(wait_status)) {
+        exit_code = WEXITSTATUS(wait_status);
     }
 
     while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
         output.pop_back();
     }
 
-    return output;
+    return {output, exit_code, true};
 }
 
 }  // namespace
@@ -141,7 +197,7 @@ Display::Display()
     load_key_bindings();
     
     // Load gamepad configuration
-    gamepad_->load_config(get_keybindings_path());
+    gamepad_->load_config(get_gamepad_config_path());
 }
 
 Display::~Display() {
@@ -377,17 +433,20 @@ void Display::update(const std::vector<u8>& framebuffer) {
     ImGui_ImplSDLRenderer2_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
+
+    if (debugger_mode_) {
+        if (debugger_gui_) {
+            debugger_gui_->apply_debug_theme();
+        }
+    } else {
+        ImGui::StyleColorsDark();
+    }
     
     // Render menu bar
     render_menu_bar();
     
     // In debugger mode, render emulator as a panel
     if (debugger_mode_) {
-        // Apply debug theme
-        if (debugger_gui_) {
-            debugger_gui_->apply_debug_theme();
-        }
-        
         // Left panel: Emulator view (fixed size, no move/resize)
         ImGui::SetNextWindowPos(ImVec2(0, 20), ImGuiCond_Always);  // Below menu bar
         ImGui::SetNextWindowSize(ImVec2(480, 432), ImGuiCond_Always);  // 160x144 * 3
@@ -480,9 +539,7 @@ void Display::poll_events(Joypad* joypad) {
                 break;
                 
             case SDL_KEYUP:
-                if (!imgui_wants_keyboard) {
-                    handle_keyup(event.key.keysym.sym, joypad);
-                }
+                handle_keyup(event.key.keysym.sym, joypad);
                 break;
                 
             case SDL_CONTROLLERDEVICEADDED:
@@ -490,7 +547,7 @@ void Display::poll_events(Joypad* joypad) {
                 break;
                 
             case SDL_CONTROLLERDEVICEREMOVED:
-                gamepad_->on_controller_removed(event.cdevice.which);
+                gamepad_->on_controller_removed(event.cdevice.which, joypad);
                 break;
                 
             case SDL_CONTROLLERBUTTONDOWN:
@@ -566,7 +623,7 @@ void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
         return;
     }
 
-    if (key >= SDLK_F1 && key < SDLK_F1 + kHotkeySlotCount) {
+    if (!current_rom_path_.empty() && key >= SDLK_F1 && key < SDLK_F1 + kHotkeySlotCount) {
         const int slot = key - SDLK_F1;
         if (shift_pressed) {
             load_state_slot_ = slot;
@@ -728,6 +785,12 @@ void Display::queue_audio(const std::vector<std::pair<u8, u8>>& samples) {
     if (audio_device_ == 0 || samples.empty()) {
         return;
     }
+
+    constexpr size_t kChannelsPerSample = 2;
+    constexpr size_t kBytesPerQueuedSample = kChannelsPerSample * sizeof(i16);
+    if (samples.size() > (std::numeric_limits<Uint32>::max() / kBytesPerQueuedSample)) {
+        return;
+    }
     
     // If muted, queue silence instead of actual audio for timing purposes
     if (is_muted_) {
@@ -841,6 +904,8 @@ void Display::clear_state_request() {
 
 void Display::render_menu_bar() {
     if (ImGui::BeginMainMenuBar()) {
+        const bool has_rom_loaded = !current_rom_path_.empty();
+
         // File Menu
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Open ROM...", "Ctrl+O")) {
@@ -889,7 +954,7 @@ void Display::render_menu_bar() {
             
             ImGui::Separator();
             
-            if (ImGui::BeginMenu("Save State")) {
+            if (ImGui::BeginMenu("Save State", has_rom_loaded)) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
                 for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
@@ -900,7 +965,7 @@ void Display::render_menu_bar() {
                 ImGui::EndMenu();
             }
             
-            if (ImGui::BeginMenu("Load State")) {
+            if (ImGui::BeginMenu("Load State", has_rom_loaded)) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
                 for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
@@ -913,7 +978,7 @@ void Display::render_menu_bar() {
                 ImGui::EndMenu();
             }
             
-            if (ImGui::BeginMenu("Delete State")) {
+            if (ImGui::BeginMenu("Delete State", has_rom_loaded)) {
                 // Only compute labels when menu is open to avoid 10 stat() calls per frame
                 for (int i = 0; i < kSlotCount; i++) {
                     std::string label = get_slot_label(i, current_rom_path_);
@@ -945,6 +1010,7 @@ void Display::render_menu_bar() {
                         // In debugger mode, toggle exits debugger mode
                         set_debugger_mode(false);
                         debugger_gui_->set_visible(false);
+                        debugger_gui_->set_docking_mode(false);
                     } else {
                         // Not in debugger mode, enter it
                         set_debugger_mode(true);
@@ -991,6 +1057,7 @@ void Display::render_menu_bar() {
                 if (ImGui::MenuItem("Exit Debugger", "F11")) {
                     set_debugger_mode(false);
                     debugger_gui_->set_visible(false);
+                    debugger_gui_->set_docking_mode(false);
                 }
                 
                 ImGui::EndMenu();
@@ -1099,13 +1166,39 @@ std::string Display::browse_for_rom_file(std::string& error_message) const {
             std::string("zenity --file-selection --title='") + kOpenRomDialogTitle + "' "
             "--file-filter='Game Boy ROMs | *.gb *.gbc *.bin *.rom' "
             "--file-filter='All Files | *' 2>/dev/null";
-        return run_command_and_capture_stdout(zenity_command.c_str());
+        const CommandResult result = run_command_and_capture_stdout(zenity_command.c_str());
+        if (!result.launched) {
+            error_message = "Failed to launch zenity.";
+            return {};
+        }
+        if (result.exit_code == 0) {
+            return result.output;
+        }
+        if (result.exit_code == 1) {
+            error_message = "No ROM selected.";
+            return {};
+        }
+        error_message = "zenity failed while opening the file picker.";
+        return {};
     }
 
     if (command_exists("kdialog")) {
         const char* kdialog_command =
             "kdialog --getopenfilename \"$HOME\" '*.gb *.gbc *.bin *.rom|Game Boy ROMs' 2>/dev/null";
-        return run_command_and_capture_stdout(kdialog_command);
+        const CommandResult result = run_command_and_capture_stdout(kdialog_command);
+        if (!result.launched) {
+            error_message = "Failed to launch kdialog.";
+            return {};
+        }
+        if (result.exit_code == 0) {
+            return result.output;
+        }
+        if (result.exit_code == 1) {
+            error_message = "No ROM selected.";
+            return {};
+        }
+        error_message = "kdialog failed while opening the file picker.";
+        return {};
     }
 
     error_message = "No native file picker found. Install zenity or kdialog, or enter the ROM path manually.";
@@ -1298,7 +1391,8 @@ void Display::delete_slot_metadata(int slot) {
 }
 
 bool Display::check_slot_exists(const std::string& state_path) const {
-    return std::filesystem::exists(state_path);
+    std::error_code error;
+    return std::filesystem::exists(state_path, error) && !error;
 }
 
 std::string Display::get_slot_label(int slot, const std::string& rom_path) const {
@@ -1348,12 +1442,15 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
         return label;
     }
     
-    // Fallback to free
-    snprintf(label, sizeof(label), "Slot %d - free", slot + 1);
+    // Keep occupied slots actionable even if metadata lookup fails.
+    snprintf(label, sizeof(label), "Slot %d - used", slot + 1);
     return label;
 }
 
 void Display::set_rom_path(const std::string& rom_path) {
+    if (current_rom_path_ != rom_path) {
+        slot_metadata_.clear();
+    }
     current_rom_path_ = rom_path;
 }
 
@@ -1371,6 +1468,18 @@ std::string Display::get_keybindings_path() const {
         base_dir = home ? std::string(home) + "/.config" : ".";
     }
     return base_dir + "/" + kConfigDirectoryName + "/" + kKeybindingsFileName;
+}
+
+std::string Display::get_gamepad_config_path() const {
+    const char* xdg_config = std::getenv("XDG_CONFIG_HOME");
+    std::string base_dir;
+    if (xdg_config) {
+        base_dir = xdg_config;
+    } else {
+        const char* home = std::getenv("HOME");
+        base_dir = home ? std::string(home) + "/.config" : ".";
+    }
+    return base_dir + "/" + kConfigDirectoryName + "/" + kGamepadConfigFileName;
 }
 
 void Display::load_key_bindings() {
@@ -1398,10 +1507,11 @@ void Display::load_key_bindings() {
         std::string value = line.substr(eq_pos + 1);
         
         // Trim whitespace
-        key.erase(0, key.find_first_not_of(" \t"));
-        key.erase(key.find_last_not_of(" \t") + 1);
-        value.erase(0, value.find_first_not_of(" \t"));
-        value.erase(value.find_last_not_of(" \t") + 1);
+        trim_in_place(key);
+        trim_in_place(value);
+        if (key.empty() || value.empty()) {
+            continue;
+        }
         
         int keycode = parse_sdl_keycode(value);
         if (keycode == SDLK_UNKNOWN) {
@@ -1425,30 +1535,35 @@ void Display::load_key_bindings() {
 
 void Display::save_key_bindings() {
     std::string config_path = get_keybindings_path();
-    std::filesystem::create_directories(std::filesystem::path(config_path).parent_path());
-    std::ofstream file(config_path);
-    if (!file.is_open()) {
+    std::error_code error;
+    std::filesystem::create_directories(std::filesystem::path(config_path).parent_path(), error);
+    if (error) {
+        std::cerr << "Failed to create key bindings config directory: " << error.message() << std::endl;
+        return;
+    }
+
+    std::ostringstream contents;
+    contents << "# gbglow Key Bindings Configuration\n";
+    contents << "# Format: action=SDLK_keyname\n";
+    contents << "# \n";
+    contents << "# Available keys: https://wiki.libsdl.org/SDL2/SDLKeycodeLookup\n";
+    contents << "# Examples: SDLK_a, SDLK_UP, SDLK_SPACE, SDLK_RETURN, SDLK_LSHIFT\n";
+    contents << "#\n";
+    contents << "# Game Boy Controls:\n";
+    contents << "up=" << sdl_keycode_to_string(key_bindings_.up) << "\n";
+    contents << "down=" << sdl_keycode_to_string(key_bindings_.down) << "\n";
+    contents << "left=" << sdl_keycode_to_string(key_bindings_.left) << "\n";
+    contents << "right=" << sdl_keycode_to_string(key_bindings_.right) << "\n";
+    contents << "a=" << sdl_keycode_to_string(key_bindings_.a) << "\n";
+    contents << "b=" << sdl_keycode_to_string(key_bindings_.b) << "\n";
+    contents << "start=" << sdl_keycode_to_string(key_bindings_.start) << "\n";
+    contents << "select=" << sdl_keycode_to_string(key_bindings_.select) << "\n";
+
+    if (!write_text_file_atomically(config_path, contents.str())) {
         std::cerr << "Failed to save key bindings config" << std::endl;
         return;
     }
-    
-    file << "# gbglow Key Bindings Configuration\n";
-    file << "# Format: action=SDLK_keyname\n";
-    file << "# \n";
-    file << "# Available keys: https://wiki.libsdl.org/SDL2/SDLKeycodeLookup\n";
-    file << "# Examples: SDLK_a, SDLK_UP, SDLK_SPACE, SDLK_RETURN, SDLK_LSHIFT\n";
-    file << "#\n";
-    file << "# Game Boy Controls:\n";
-    file << "up=" << sdl_keycode_to_string(key_bindings_.up) << "\n";
-    file << "down=" << sdl_keycode_to_string(key_bindings_.down) << "\n";
-    file << "left=" << sdl_keycode_to_string(key_bindings_.left) << "\n";
-    file << "right=" << sdl_keycode_to_string(key_bindings_.right) << "\n";
-    file << "a=" << sdl_keycode_to_string(key_bindings_.a) << "\n";
-    file << "b=" << sdl_keycode_to_string(key_bindings_.b) << "\n";
-    file << "start=" << sdl_keycode_to_string(key_bindings_.start) << "\n";
-    file << "select=" << sdl_keycode_to_string(key_bindings_.select) << "\n";
-    
-    file.close();
+
     std::cout << "Saved key bindings to " << config_path << std::endl;
 }
 

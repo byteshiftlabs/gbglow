@@ -29,7 +29,7 @@ std::string Emulator::get_save_path() const
 }
 
 bool Emulator::save_state(int slot) {
-    if (slot < kMinSlot || slot > kMaxSlot) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
 
@@ -66,7 +66,7 @@ bool Emulator::save_state(int slot) {
 }
 
 bool Emulator::load_state(int slot) {
-    if (slot < kMinSlot || slot > kMaxSlot) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
 
@@ -143,6 +143,10 @@ bool Emulator::load_state(int slot) {
 }
 
 std::string Emulator::get_state_path(int slot) const {
+    if (rom_path_.empty()) {
+        return {};
+    }
+
     std::string state_path = rom_path_;
     size_t dot_pos = state_path.rfind('.');
     if (dot_pos != std::string::npos) {
@@ -153,7 +157,7 @@ std::string Emulator::get_state_path(int slot) const {
 }
 
 bool Emulator::delete_state(int slot) {
-    if (slot < kMinSlot || slot > kMaxSlot) {
+    if (rom_path_.empty() || slot < kMinSlot || slot > kMaxSlot) {
         return false;
     }
     return std::remove(get_state_path(slot).c_str()) == 0;
