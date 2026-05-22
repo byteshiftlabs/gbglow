@@ -9,6 +9,7 @@
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
 #include "../src/core/timer.h"
+#include "../src/cartridge/cartridge.h"
 #include "../src/cartridge/mbc3.h"
 #include "../src/debug/debugger.h"
 #include "../src/debug/debugger_gui.h"
@@ -771,6 +772,44 @@ bool test_ppu_8x16_y_flip_uses_bottom_tile_first() {
     return true;
 }
 
+bool test_ppu_cgb_window_uses_palette_attributes() {
+    std::cout << "Testing PPU CGB window palette attributes...\n";
+
+    std::vector<u8> rom(0x8000, 0x00);
+    rom[0x0143] = 0x80;  // CGB supported.
+    rom[0x0147] = 0x00;  // ROM only.
+    ROMOnly cartridge(std::move(rom));
+
+    Memory memory;
+    PPU ppu(memory);
+    memory.set_ppu(&ppu);
+    ppu.set_cartridge(&cartridge);
+
+    memory.write(io_reg::REG_LCDC, 0x80 | 0x20 | 0x10 | 0x01);  // LCD on, BG on, window on, unsigned tiles.
+    memory.write(io_reg::REG_WY, 0);
+    memory.write(io_reg::REG_WX, 7);
+
+    // Bank 0 tile map uses tile 0 for the first window cell.
+    memory.write(io_reg::REG_VBK, 0);
+    memory.write(0x9800, 0x00);
+
+    // Bank 1 tile attributes choose CGB BG palette 3.
+    memory.write(io_reg::REG_VBK, 1);
+    memory.write(0x9800, 0x03);
+    memory.write(io_reg::REG_VBK, 0);
+
+    // Tile 0 pixel (0,0) emits color index 1.
+    memory.write(0x8000, 0x80);
+    memory.write(0x8001, 0x00);
+
+    ppu.step(252);
+
+    TEST_EQ(ppu.framebuffer()[0], static_cast<u8>((3 << 2) | 1));
+
+    std::cout << "  PASS: CGB window rendering preserves palette attributes\n";
+    return true;
+}
+
 bool test_timer_preserves_progress_on_redundant_tac_write() {
     std::cout << "Testing timer TAC rewrite behavior...\n";
 
@@ -847,6 +886,7 @@ int main() {
     all_passed &= test_gamepad_config_clamps_deadzone_and_trims_lines();
     all_passed &= test_gamepad_config_ignores_invalid_buttons_and_creates_dirs();
     all_passed &= test_ppu_8x16_y_flip_uses_bottom_tile_first();
+    all_passed &= test_ppu_cgb_window_uses_palette_attributes();
     all_passed &= test_timer_preserves_progress_on_redundant_tac_write();
     all_passed &= test_mbc3_repeated_latch_refreshes_rtc();
     
