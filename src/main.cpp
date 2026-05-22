@@ -13,6 +13,8 @@
 
 #include "core/emulator.h"
 
+#include <exception>
+#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -38,20 +40,37 @@ int main(int argc, const char* argv[])
         return 1;
     }
     
-    std::string rom_path = argv[1];
-    
-    gbglow::Emulator emulator;
-    
-    if (!emulator.load_rom(rom_path))
-    {
-        std::cerr << "Failed to load ROM: " << rom_path << std::endl;
+    const std::string rom_path = argv[1];
+
+    std::error_code error;
+    if (!std::filesystem::exists(rom_path, error) || error) {
+        std::cerr << "ROM file does not exist: " << rom_path << std::endl;
         return 1;
     }
-    
-    std::cout << "Loaded ROM: " << rom_path << std::endl;
-    
-    // Run emulator with display (game loop)
-    emulator.run("gbglow - Game Boy Color Emulator");
-    
-    return 0;
+    if (!std::filesystem::is_regular_file(rom_path, error) || error) {
+        std::cerr << "ROM path is not a regular file: " << rom_path << std::endl;
+        return 1;
+    }
+
+    try {
+        gbglow::Emulator emulator;
+
+        if (!emulator.load_rom(rom_path))
+        {
+            std::cerr << "Failed to load ROM: " << rom_path << std::endl;
+            return 1;
+        }
+
+        std::cout << "Loaded ROM: " << rom_path << std::endl;
+
+        // Run emulator with display (game loop)
+        emulator.run("gbglow - Game Boy Color Emulator");
+        return 0;
+    } catch (const std::exception& exception) {
+        std::cerr << "Fatal error: " << exception.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "Fatal error: unknown exception" << std::endl;
+        return 1;
+    }
 }

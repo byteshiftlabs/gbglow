@@ -5,6 +5,7 @@
 #include "../src/core/cpu.h"
 #include "../src/core/constants.h"
 #include "../src/core/emulator.h"
+#include "../src/core/io_registers.h"
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
 #include "../src/core/timer.h"
@@ -737,6 +738,39 @@ bool test_gamepad_config_clamps_deadzone_and_trims_lines() {
     return true;
 }
 
+bool test_ppu_8x16_y_flip_uses_bottom_tile_first() {
+    std::cout << "Testing PPU 8x16 sprite Y-flip tile selection...\n";
+
+    Memory memory;
+    PPU ppu(memory);
+    memory.set_ppu(&ppu);
+
+    memory.write(io_reg::REG_LCDC, 0x80 | 0x02 | 0x04);  // LCD on, sprites on, 8x16 mode.
+    memory.write(io_reg::REG_OBP0, 0x24);                // Color 1 -> shade 1, color 2 -> shade 2.
+
+    // Tile 0 row 7 emits color 1 across the row.
+    memory.write(0x8000 + (7 * 2), 0xFF);
+    memory.write(0x8000 + (7 * 2) + 1, 0x00);
+
+    // Tile 1 row 7 emits color 2 across the row.
+    memory.write(0x8010 + (7 * 2), 0x00);
+    memory.write(0x8010 + (7 * 2) + 1, 0xFF);
+
+    // Sprite at screen origin using tile 0, vertically flipped.
+    memory.write(0xFE00, 16);    // Raw Y = screen Y + 16.
+    memory.write(0xFE01, 8);     // Raw X = screen X + 8.
+    memory.write(0xFE02, 0x00);  // Base tile.
+    memory.write(0xFE03, 0x40);  // Y-flip.
+
+    // Advance through OAM search and transfer for LY=0 so the scanline is rendered.
+    ppu.step(252);
+
+    TEST_EQ(ppu.framebuffer()[0], 2);
+
+    std::cout << "  PASS: 8x16 Y-flip selects the bottom tile on the first scanline\n";
+    return true;
+}
+
 bool test_timer_preserves_progress_on_redundant_tac_write() {
     std::cout << "Testing timer TAC rewrite behavior...\n";
 
@@ -812,6 +846,7 @@ int main() {
     all_passed &= test_save_state_requires_loaded_rom();
     all_passed &= test_gamepad_config_clamps_deadzone_and_trims_lines();
     all_passed &= test_gamepad_config_ignores_invalid_buttons_and_creates_dirs();
+    all_passed &= test_ppu_8x16_y_flip_uses_bottom_tile_first();
     all_passed &= test_timer_preserves_progress_on_redundant_tac_write();
     all_passed &= test_mbc3_repeated_latch_refreshes_rtc();
     
