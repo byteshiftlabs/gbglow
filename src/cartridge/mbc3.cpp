@@ -93,6 +93,10 @@ void MBC3::write(u16 address, u8 value)
     // Latch Clock Data (0x6000-0x7FFF)
     if (address < REG_LATCH_CLOCK_END) {
         if (has_rtc_) {
+            if (value == LATCH_WRITE_0) {
+                rtc_latched_ = false;
+            }
+
             // Latch on 0x00 -> 0x01 transition
             if (latch_data_last_ == LATCH_WRITE_0 && value == LATCH_WRITE_1) {
                 latch_rtc();

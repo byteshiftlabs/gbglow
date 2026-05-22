@@ -79,7 +79,12 @@ void Timer::write_tma(u8 value) {
 
 void Timer::write_tac(u8 value) {
     // Only lower 3 bits are used
-    tac_ = value & 0x07;
+    const u8 new_tac = value & 0x07;
+    if (new_tac == tac_) {
+        return;
+    }
+
+    tac_ = new_tac;
     
     // Reset TIMA counter when changing configuration
     tima_counter_ = 0;
