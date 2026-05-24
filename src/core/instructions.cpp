@@ -39,11 +39,11 @@ Cycles CPU::execute_instruction(u8 opcode)
             
             // CGB: Handle speed switch if KEY1 bit 0 is set
             {
-                u8 key1 = memory_.read(CGB_KEY1);
-                if (key1 & CGB_SPEED_PREPARE_BIT) {
+                u8 key1 = memory_.read(kCgbKey1Register);
+                if (key1 & kCgbSpeedPrepareBit) {
                     // Toggle speed (bit 7) and clear prepare bit (bit 0)
-                    u8 new_speed = (key1 ^ CGB_SPEED_TOGGLE_BIT) & CGB_SPEED_TOGGLE_BIT;
-                    memory_.write(CGB_KEY1, new_speed);
+                    u8 new_speed = (key1 ^ kCgbSpeedToggleBit) & kCgbSpeedToggleBit;
+                    memory_.write(kCgbKey1Register, new_speed);
                 }
             }
             
@@ -567,14 +567,14 @@ Cycles CPU::execute_instruction(u8 opcode)
         // RST (Restart - call to fixed address)
         // ====================================================================
         
-        case 0xC7: push_stack(regs_.pc); regs_.pc = RST_00; return CYCLES_RST;
-        case 0xCF: push_stack(regs_.pc); regs_.pc = RST_08; return CYCLES_RST;
-        case 0xD7: push_stack(regs_.pc); regs_.pc = RST_10; return CYCLES_RST;
-        case 0xDF: push_stack(regs_.pc); regs_.pc = RST_18; return CYCLES_RST;
-        case 0xE7: push_stack(regs_.pc); regs_.pc = RST_20; return CYCLES_RST;
-        case 0xEF: push_stack(regs_.pc); regs_.pc = RST_28; return CYCLES_RST;
-        case 0xF7: push_stack(regs_.pc); regs_.pc = RST_30; return CYCLES_RST;
-        case 0xFF: push_stack(regs_.pc); regs_.pc = RST_38; return CYCLES_RST;
+        case 0xC7: push_stack(regs_.pc); regs_.pc = kRst00; return kCyclesRst;
+        case 0xCF: push_stack(regs_.pc); regs_.pc = kRst08; return kCyclesRst;
+        case 0xD7: push_stack(regs_.pc); regs_.pc = kRst10; return kCyclesRst;
+        case 0xDF: push_stack(regs_.pc); regs_.pc = kRst18; return kCyclesRst;
+        case 0xE7: push_stack(regs_.pc); regs_.pc = kRst20; return kCyclesRst;
+        case 0xEF: push_stack(regs_.pc); regs_.pc = kRst28; return kCyclesRst;
+        case 0xF7: push_stack(regs_.pc); regs_.pc = kRst30; return kCyclesRst;
+        case 0xFF: push_stack(regs_.pc); regs_.pc = kRst38; return kCyclesRst;
         
         // ====================================================================
         // CB Prefix - Extended instructions
@@ -597,13 +597,13 @@ Cycles CPU::execute_instruction(u8 opcode)
             
         case 0x22:  // LD (HL+),A / LDI (HL),A
             memory_.write(regs_.hl(), regs_.a);
-            regs_.set_hl(regs_.hl() + HL_INCREMENT);
-            return CYCLES_MEMORY_WRITE;
+            regs_.set_hl(regs_.hl() + kHlIncrement);
+            return kCyclesMemoryWrite;
             
         case 0x32:  // LD (HL-),A / LDD (HL),A
             memory_.write(regs_.hl(), regs_.a);
-            regs_.set_hl(regs_.hl() - HL_DECREMENT);
-            return CYCLES_MEMORY_WRITE;
+            regs_.set_hl(regs_.hl() - kHlDecrement);
+            return kCyclesMemoryWrite;
             
         case 0x0A:  // LD A,(BC)
             regs_.a = memory_.read(regs_.bc());
@@ -615,35 +615,35 @@ Cycles CPU::execute_instruction(u8 opcode)
             
         case 0x2A:  // LD A,(HL+) / LDI A,(HL)
             regs_.a = memory_.read(regs_.hl());
-            regs_.set_hl(regs_.hl() + HL_INCREMENT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_hl(regs_.hl() + kHlIncrement);
+            return kCyclesMemoryRead;
             
         case 0x3A:  // LD A,(HL-) / LDD A,(HL)
             regs_.a = memory_.read(regs_.hl());
-            regs_.set_hl(regs_.hl() - HL_DECREMENT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_hl(regs_.hl() - kHlDecrement);
+            return kCyclesMemoryRead;
             
         case 0xE0:  // LDH (n),A - Store A to I/O registers + offset
         {
             u8 offset = fetch_byte();
-            memory_.write(IO_REGISTERS_BASE + offset, regs_.a);
-            return CYCLES_IMMEDIATE_BYTE + CYCLES_REGISTER_OP;
+            memory_.write(kIoRegistersBase + offset, regs_.a);
+            return kCyclesImmediateByte + kCyclesRegisterOp;
         }
         
         case 0xF0:  // LDH A,(n) - Load A from I/O registers + offset
         {
             u8 offset = fetch_byte();
-            regs_.a = memory_.read(IO_REGISTERS_BASE + offset);
-            return CYCLES_IMMEDIATE_BYTE + CYCLES_REGISTER_OP;
+            regs_.a = memory_.read(kIoRegistersBase + offset);
+            return kCyclesImmediateByte + kCyclesRegisterOp;
         }
         
         case 0xE2:  // LD (C),A - Store A to I/O registers + C
-            memory_.write(IO_REGISTERS_BASE + regs_.c, regs_.a);
-            return CYCLES_MEMORY_WRITE;
+            memory_.write(kIoRegistersBase + regs_.c, regs_.a);
+            return kCyclesMemoryWrite;
             
         case 0xF2:  // LD A,(C) - Load A from I/O registers + C
-            regs_.a = memory_.read(IO_REGISTERS_BASE + regs_.c);
-            return CYCLES_MEMORY_READ;
+            regs_.a = memory_.read(kIoRegistersBase + regs_.c);
+            return kCyclesMemoryRead;
             
         case 0xEA:  // LD (nn),A
         {
@@ -663,7 +663,7 @@ Cycles CPU::execute_instruction(u8 opcode)
         {
             u16 addr = fetch_word();
             memory_.write16(addr, regs_.sp);
-            return CYCLES_LD_NN_SP;
+            return kCyclesLdNnSp;
         }
         
         case 0xF9:  // LD SP,HL
@@ -678,11 +678,11 @@ Cycles CPU::execute_instruction(u8 opcode)
             // Half carry and carry calculated from lower byte
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.sp & NIBBLE_MASK) + (offset & NIBBLE_MASK)) > NIBBLE_MASK);
-            regs_.set_flag(Registers::FLAG_C, ((regs_.sp & BYTE_MASK) + (offset & BYTE_MASK)) > BYTE_MASK);
+            regs_.set_flag(Registers::FLAG_H, ((regs_.sp & kNibbleMask) + (offset & kNibbleMask)) > kNibbleMask);
+            regs_.set_flag(Registers::FLAG_C, ((regs_.sp & kByteMask) + (offset & kByteMask)) > kByteMask);
             
-            regs_.set_hl(result & ADDR_MASK_16BIT);
-            return CYCLES_IMMEDIATE_WORD;
+            regs_.set_hl(result & kAddrMask16Bit);
+            return kCyclesImmediateWord;
         }
         
         // ====================================================================
@@ -693,40 +693,40 @@ Cycles CPU::execute_instruction(u8 opcode)
         {
             u32 result = regs_.hl() + regs_.bc();
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & ADDR_MASK_12BIT) + (regs_.bc() & ADDR_MASK_12BIT)) > ADDR_MASK_12BIT);
-            regs_.set_flag(Registers::FLAG_C, result > ADDR_MASK_16BIT);
-            regs_.set_hl(result & ADDR_MASK_16BIT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & kAddrMask12Bit) + (regs_.bc() & kAddrMask12Bit)) > kAddrMask12Bit);
+            regs_.set_flag(Registers::FLAG_C, result > kAddrMask16Bit);
+            regs_.set_hl(result & kAddrMask16Bit);
+            return kCyclesMemoryRead;
         }
         
         case 0x19:  // ADD HL,DE
         {
             u32 result = regs_.hl() + regs_.de();
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & ADDR_MASK_12BIT) + (regs_.de() & ADDR_MASK_12BIT)) > ADDR_MASK_12BIT);
-            regs_.set_flag(Registers::FLAG_C, result > ADDR_MASK_16BIT);
-            regs_.set_hl(result & ADDR_MASK_16BIT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & kAddrMask12Bit) + (regs_.de() & kAddrMask12Bit)) > kAddrMask12Bit);
+            regs_.set_flag(Registers::FLAG_C, result > kAddrMask16Bit);
+            regs_.set_hl(result & kAddrMask16Bit);
+            return kCyclesMemoryRead;
         }
         
         case 0x29:  // ADD HL,HL
         {
             u32 result = regs_.hl() + regs_.hl();
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & ADDR_MASK_12BIT) + (regs_.hl() & ADDR_MASK_12BIT)) > ADDR_MASK_12BIT);
-            regs_.set_flag(Registers::FLAG_C, result > ADDR_MASK_16BIT);
-            regs_.set_hl(result & ADDR_MASK_16BIT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & kAddrMask12Bit) + (regs_.hl() & kAddrMask12Bit)) > kAddrMask12Bit);
+            regs_.set_flag(Registers::FLAG_C, result > kAddrMask16Bit);
+            regs_.set_hl(result & kAddrMask16Bit);
+            return kCyclesMemoryRead;
         }
         
         case 0x39:  // ADD HL,SP
         {
             u32 result = regs_.hl() + regs_.sp;
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & ADDR_MASK_12BIT) + (regs_.sp & ADDR_MASK_12BIT)) > ADDR_MASK_12BIT);
-            regs_.set_flag(Registers::FLAG_C, result > ADDR_MASK_16BIT);
-            regs_.set_hl(result & ADDR_MASK_16BIT);
-            return CYCLES_MEMORY_READ;
+            regs_.set_flag(Registers::FLAG_H, ((regs_.hl() & kAddrMask12Bit) + (regs_.sp & kAddrMask12Bit)) > kAddrMask12Bit);
+            regs_.set_flag(Registers::FLAG_C, result > kAddrMask16Bit);
+            regs_.set_hl(result & kAddrMask16Bit);
+            return kCyclesMemoryRead;
         }
         
         case 0xE8:  // ADD SP,n
@@ -736,11 +736,11 @@ Cycles CPU::execute_instruction(u8 opcode)
             
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
-            regs_.set_flag(Registers::FLAG_H, ((regs_.sp & NIBBLE_MASK) + (offset & NIBBLE_MASK)) > NIBBLE_MASK);
-            regs_.set_flag(Registers::FLAG_C, ((regs_.sp & BYTE_MASK) + (offset & BYTE_MASK)) > BYTE_MASK);
+            regs_.set_flag(Registers::FLAG_H, ((regs_.sp & kNibbleMask) + (offset & kNibbleMask)) > kNibbleMask);
+            regs_.set_flag(Registers::FLAG_C, ((regs_.sp & kByteMask) + (offset & kByteMask)) > kByteMask);
             
-            regs_.sp = result & ADDR_MASK_16BIT;
-            return CYCLES_ADD_SP_N;
+            regs_.sp = result & kAddrMask16Bit;
+            return kCyclesAddSpN;
         }
         
         // ====================================================================
@@ -749,48 +749,48 @@ Cycles CPU::execute_instruction(u8 opcode)
         
         case 0x07:  // RLCA - Rotate A left
         {
-            bool carry = (regs_.a & BIT_7) != 0;
-            regs_.a = (regs_.a << BIT_SHIFT) | (carry ? BIT_SHIFT : 0);
+            bool carry = (regs_.a & kBit7) != 0;
+            regs_.a = (regs_.a << kBitShift) | (carry ? kBitShift : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
             regs_.set_flag(Registers::FLAG_C, carry);
-            return CYCLES_REGISTER_OP;
+            return kCyclesRegisterOp;
         }
         
         case 0x17:  // RLA - Rotate A left through carry
         {
             bool old_carry = regs_.get_flag(Registers::FLAG_C);
-            bool new_carry = (regs_.a & BIT_7) != 0;
-            regs_.a = (regs_.a << BIT_SHIFT) | (old_carry ? BIT_SHIFT : 0);
+            bool new_carry = (regs_.a & kBit7) != 0;
+            regs_.a = (regs_.a << kBitShift) | (old_carry ? kBitShift : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
             regs_.set_flag(Registers::FLAG_C, new_carry);
-            return CYCLES_REGISTER_OP;
+            return kCyclesRegisterOp;
         }
         
         case 0x0F:  // RRCA - Rotate A right
         {
-            bool carry = (regs_.a & BIT_0) != 0;
-            regs_.a = (regs_.a >> BIT_SHIFT) | (carry ? BIT_7 : 0);
+            bool carry = (regs_.a & kBit0) != 0;
+            regs_.a = (regs_.a >> kBitShift) | (carry ? kBit7 : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
             regs_.set_flag(Registers::FLAG_C, carry);
-            return CYCLES_REGISTER_OP;
+            return kCyclesRegisterOp;
         }
         
         case 0x1F:  // RRA - Rotate A right through carry
         {
             bool old_carry = regs_.get_flag(Registers::FLAG_C);
-            bool new_carry = (regs_.a & BIT_0) != 0;
-            regs_.a = (regs_.a >> BIT_SHIFT) | (old_carry ? BIT_7 : 0);
+            bool new_carry = (regs_.a & kBit0) != 0;
+            regs_.a = (regs_.a >> kBitShift) | (old_carry ? kBit7 : 0);
             regs_.set_flag(Registers::FLAG_Z, false);
             regs_.set_flag(Registers::FLAG_N, false);
             regs_.set_flag(Registers::FLAG_H, false);
             regs_.set_flag(Registers::FLAG_C, new_carry);
-            return CYCLES_REGISTER_OP;
+            return kCyclesRegisterOp;
         }
         
         // ====================================================================
@@ -803,14 +803,14 @@ Cycles CPU::execute_instruction(u8 opcode)
             u8 correction = 0;
             bool set_carry = false;
             
-            if (regs_.get_flag(Registers::FLAG_H) || (!regs_.get_flag(Registers::FLAG_N) && (regs_.a & NIBBLE_MASK) > BCD_DIGIT_MAX))
+            if (regs_.get_flag(Registers::FLAG_H) || (!regs_.get_flag(Registers::FLAG_N) && (regs_.a & kNibbleMask) > kBcdDigitMax))
             {
-                correction |= BCD_CORRECTION_LOWER;
+                correction |= kBcdCorrectionLower;
             }
             
-            if (regs_.get_flag(Registers::FLAG_C) || (!regs_.get_flag(Registers::FLAG_N) && regs_.a > BCD_BYTE_MAX))
+            if (regs_.get_flag(Registers::FLAG_C) || (!regs_.get_flag(Registers::FLAG_N) && regs_.a > kBcdByteMax))
             {
-                correction |= BCD_CORRECTION_UPPER;
+                correction |= kBcdCorrectionUpper;
                 set_carry = true;
             }
             
