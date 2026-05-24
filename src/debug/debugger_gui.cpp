@@ -182,8 +182,8 @@ DebuggerGUI::DebuggerGUI()
     std::memset(watch_label_, 0, sizeof(watch_label_));
 }
 
-void DebuggerGUI::attach(Debugger* debugger) {
-    debugger_ = debugger;
+void DebuggerGUI::attach(Debugger& debugger) {
+    debugger_ = &debugger;
 }
 
 void DebuggerGUI::toggle_visible() {
@@ -251,8 +251,24 @@ void DebuggerGUI::clear_execution_requests() {
     continue_requested_ = false;
 }
 
+void DebuggerGUI::pause_execution() {
+    paused_ = true;
+    continue_requested_ = false;
+}
+
 void DebuggerGUI::set_docking_mode(bool enabled) {
     docking_mode_ = enabled;
+}
+
+void DebuggerGUI::render_window_menu_items() {
+    ImGui::MenuItem("Registers", nullptr, &show_registers_);
+    ImGui::MenuItem("Disassembly", nullptr, &show_disassembly_);
+    ImGui::MenuItem("Memory", nullptr, &show_memory_);
+    ImGui::MenuItem("Breakpoints", nullptr, &show_breakpoints_);
+    ImGui::MenuItem("Watches", nullptr, &show_watches_);
+    ImGui::MenuItem("Stack", nullptr, &show_stack_);
+    ImGui::MenuItem("I/O Registers", nullptr, &show_io_registers_);
+    ImGui::MenuItem("Sprites (OAM)", nullptr, &show_sprites_);
 }
 
 void DebuggerGUI::apply_debug_theme() {
@@ -425,7 +441,7 @@ void DebuggerGUI::render_registers_window() {
                 }
             } else {
                 if (ImGui::Button("Pause (F5)")) {
-                    paused_ = true;
+                    pause_execution();
                 }
             }
             

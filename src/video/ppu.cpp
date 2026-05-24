@@ -15,15 +15,16 @@ namespace gbglow {
 
 using namespace io_reg;
 
-// Hardware constants
-namespace {
+namespace ppu_detail {
+namespace layout {
     constexpr int TILE_SIZE = 8;
     constexpr int TILEMAP_WIDTH = 32;  // Background map is 32x32 tiles
     constexpr int BYTES_PER_TILE = 16; // Each tile is 16 bytes (8x8 pixels, 2bpp)
     constexpr int BITS_PER_PIXEL = 2;
     constexpr int BYTES_PER_TILE_ROW = 2;
-    
-    // LCDC register bits
+}
+
+namespace lcdc {
     constexpr u8 LCDC_BG_ENABLE_BIT = 0x01;
     constexpr u8 LCDC_OBJ_ENABLE_BIT = 0x02;
     constexpr u8 LCDC_OBJ_SIZE_BIT = 0x04;
@@ -32,29 +33,34 @@ namespace {
     constexpr u8 LCDC_WINDOW_ENABLE_BIT = 0x20;
     constexpr u8 LCDC_WINDOW_TILEMAP_BIT = 0x40;
     constexpr u8 LCDC_LCD_ENABLE_BIT = 0x80;
-    
-    // Palette manipulation
+}
+
+namespace palette {
     constexpr u8 PALETTE_MASK = 0x03;
-    
-    // Interrupt flag bits (IF register 0xFF0F)
+}
+
+namespace interrupt {
     constexpr u8 VBLANK_INT_BIT   = 0x01;  // Bit 0: VBlank
     constexpr u8 STAT_INT_BIT     = 0x02;  // Bit 1: LCD STAT
+}
 
-    // STAT register bits
+namespace stat {
     constexpr u8 STAT_MODE_MASK        = 0xFC;  // Bits 0-1: current mode (R/O)
     constexpr u8 STAT_COINCIDENCE_FLAG = 0x04;  // Bit 2: LYC=LY flag (R/O)
     constexpr u8 STAT_HBLANK_INT_EN    = 0x08;  // Bit 3: HBlank interrupt enable
     constexpr u8 STAT_VBLANK_INT_EN    = 0x10;  // Bit 4: VBlank interrupt enable
     constexpr u8 STAT_OAM_INT_EN       = 0x20;  // Bit 5: OAM Search interrupt enable
     constexpr u8 STAT_COINCIDENCE_EN   = 0x40;  // Bit 6: LYC=LY interrupt enable
-    
-    // Tile addressing
+}
+
+namespace tile {
     constexpr u16 TILE_DATA_SIGNED_BASE = 0x9000;
     constexpr u16 TILE_DATA_UNSIGNED_BASE = 0x8000;
     constexpr u16 TILE_MAP_0 = 0x9800;
     constexpr u16 TILE_MAP_1 = 0x9C00;
-    
-    // OAM sprite constants
+}
+
+namespace sprite {
     constexpr u8 OAM_SPRITE_COUNT = 40;
     constexpr u8 OAM_Y_OFFSET = 0;
     constexpr u8 OAM_X_OFFSET = 1;
@@ -70,22 +76,25 @@ namespace {
     constexpr u8 SPRITE_Y_VISIBILITY_OFFSET = 16;  // Sprites use Y+16 coordinate system
     constexpr u8 SPRITE_8X8_HEIGHT_CHECK = 8;      // For 8x8 sprite visibility
     constexpr u8 SPRITE_ROW_MASK = 7;              // Mask for pixel row within 8-pixel tile (0-7)
-    
-    // Bit manipulation constants
+}
+
+namespace bits {
     constexpr u8 BIT_0 = 0;
     constexpr u8 BIT_1 = 1;
     constexpr u8 PIXEL_BIT_SHIFT = 1;
     constexpr u8 PIXEL_MSB_BIT = 7;
-    
-    // CGB tile attribute bits
+}
+
+namespace cgb {
     constexpr u8 CGB_ATTR_PALETTE_MASK = 0x07;  // Bits 0-2: palette number (0-7)
     constexpr u8 CGB_ATTR_VRAM_BANK_BIT = 0x08; // Bit 3: VRAM bank
     constexpr u8 CGB_ATTR_X_FLIP_BIT = 0x20;    // Bit 5: horizontal flip
     constexpr u8 CGB_ATTR_Y_FLIP_BIT = 0x40;    // Bit 6: vertical flip
     constexpr u8 CGB_ATTR_PRIORITY_BIT = 0x80;  // Bit 7: BG-to-OAM priority
-    
-    // CGB color constants
-    constexpr u8 CGB_PALETTE_SHIFT = 2;         // Shift amount for palette in framebuffer
+
+    constexpr u8 CGB_PALETTE_SHIFT = 2;          // Shift amount for palette number in framebuffer
+    constexpr u8 CGB_PALETTE_NUMBER_MASK = 0x07; // Three-bit palette number (0-7)
+    constexpr u8 CGB_OBJ_PIXEL_BIT = 0x20;       // Framebuffer pixel uses OBJ palette RAM
     constexpr u8 CGB_TILE_FLIP_MAX = 7;         // Maximum tile coordinate before flip
     constexpr u8 CGB_PALETTE_SIZE_BYTES = 8;    // 8 bytes per palette (4 colors × 2 bytes)
     constexpr u8 CGB_COLOR_SIZE_BYTES = 2;      // 2 bytes per color
@@ -96,29 +105,111 @@ namespace {
     constexpr u16 CGB_RGB555_SCALE_NUMERATOR = 255;  // RGB scaling numerator
     constexpr u8 CGB_RGB555_SCALE_OFFSET = 15;       // RGB scaling offset for rounding
     constexpr u8 CGB_RGB555_SCALE_DIVISOR = 31;      // RGB scaling divisor
+}
 
-    // PPU timing constants (in dots)
+namespace timing {
     constexpr int DOTS_OAM_SEARCH = 80;          // Mode 2: OAM search duration
     constexpr int DOTS_TRANSFER_END = 252;       // Mode 3 ends at dot 252 (80 + 172)
     constexpr int DOTS_PER_SCANLINE = 456;       // Total dots per scanline
     constexpr int SCANLINES_VISIBLE = 144;       // Visible scanlines (same as SCREEN_HEIGHT)
     constexpr int SCANLINES_TOTAL = 154;         // Total scanlines including VBlank
+}
 
-    // CGB palette specification register constants
+namespace palette_spec {
     constexpr u8 CPS_INDEX_MASK = 0x3F;          // Lower 6 bits: palette RAM index
     constexpr u8 CPS_AUTO_INCREMENT_BIT = 0x80;  // Bit 7: auto-increment after write
     constexpr u8 CPS_UNUSED_BITS = 0x40;         // Bits 6: always reads as 1
+}
 
-    // DMG shade mask
+namespace dmg {
     constexpr u8 DMG_SHADE_MASK = 0x03;          // 2-bit shade value (0-3)
+}
 
-    // RGBA framebuffer constants
+namespace framebuffer {
     constexpr int RGBA_CHANNELS = 4;             // R, G, B, A
     constexpr u8 ALPHA_OPAQUE = 0xFF;            // Fully opaque alpha
+}
 
-    // Window X offset (WX register stores position + 7)
+namespace window {
     constexpr int WINDOW_X_OFFSET = 7;
 }
+
+    PPU::Mode sanitize_mode(u8 value) {
+        return value <= static_cast<u8>(PPU::Mode::Transfer)
+            ? static_cast<PPU::Mode>(value)
+            : PPU::Mode::HBlank;
+    }
+
+    PPU::Mode derive_visible_mode_from_dots(u16 dots) {
+        if (dots < timing::DOTS_OAM_SEARCH) {
+            return PPU::Mode::OAMSearch;
+        }
+        if (dots < timing::DOTS_TRANSFER_END) {
+            return PPU::Mode::Transfer;
+        }
+        return PPU::Mode::HBlank;
+    }
+
+    u16 sanitize_dots_for_mode(PPU::Mode mode, u16 dots) {
+        switch (mode) {
+            case PPU::Mode::OAMSearch:
+                return std::min<u16>(dots, timing::DOTS_OAM_SEARCH - 1);
+            case PPU::Mode::Transfer:
+                return std::clamp<u16>(dots, timing::DOTS_OAM_SEARCH, timing::DOTS_TRANSFER_END - 1);
+            case PPU::Mode::HBlank:
+                return std::clamp<u16>(dots, timing::DOTS_TRANSFER_END, timing::DOTS_PER_SCANLINE - 1);
+            case PPU::Mode::VBlank:
+                return std::min<u16>(dots, timing::DOTS_PER_SCANLINE - 1);
+        }
+
+        return 0;
+    }
+
+    u8 sanitize_palette_spec(u8 value) {
+        return value & static_cast<u8>(palette_spec::CPS_INDEX_MASK | palette_spec::CPS_AUTO_INCREMENT_BIT);
+    }
+
+    u8 encode_cgb_pixel(u8 palette_num, u8 color_index, bool is_obj) {
+        return static_cast<u8>(((palette_num & cgb::CGB_PALETTE_NUMBER_MASK) << cgb::CGB_PALETTE_SHIFT)
+            | (color_index & palette::PALETTE_MASK)
+            | (is_obj ? cgb::CGB_OBJ_PIXEL_BIT : 0));
+    }
+
+    u8 cgb_pixel_palette_number(u8 framebuffer_value) {
+        return static_cast<u8>((framebuffer_value >> cgb::CGB_PALETTE_SHIFT) & cgb::CGB_PALETTE_NUMBER_MASK);
+    }
+
+    u8 cgb_pixel_color_index(u8 framebuffer_value) {
+        return framebuffer_value & palette::PALETTE_MASK;
+    }
+
+    bool cgb_pixel_uses_obj_palette(u8 framebuffer_value) {
+        return (framebuffer_value & cgb::CGB_OBJ_PIXEL_BIT) != 0;
+    }
+}
+
+using namespace ppu_detail::bits;
+using namespace ppu_detail::cgb;
+using namespace ppu_detail::dmg;
+using namespace ppu_detail::framebuffer;
+using namespace ppu_detail::interrupt;
+using namespace ppu_detail::layout;
+using namespace ppu_detail::lcdc;
+using namespace ppu_detail::palette;
+using namespace ppu_detail::palette_spec;
+using namespace ppu_detail::sprite;
+using namespace ppu_detail::stat;
+using namespace ppu_detail::tile;
+using namespace ppu_detail::timing;
+using namespace ppu_detail::window;
+using ppu_detail::cgb_pixel_color_index;
+using ppu_detail::cgb_pixel_palette_number;
+using ppu_detail::cgb_pixel_uses_obj_palette;
+using ppu_detail::derive_visible_mode_from_dots;
+using ppu_detail::encode_cgb_pixel;
+using ppu_detail::sanitize_dots_for_mode;
+using ppu_detail::sanitize_mode;
+using ppu_detail::sanitize_palette_spec;
 
 PPU::PPU(Memory& memory) 
     : memory_(memory)
@@ -165,8 +256,15 @@ void PPU::update_lyc_coincidence() {
     } else {
         stat_register &= ~STAT_COINCIDENCE_FLAG;
     }
-    memory_.write(REG_STAT, stat_register);
+    memory_.write_io_register(REG_STAT, stat_register);
     update_stat_irq_line();
+}
+
+void PPU::refresh_stat_signal() {
+    u8 stat_register = memory_.read(REG_STAT);
+    stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+    memory_.write_io_register(REG_STAT, stat_register);
+    update_lyc_coincidence();
 }
 
 void PPU::step(Cycles cycles) {
@@ -181,10 +279,10 @@ void PPU::step(Cycles cycles) {
             ly_ = 0;
             dots_ = 0;
             mode_ = Mode::HBlank;
-            memory_.write(REG_LY, 0);
+            memory_.write_io_register(REG_LY, 0);
             u8 stat_register = memory_.read(REG_STAT);
             stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::HBlank);
-            memory_.write(REG_STAT, stat_register);
+            memory_.write_io_register(REG_STAT, stat_register);
             stat_irq_line_ = false;  // IRQ line is low while LCD is off
             lcd_was_on_ = false;
         }
@@ -201,7 +299,7 @@ void PPU::step(Cycles cycles) {
         // Sync STAT mode bits and LYC=LY flag for the new frame start
         u8 stat_register = memory_.read(REG_STAT);
         stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::OAMSearch);
-        memory_.write(REG_STAT, stat_register);
+        memory_.write_io_register(REG_STAT, stat_register);
         update_lyc_coincidence();  // LY=0; fires STAT interrupt if LYC=0 and enabled
     }
 
@@ -228,7 +326,7 @@ void PPU::step(Cycles cycles) {
                     {
                         u8 stat_register = memory_.read(REG_STAT);
                         stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                        memory_.write(REG_STAT, stat_register);
+                        memory_.write_io_register(REG_STAT, stat_register);
                     }
                     update_stat_irq_line();
                 }
@@ -252,7 +350,7 @@ void PPU::step(Cycles cycles) {
                         {
                             u8 stat_register = memory_.read(REG_STAT);
                             stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write(REG_STAT, stat_register);
+                            memory_.write_io_register(REG_STAT, stat_register);
                         }
                     } else {
                         mode_ = Mode::OAMSearch;
@@ -260,7 +358,7 @@ void PPU::step(Cycles cycles) {
                         {
                             u8 stat_register = memory_.read(REG_STAT);
                             stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write(REG_STAT, stat_register);
+                            memory_.write_io_register(REG_STAT, stat_register);
                         }
                     }
 
@@ -283,7 +381,7 @@ void PPU::step(Cycles cycles) {
                         {
                             u8 stat_register = memory_.read(REG_STAT);
                             stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write(REG_STAT, stat_register);
+                            memory_.write_io_register(REG_STAT, stat_register);
                         }
                     }
 
@@ -294,12 +392,12 @@ void PPU::step(Cycles cycles) {
         }
 
         // Update LY register
-        memory_.write(REG_LY, ly_);
+        memory_.write_io_register(REG_LY, ly_);
 
         // Update STAT register mode bits (idempotent after transition sites already wrote them)
         u8 stat_register = memory_.read(REG_STAT);
         stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-        memory_.write(REG_STAT, stat_register);
+        memory_.write_io_register(REG_STAT, stat_register);
     }
 }
 
@@ -383,8 +481,7 @@ void PPU::render_background() {
         u8 pixel = get_tile_pixel(tile_data, tile_num, actual_pixel_x, actual_pixel_y);
         
         if (is_cgb) {
-            // CGB mode: Store palette number in upper bits, color index in lower bits
-            framebuffer_[ly_ * SCREEN_WIDTH + x] = (palette_num << CGB_PALETTE_SHIFT) | pixel;
+            framebuffer_[ly_ * SCREEN_WIDTH + x] = encode_cgb_pixel(palette_num, pixel, false);
         } else {
             // DMG mode: Apply background palette
             u8 palette = memory_.read(REG_BGP);
@@ -475,7 +572,7 @@ void PPU::render_window() {
         u8 pixel = get_tile_pixel(tile_data, tile_num, actual_pixel_x, actual_pixel_y);
 
         if (is_cgb) {
-            framebuffer_[ly_ * SCREEN_WIDTH + x] = (palette_num << CGB_PALETTE_SHIFT) | pixel;
+            framebuffer_[ly_ * SCREEN_WIDTH + x] = encode_cgb_pixel(palette_num, pixel, false);
         } else {
             // Window uses same palette as background (BGP)
             u8 palette = memory_.read(REG_BGP);
@@ -547,6 +644,7 @@ void PPU::render_sprites() {
     
     // Determine sprite height
     u8 sprite_height = (lcdc & LCDC_OBJ_SIZE_BIT) ? SPRITE_HEIGHT_8X16 : SPRITE_HEIGHT_8X8;
+    const bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
     
     // Render sprites in reverse order (lower OAM index = higher priority)
     for (auto it = scanline_sprites_.rbegin(); it != scanline_sprites_.rend(); ++it) {
@@ -587,7 +685,12 @@ void PPU::render_sprites() {
             }
             
             // Get sprite pixel color (use calculated tile_num, not sprite.tile)
-            u8 sprite_pixel = get_sprite_pixel(tile_num, sprite.flags, pixel_x, static_cast<u8>(sprite_row));
+            u8 sprite_pixel = get_sprite_pixel(
+                tile_num,
+                sprite.flags,
+                pixel_x,
+                static_cast<u8>(sprite_row),
+                is_cgb && (sprite.flags & CGB_ATTR_VRAM_BANK_BIT) != 0);
             
             // Color 0 is transparent for sprites
             if (sprite_pixel == TRANSPARENT_COLOR) {
@@ -597,18 +700,21 @@ void PPU::render_sprites() {
             // Check priority against background
             u8 bg_color = framebuffer_[ly_ * SCREEN_WIDTH + draw_x];
             if (is_sprite_priority(sprite.flags, bg_color)) {
-                // Apply sprite palette
-                u16 palette_reg = (sprite.flags & (BIT_1 << SPRITE_FLAG_PALETTE_BIT)) ? REG_OBP1 : REG_OBP0;
-                u8 palette = memory_.read(palette_reg);
-                u8 color = (palette >> (sprite_pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
-                
-                framebuffer_[ly_ * SCREEN_WIDTH + draw_x] = color;
+                if (is_cgb) {
+                    const u8 palette_num = sprite.flags & CGB_ATTR_PALETTE_MASK;
+                    framebuffer_[ly_ * SCREEN_WIDTH + draw_x] = encode_cgb_pixel(palette_num, sprite_pixel, true);
+                } else {
+                    u16 palette_reg = (sprite.flags & (BIT_1 << SPRITE_FLAG_PALETTE_BIT)) ? REG_OBP1 : REG_OBP0;
+                    u8 palette = memory_.read(palette_reg);
+                    u8 color = (palette >> (sprite_pixel * BITS_PER_PIXEL)) & PALETTE_MASK;
+                    framebuffer_[ly_ * SCREEN_WIDTH + draw_x] = color;
+                }
             }
         }
     }
 }
 
-u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y) const {
+u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, bool use_vram_bank_1) const {
     // Apply X-flip if needed
     if (sprite_flags & (BIT_1 << SPRITE_FLAG_X_FLIP_BIT)) {
         pixel_x = (TILE_SIZE - BIT_1) - pixel_x;
@@ -617,8 +723,18 @@ u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y) c
     // Sprites always use tile data at 0x8000-0x8FFF
     u16 tile_addr = TILE_DATA_UNSIGNED_BASE + (tile_num * BYTES_PER_TILE) + (pixel_y * BYTES_PER_TILE_ROW);
     
-    u8 byte1 = memory_.read(tile_addr);
-    u8 byte2 = memory_.read(tile_addr + BIT_1);
+    u8 byte1;
+    u8 byte2;
+    if (use_vram_bank_1) {
+        u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
+        memory_.write(REG_VBK, BIT_1);
+        byte1 = memory_.read(tile_addr);
+        byte2 = memory_.read(tile_addr + BIT_1);
+        memory_.write(REG_VBK, saved_bank);
+    } else {
+        byte1 = memory_.read(tile_addr);
+        byte2 = memory_.read(tile_addr + BIT_1);
+    }
     
     // Extract the 2-bit pixel value
     u8 bit_pos = PIXEL_MSB_BIT - pixel_x;
@@ -637,7 +753,7 @@ bool PPU::is_sprite_priority(u8 sprite_flags, u8 bg_color) const {
     }
     
     // Sprite is behind background colors 1-3, only visible if BG color is 0
-    return bg_color == BIT_0;
+    return cgb_pixel_color_index(bg_color) == BIT_0;
 }
 
 PPU::Mode PPU::mode() const
@@ -645,9 +761,25 @@ PPU::Mode PPU::mode() const
     return mode_;
 }
 
+void PPU::set_mode(Mode mode)
+{
+    const u8 raw_mode = static_cast<u8>(mode);
+    mode_ = raw_mode <= static_cast<u8>(Mode::Transfer)
+        ? static_cast<Mode>(raw_mode)
+        : Mode::HBlank;
+    refresh_stat_signal();
+}
+
 u8 PPU::scanline() const
 {
     return ly_;
+}
+
+void PPU::set_scanline(u8 ly)
+{
+    ly_ = std::min<u8>(ly, SCANLINES_TOTAL - 1);
+    memory_.write_io_register(REG_LY, ly_);
+    update_lyc_coincidence();
 }
 
 bool PPU::frame_ready() const
@@ -703,18 +835,20 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
     bool is_cgb_only = cartridge_ && cartridge_->is_cgb_only();
     
     if (is_cgb_only) {
-        // CGB mode: Framebuffer stores (palette_num << CGB_PALETTE_SHIFT) | color_index
+        // CGB mode: Framebuffer stores palette identity, color index, and whether
+        // the source pixel came from BG or OBJ palette RAM.
         for (size_t i = 0; i < pixel_count; i++) {
             u8 fb_value = framebuffer_[i];
-            u8 palette_num = fb_value >> CGB_PALETTE_SHIFT;  // Upper bits: palette number (0-7)
-            u8 color_index = fb_value & PALETTE_MASK;  // Lower 2 bits: color index (0-3)
+            u8 palette_num = cgb_pixel_palette_number(fb_value);
+            u8 color_index = cgb_pixel_color_index(fb_value);
+            const auto& palette_ram = cgb_pixel_uses_obj_palette(fb_value) ? obj_palette_ram_ : bg_palette_ram_;
             
             // Read 15-bit RGB from palette RAM
             // Each palette is 4 colors × 2 bytes = 8 bytes
             // Each color is 2 bytes: gggrrrrr 0bbbbbgg (little-endian)
             u8 palette_offset = palette_num * CGB_PALETTE_SIZE_BYTES;
             u8 color_offset = palette_offset + (color_index * CGB_COLOR_SIZE_BYTES);
-            u16 rgb555 = bg_palette_ram_[color_offset] | (bg_palette_ram_[color_offset + 1] << 8);
+            u16 rgb555 = palette_ram[color_offset] | (palette_ram[color_offset + 1] << 8);
             
             // Convert 15-bit RGB to 8-bit RGB
             u8 r, g, b;
@@ -872,16 +1006,24 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     if (offset + PPU_STATE_SIZE > data_size) return;
 
     // PPU mode and timing
-    mode_ = static_cast<Mode>(data[offset++]);
+    mode_ = sanitize_mode(data[offset++]);
     dots_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
     offset += 2;
-    ly_ = data[offset++];
+    ly_ = std::min<u8>(data[offset++], SCANLINES_TOTAL - 1);
     frame_ready_ = data[offset++] != 0;
-    window_line_counter_ = data[offset++];
+    window_line_counter_ = std::min<u8>(data[offset++], SCREEN_HEIGHT - 1);
+
+    if (ly_ >= SCANLINES_VISIBLE) {
+        mode_ = Mode::VBlank;
+    } else if (mode_ == Mode::VBlank) {
+        mode_ = derive_visible_mode_from_dots(dots_);
+    }
+
+    dots_ = sanitize_dots_for_mode(mode_, dots_);
     
     // CGB palette specification registers
-    bcps_ = data[offset++];
-    ocps_ = data[offset++];
+    bcps_ = sanitize_palette_spec(data[offset++]);
+    ocps_ = sanitize_palette_spec(data[offset++]);
     
     // CGB palette RAM
     std::copy(data + offset, data + offset + bg_palette_ram_.size(), bg_palette_ram_.begin());
@@ -894,6 +1036,20 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     // default (true) would produce a false "LCD just turned off" edge on the
     // first step() call after loading a state saved mid-VBlank with LCD off.
     lcd_was_on_ = (memory_.read(REG_LCDC) & LCDC_LCD_ENABLE_BIT) != 0;
+
+    // Publish sanitized LY and mode/coincidence bits back to MMIO immediately so
+    // CPU reads after load observe the same canonical PPU state the renderer uses.
+    memory_.write_io_register(REG_LY, ly_);
+    {
+        u8 stat_register = memory_.read(REG_STAT);
+        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
+        if (ly_ == memory_.read(REG_LYC)) {
+            stat_register |= STAT_COINCIDENCE_FLAG;
+        } else {
+            stat_register &= ~STAT_COINCIDENCE_FLAG;
+        }
+        memory_.write_io_register(REG_STAT, stat_register);
+    }
 
     // Recompute stat_irq_line_ from restored state without firing an interrupt.
     // The line state at the time of save is unknown; initialise to the current

@@ -141,13 +141,16 @@ void Timer::deserialize(const u8* data, size_t data_size, size_t& offset)
     div_ = data[offset++];
     tima_ = data[offset++];
     tma_ = data[offset++];
-    tac_ = data[offset++];
+    tac_ = data[offset++] & (TAC_ENABLE_BIT | TAC_CLOCK_SELECT_MASK);
     
     // Internal counters
     div_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
     offset += 2;
     tima_counter_ = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
     offset += 2;
+
+    div_counter_ %= DIV_FREQUENCY;
+    tima_counter_ %= get_clock_frequency();
 }
 
 } // namespace gbglow

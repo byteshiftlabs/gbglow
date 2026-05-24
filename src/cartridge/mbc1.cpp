@@ -110,8 +110,11 @@ void MBC1::deserialize(const u8* data, size_t data_size, size_t& offset)
     if (offset + MBC1_STATE_SIZE > data_size) return;
 
     ram_enabled_  = data[offset++] != 0;
-    rom_bank_     = data[offset++];
-    ram_bank_     = data[offset++];
+    rom_bank_     = data[offset++] & ROM_BANK_MASK;
+    if (rom_bank_ == 0) {
+        rom_bank_ = 1;
+    }
+    ram_bank_     = data[offset++] & RAM_BANK_MASK;
     banking_mode_ = data[offset++] != 0;
 }
 

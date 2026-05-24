@@ -985,7 +985,8 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     offset += wave_ram_.size();
     
     // Cycle accumulator
-    cycle_accumulator_ = static_cast<Cycles>(deserialize_i32(data, offset));
+    const int restored_cycle_accumulator = deserialize_i32(data, offset);
+    cycle_accumulator_ = static_cast<Cycles>(std::clamp(restored_cycle_accumulator, 0, CYCLES_PER_SAMPLE - 1));
     
     // Channel 1 state
     channel1_.sweep_period = data[offset++];
@@ -1059,6 +1060,86 @@ void APU::deserialize(const u8* data, size_t data_size, size_t& offset)
     channel4_.envelope_threshold = deserialize_i32(data, offset);
     channel4_.envelope_direction_state = deserialize_i32(data, offset);
     channel4_.envelope_volume = deserialize_i32(data, offset);
+
+    nr52_ &= NR52_POWER_BIT;
+
+    channel1_.sweep_period &= SWEEP_PERIOD_MASK;
+    channel1_.sweep_direction &= SWEEP_DIRECTION_MASK;
+    channel1_.sweep_shift &= SWEEP_SHIFT_MASK;
+    channel1_.wave_duty &= DUTY_CYCLE_MASK;
+    channel1_.initial_volume &= VOLUME_MASK;
+    channel1_.envelope_direction &= SWEEP_DIRECTION_MASK;
+    channel1_.envelope_period &= ENVELOPE_MASK;
+    channel1_.frequency = std::min<u16>(channel1_.frequency, SWEEP_FREQUENCY_MAX);
+    channel1_.phase_position = std::max(channel1_.phase_position, 0);
+    channel1_.length_counter = std::max(channel1_.length_counter, 0);
+    channel1_.length_threshold = std::max(channel1_.length_threshold, 0);
+    channel1_.envelope_counter = std::max(channel1_.envelope_counter, 0);
+    channel1_.envelope_threshold = channel1_.envelope_period << ENVELOPE_SHIFT;
+    channel1_.envelope_direction_state = channel1_.envelope_direction ? 1 : -1;
+    channel1_.envelope_volume = std::clamp(channel1_.envelope_volume, ENVELOPE_MIN, ENVELOPE_MAX);
+    channel1_.sweep_counter = std::max(channel1_.sweep_counter, 0);
+    channel1_.sweep_threshold = channel1_.sweep_period << SWEEP_SHIFT;
+    channel1_.sweep_frequency = std::clamp(channel1_.sweep_frequency, 0, SWEEP_FREQUENCY_MAX);
+    {
+        const int divisor = FREQ_DIVISOR_BASE - channel1_.frequency;
+        channel1_.phase_increment = (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE))
+            ? 0
+            : (RATE << FREQ_SHIFT_SQUARE) / divisor;
+    }
+
+    channel2_.wave_duty &= DUTY_CYCLE_MASK;
+    channel2_.initial_volume &= VOLUME_MASK;
+    channel2_.envelope_direction &= SWEEP_DIRECTION_MASK;
+    channel2_.envelope_period &= ENVELOPE_MASK;
+    channel2_.frequency = std::min<u16>(channel2_.frequency, SWEEP_FREQUENCY_MAX);
+    channel2_.phase_position = std::max(channel2_.phase_position, 0);
+    channel2_.length_counter = std::max(channel2_.length_counter, 0);
+    channel2_.length_threshold = std::max(channel2_.length_threshold, 0);
+    channel2_.envelope_counter = std::max(channel2_.envelope_counter, 0);
+    channel2_.envelope_threshold = channel2_.envelope_period << ENVELOPE_SHIFT;
+    channel2_.envelope_direction_state = channel2_.envelope_direction ? 1 : -1;
+    channel2_.envelope_volume = std::clamp(channel2_.envelope_volume, ENVELOPE_MIN, ENVELOPE_MAX);
+    {
+        const int divisor = FREQ_DIVISOR_BASE - channel2_.frequency;
+        channel2_.phase_increment = (RATE > (divisor << FREQ_CHECK_SHIFT_SQUARE))
+            ? 0
+            : (RATE << FREQ_SHIFT_SQUARE) / divisor;
+    }
+
+    channel3_.output_level &= OUTPUT_LEVEL_MASK;
+    channel3_.frequency = std::min<u16>(channel3_.frequency, SWEEP_FREQUENCY_MAX);
+    channel3_.phase_position = std::max(channel3_.phase_position, 0);
+    channel3_.length_counter = std::max(channel3_.length_counter, 0);
+    channel3_.length_threshold = std::max(channel3_.length_threshold, 0);
+    {
+        const int divisor = FREQ_DIVISOR_BASE - channel3_.frequency;
+        channel3_.phase_increment = (RATE > (divisor << FREQ_CHECK_SHIFT_WAVE))
+            ? 0
+            : (RATE << FREQ_SHIFT_WAVE) / divisor;
+    }
+
+    channel4_.initial_volume &= VOLUME_MASK;
+    channel4_.envelope_direction &= SWEEP_DIRECTION_MASK;
+    channel4_.envelope_period &= ENVELOPE_MASK;
+    channel4_.clock_shift &= CLOCK_SHIFT_MASK;
+    channel4_.width_mode &= WIDTH_MODE_MASK;
+    channel4_.divisor_code &= DIVISOR_CODE_MASK;
+    channel4_.lfsr &= LFSR_INIT;
+    channel4_.phase_position = std::max(channel4_.phase_position, 0);
+    channel4_.length_counter = std::max(channel4_.length_counter, 0);
+    channel4_.length_threshold = std::max(channel4_.length_threshold, 0);
+    channel4_.envelope_counter = std::max(channel4_.envelope_counter, 0);
+    channel4_.envelope_threshold = channel4_.envelope_period << ENVELOPE_SHIFT;
+    channel4_.envelope_direction_state = channel4_.envelope_direction ? 1 : -1;
+    channel4_.envelope_volume = std::clamp(channel4_.envelope_volume, ENVELOPE_MIN, ENVELOPE_MAX);
+    channel4_.phase_increment = calculate_noise_frequency(channel4_.divisor_code, channel4_.clock_shift);
+
+    const bool power_on = (nr52_ & NR52_POWER_BIT) != 0;
+    channel1_.on = power_on && channel1_.dac_enabled && channel1_.on;
+    channel2_.on = power_on && channel2_.dac_enabled && channel2_.on;
+    channel3_.on = power_on && channel3_.dac_enabled && channel3_.on;
+    channel4_.on = power_on && channel4_.dac_enabled && channel4_.on;
     
     // Clear audio buffer on load
     audio_buffer_.clear();

@@ -28,6 +28,10 @@ class Memory;
 class Joypad {
 public:
     explicit Joypad(Memory& memory);
+    Joypad(const Joypad&) = delete;
+    Joypad& operator=(const Joypad&) = delete;
+    Joypad(Joypad&&) = delete;
+    Joypad& operator=(Joypad&&) = delete;
     
     // Button input (action buttons)
     void press_a();

@@ -41,6 +41,8 @@ public:
     // Disable copy
     Gamepad(const Gamepad&) = delete;
     Gamepad& operator=(const Gamepad&) = delete;
+    Gamepad(Gamepad&&) = delete;
+    Gamepad& operator=(Gamepad&&) = delete;
     
     /**
      * Initialize gamepad subsystem

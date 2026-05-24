@@ -132,9 +132,10 @@ void MBC5::deserialize(const u8* data, size_t data_size, size_t& offset)
     if (offset + MBC5_STATE_SIZE > data_size) return;
 
     ram_enabled_    = data[offset++] != 0;
-    rom_bank_       = static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8);
+    rom_bank_       = (static_cast<u16>(data[offset]) | (static_cast<u16>(data[offset + 1]) << 8))
+        & (ROM_BANK_HIGH_BIT | ROM_BANK_LOW_MASK);
     offset += 2;
-    ram_bank_       = data[offset++];
+    ram_bank_       = data[offset++] & (has_rumble_ ? RAM_BANK_RUMBLE_MASK : RAM_BANK_MASK);
     rumble_enabled_ = data[offset++] != 0;
 }
 

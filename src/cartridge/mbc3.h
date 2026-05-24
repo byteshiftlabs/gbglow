@@ -30,7 +30,7 @@ namespace gbglow {
  * 0x0B: RTC Days Lower (0-255)
  * 0x0C: RTC Days Upper (bit 0) + Halt flag (bit 6) + Day Carry (bit 7)
  */
-class MBC3 : public Cartridge {
+class MBC3 final : public Cartridge {
 public:
     explicit MBC3(std::vector<u8> rom_data, size_t ram_size, bool has_rtc);
     

@@ -54,6 +54,8 @@ public:
     // Disable copy/move
     Display(const Display&) = delete;
     Display& operator=(const Display&) = delete;
+    Display(Display&&) = delete;
+    Display& operator=(Display&&) = delete;
     
     /**
      * Initialize SDL and create window
@@ -64,12 +66,42 @@ public:
     /**
      * Attach debugger for GUI rendering
      */
-    void attach_debugger(Debugger* debugger);
+    void attach_debugger(Debugger& debugger);
     
     /**
-     * Get debugger GUI (for checking pause state, etc.)
+     * Check if debugger UI is currently visible.
      */
-    DebuggerGUI* get_debugger_gui();
+    bool debugger_visible() const;
+
+    /**
+     * Check if debugger requested emulation pause.
+     */
+    bool debugger_should_pause() const;
+
+    /**
+     * Check if the debugger requested a single step.
+     */
+    bool debugger_step_requested() const;
+
+    /**
+     * Clear the debugger step request after handling it.
+     */
+    void clear_debugger_step_request();
+
+    /**
+     * Check if the debugger requested continue.
+     */
+    bool debugger_continue_requested() const;
+
+    /**
+     * Clear the debugger continue request after handling it.
+     */
+    void clear_debugger_continue_request();
+
+    /**
+     * Pause the debugger without exposing GUI internals.
+     */
+    void pause_debugger();
     
     /**
      * Check if in debugger mode (full window with docking)
@@ -98,6 +130,11 @@ public:
     std::string get_pending_rom();
     
     /**
+        * Bind per-ROM UI context managed by the emulator.
+        */
+        void bind_session_context(const std::string& rom_path, RecentRoms& recent_roms);
+
+        /**
      * Check if emulator should reset
      */
     bool should_reset() const;
@@ -151,26 +188,6 @@ public:
      * Clear slot metadata after delete
      */
     void delete_slot_metadata(int slot);
-    
-    /**
-     * Check if slot file exists
-     */
-    bool check_slot_exists(const std::string& state_path) const;
-    
-    /**
-     * Get slot label with status
-     */
-    std::string get_slot_label(int slot, const std::string& rom_path) const;
-    
-    /**
-     * Set current ROM path for slot tracking
-     */
-    void set_rom_path(const std::string& rom_path);
-    
-    /**
-     * Set recent ROMs manager
-     */
-    void set_recent_roms(RecentRoms* recent_roms);
     
     /**
      * Queue audio samples for playback
@@ -394,6 +411,31 @@ private:
      * Render ImGui menu bar
      */
     void render_menu_bar();
+
+    /**
+     * Check if a save-state slot exists on disk.
+     */
+    bool check_slot_exists(const std::string& state_path) const;
+
+    /**
+     * Build a human-readable slot label for the current ROM.
+     */
+    std::string get_slot_label(int slot, const std::string& rom_path) const;
+
+    /**
+     * Enter debugger mode and synchronize debugger UI state.
+     */
+    void open_debugger_mode();
+
+    /**
+     * Exit debugger mode and synchronize debugger UI state.
+     */
+    void close_debugger_mode();
+
+    /**
+     * Toggle debugger mode on/off.
+     */
+    void toggle_debugger_mode();
     
     /**
      * Render about dialog

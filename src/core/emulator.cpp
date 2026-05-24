@@ -22,7 +22,7 @@ Emulator::Emulator()
     memory_->set_ppu(ppu_.get());
     
     // Attach debugger to CPU, Memory, and PPU
-    debugger_->attach(cpu_.get(), memory_.get(), ppu_.get());
+    debugger_->attach(*cpu_, *memory_, *ppu_);
     
     // Note: Joypad is owned by Memory, not Emulator
     
@@ -95,12 +95,16 @@ Debugger& Emulator::debugger() {
     return *debugger_;
 }
 
+const Debugger& Emulator::debugger() const {
+    return *debugger_;
+}
+
 const PPU& Emulator::ppu() const
 {
     return *ppu_;
 }
 
-PPU& Emulator::ppu()
+PPU& Emulator::ppu_for_testing()
 {
     return *ppu_;
 }
@@ -110,7 +114,7 @@ const CPU& Emulator::cpu() const
     return *cpu_;
 }
 
-CPU& Emulator::cpu()
+CPU& Emulator::cpu_for_testing()
 {
     return *cpu_;
 }
@@ -120,17 +124,36 @@ Joypad& Emulator::joypad()
     return memory_->joypad();
 }
 
+const Joypad& Emulator::joypad() const
+{
+    return memory_->joypad();
+}
+
 Cartridge* Emulator::cartridge()
 {
     return memory_->cartridge();
 }
 
-Memory& Emulator::memory()
+const Cartridge* Emulator::cartridge() const
+{
+    return memory_->cartridge();
+}
+
+Memory& Emulator::memory_for_testing()
+{
+    return *memory_;
+}
+
+const Memory& Emulator::memory() const
 {
     return *memory_;
 }
 
 RecentRoms& Emulator::recent_roms() {
+    return *recent_roms_;
+}
+
+const RecentRoms& Emulator::recent_roms() const {
     return *recent_roms_;
 }
 

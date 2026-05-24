@@ -115,7 +115,7 @@ protected:
  * Simple ROM-only cartridge (no MBC)
  * Maximum 32KB ROM, no RAM
  */
-class ROMOnly : public Cartridge {
+class ROMOnly final : public Cartridge {
 public:
     explicit ROMOnly(std::vector<u8> rom_data);
     

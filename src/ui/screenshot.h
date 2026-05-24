@@ -32,6 +32,10 @@ class Screenshot {
 public:
     Screenshot();
     ~Screenshot() = default;
+    Screenshot(const Screenshot&) = delete;
+    Screenshot& operator=(const Screenshot&) = delete;
+    Screenshot(Screenshot&&) = delete;
+    Screenshot& operator=(Screenshot&&) = delete;
     
     /**
      * Capture and save framebuffer to PNG file

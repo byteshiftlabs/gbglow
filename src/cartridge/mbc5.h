@@ -31,7 +31,7 @@ namespace gbglow {
  * - No special banking modes - straightforward linear banking
  * - ROM bank 0 can be selected for switchable bank (unlike MBC1)
  */
-class MBC5 : public Cartridge {
+class MBC5 final : public Cartridge {
 public:
     explicit MBC5(std::vector<u8> rom_data, size_t ram_size, bool has_rumble = false);
     

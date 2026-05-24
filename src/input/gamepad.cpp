@@ -47,13 +47,6 @@ bool write_text_file_atomically(const std::filesystem::path& path, const std::st
         return true;
     }
 
-    std::filesystem::remove(path, error);
-    error.clear();
-    std::filesystem::rename(temp_path, path, error);
-    if (!error) {
-        return true;
-    }
-
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);
     return false;

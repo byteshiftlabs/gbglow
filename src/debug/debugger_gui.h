@@ -29,11 +29,15 @@ class DebuggerGUI {
 public:
     DebuggerGUI();
     ~DebuggerGUI() = default;
+    DebuggerGUI(const DebuggerGUI&) = delete;
+    DebuggerGUI& operator=(const DebuggerGUI&) = delete;
+    DebuggerGUI(DebuggerGUI&&) = delete;
+    DebuggerGUI& operator=(DebuggerGUI&&) = delete;
     
     /**
      * Attach to debugger instance
      */
-    void attach(Debugger* debugger);
+    void attach(Debugger& debugger);
     
     /**
      * Render all debugger windows
@@ -100,6 +104,11 @@ public:
      * Clear any pending execution requests.
      */
     void clear_execution_requests();
+
+    /**
+     * Pause execution without exposing direct state mutation.
+     */
+    void pause_execution();
     
     /**
      * Set docking mode (when true, doesn't render its own menu bar)
@@ -107,22 +116,14 @@ public:
     void set_docking_mode(bool enabled);
     
     /**
-     * Expose window toggle methods for parent menu bar
+        * Render window visibility toggles for an external Debug menu.
      */
-    bool& show_registers() { return show_registers_; }
-    bool& show_disassembly() { return show_disassembly_; }
-    bool& show_memory() { return show_memory_; }
-    bool& show_breakpoints() { return show_breakpoints_; }
-    bool& show_watches() { return show_watches_; }
-    bool& show_stack() { return show_stack_; }
-    bool& show_io_registers() { return show_io_registers_; }
-    bool& show_sprites() { return show_sprites_; }
+        void render_window_menu_items();
     
     /**
      * Get pause state
      */
     bool is_paused() const { return paused_; }
-    void set_paused(bool paused) { paused_ = paused; }
     
     /**
      * Apply debug color theme

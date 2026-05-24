@@ -50,6 +50,10 @@ public:
     };
     
     explicit PPU(Memory& memory);
+    PPU(const PPU&) = delete;
+    PPU& operator=(const PPU&) = delete;
+    PPU(PPU&&) = delete;
+    PPU& operator=(PPU&&) = delete;
     
     // Execute PPU for given number of cycles
     void step(Cycles cycles);
@@ -58,15 +62,14 @@ public:
     Mode mode() const;
     u8 scanline() const;
     
-    // Mutators for save state restoration
+    // Controlled mutators used by tests and state setup. These keep MMIO-visible
+    // state coherent instead of exposing raw field writes that bypass invariants.
     void set_mode(Mode m);
     void set_scanline(u8 ly);
     
     // Save state accessors (return raw values for serialization)
     u8 get_ly() const { return ly_; }
     u8 get_mode() const { return static_cast<u8>(mode_); }
-    void set_ly(u8 ly) { ly_ = ly; }
-    void set_mode(u8 m) { mode_ = static_cast<Mode>(m); }
 
     // Frame buffer access
     bool frame_ready() const;
@@ -98,6 +101,9 @@ public:
     // Serialization for save states
     void serialize(std::vector<u8>& data) const;
     void deserialize(const u8* data, size_t data_size, size_t& offset);
+
+    // Refresh coincidence and STAT IRQ state after CPU-visible MMIO writes.
+    void refresh_stat_signal();
     
 private:
     Memory& memory_;
@@ -156,7 +162,7 @@ private:
     void search_oam();
     
     // Sprite helpers
-    u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y) const;
+    u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, bool use_vram_bank_1) const;
     bool is_sprite_priority(u8 sprite_flags, u8 bg_color) const;
     
     // Tile data

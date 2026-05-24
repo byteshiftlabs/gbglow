@@ -96,13 +96,6 @@ bool write_text_file_atomically(const std::filesystem::path& path, const std::st
         return true;
     }
 
-    std::filesystem::remove(path, error);
-    error.clear();
-    std::filesystem::rename(temp_path, path, error);
-    if (!error) {
-        return true;
-    }
-
     std::error_code remove_error;
     std::filesystem::remove(temp_path, remove_error);
     return false;
@@ -279,7 +272,9 @@ RecentRoms::RecentRoms()
 
 RecentRoms::~RecentRoms()
 {
-    save_to_file();
+    if (dirty_) {
+        save_to_file();
+    }
 }
 
 void RecentRoms::add_rom(const std::string& rom_path)
@@ -303,6 +298,7 @@ void RecentRoms::add_rom(const std::string& rom_path)
     if (recent_roms_.size() > MAX_RECENT_ROMS) {
         recent_roms_.resize(MAX_RECENT_ROMS);
     }
+    dirty_ = true;
     
     // Save immediately
     save_to_file();
@@ -316,6 +312,7 @@ const std::vector<RecentRomEntry>& RecentRoms::get_roms() const
 void RecentRoms::clear()
 {
     recent_roms_.clear();
+    dirty_ = true;
     save_to_file();
 }
 
@@ -332,8 +329,6 @@ void RecentRoms::load_from_file()
         return;
     }
 
-    recent_roms_.clear();
-
     const std::string contents(
         (std::istreambuf_iterator<char>(file)),
         std::istreambuf_iterator<char>());
@@ -349,6 +344,7 @@ void RecentRoms::load_from_file()
         return;
     }
 
+    std::vector<RecentRomEntry> parsed_roms;
     size_t pos = array_start;
     std::unordered_set<std::string> seen_paths;
     while (true) {
@@ -366,14 +362,17 @@ void RecentRoms::load_from_file()
         if (parse_recent_rom_entry(contents.substr(object_start, object_end - object_start + 1), entry) &&
             file_exists_noexcept(entry.file_path) &&
             seen_paths.insert(entry.file_path).second) {
-            recent_roms_.push_back(entry);
-            if (recent_roms_.size() >= MAX_RECENT_ROMS) {
+            parsed_roms.push_back(entry);
+            if (parsed_roms.size() >= MAX_RECENT_ROMS) {
                 break;
             }
         }
 
         pos = object_end + 1;
     }
+
+    recent_roms_ = std::move(parsed_roms);
+    dirty_ = false;
 }
 
 void RecentRoms::save_to_file()
@@ -411,7 +410,10 @@ void RecentRoms::save_to_file()
 
     if (!write_text_file_atomically(config_path_, contents.str())) {
         std::cerr << "Warning: Could not save recent ROMs to " << config_path_ << std::endl;
+        return;
     }
+
+    dirty_ = false;
 }
 
 std::string RecentRoms::get_config_dir() const
