@@ -422,8 +422,10 @@ bool Display::initialize(const std::string& title, int scale_factor) {
         return false;
     }
     
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable keyboard navigation
+    // Keep keyboard focus available for gameplay while the debugger is visible.
+    // Text input widgets still receive key events when they are active, but we
+    // avoid enabling global ImGui keyboard navigation because that causes the
+    // debugger to capture normal gameplay controls.
     
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
