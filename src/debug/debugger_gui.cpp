@@ -48,6 +48,7 @@ namespace {
     // Address space limit
     constexpr u16 ADDR_MAX = 0xFFFF;
     constexpr u16 STACK_ADDR_LIMIT = 0xFFFE;
+    constexpr u32 ADDRESS_SPACE_SIZE = 0x10000;
     
     // Sprite constants
     constexpr u16 OAM_BASE   = 0xFE00;
@@ -126,6 +127,31 @@ namespace {
         constexpr float SPRITE_FREE_W = 500.0f;
         constexpr float SPRITE_FREE_H = 400.0f;
     } // namespace layout
+
+bool parse_hex_u16(const char* text, u16& value) {
+    if (!text || *text == '\0') {
+        return false;
+    }
+
+    char* end = nullptr;
+    const unsigned long parsed = std::strtoul(text, &end, 16);
+    if (end == text || *end != '\0' || parsed > ADDR_MAX) {
+        return false;
+    }
+
+    value = static_cast<u16>(parsed);
+    return true;
+}
+
+u16 clamp_memory_view_start(u32 start_address, int rows, int cols) {
+    const u32 visible_bytes = static_cast<u32>(rows) * static_cast<u32>(cols);
+    if (visible_bytes == 0 || visible_bytes >= ADDRESS_SPACE_SIZE) {
+        return 0;
+    }
+
+    const u32 max_start = ADDRESS_SPACE_SIZE - visible_bytes;
+    return static_cast<u16>(std::min(start_address, max_start));
+}
 } // anonymous namespace
 
 DebuggerGUI::DebuggerGUI()
@@ -156,15 +182,12 @@ DebuggerGUI::DebuggerGUI()
     std::memset(watch_label_, 0, sizeof(watch_label_));
 }
 
-void DebuggerGUI::attach(Debugger* debugger) {
-    debugger_ = debugger;
+void DebuggerGUI::attach(Debugger& debugger) {
+    debugger_ = &debugger;
 }
 
 void DebuggerGUI::toggle_visible() {
-    visible_ = !visible_;
-    if (visible_) {
-        paused_ = true;  // Auto-pause when opening debugger
-    }
+    set_visible(!visible_);
 }
 
 bool DebuggerGUI::is_visible() const {
@@ -175,6 +198,9 @@ void DebuggerGUI::set_visible(bool visible) {
     visible_ = visible;
     if (visible) {
         paused_ = true;
+    } else {
+        paused_ = false;
+        clear_execution_requests();
     }
 }
 
@@ -186,12 +212,29 @@ bool DebuggerGUI::step_requested() const {
     return step_requested_;
 }
 
+void DebuggerGUI::request_step() {
+    step_requested_ = true;
+    continue_requested_ = false;
+}
+
+void DebuggerGUI::request_step_over() {
+    if (debugger_ && debugger_->prepare_step_over_for_current_instruction()) {
+        continue_requested_ = true;
+        paused_ = false;
+        step_requested_ = false;
+        return;
+    }
+
+    request_step();
+}
+
 void DebuggerGUI::clear_step_request() {
     step_requested_ = false;
 }
 
 void DebuggerGUI::continue_execution() {
     continue_requested_ = true;
+    step_requested_ = false;
     paused_ = false;
 }
 
@@ -203,8 +246,29 @@ void DebuggerGUI::clear_continue() {
     continue_requested_ = false;
 }
 
+void DebuggerGUI::clear_execution_requests() {
+    step_requested_ = false;
+    continue_requested_ = false;
+}
+
+void DebuggerGUI::pause_execution() {
+    paused_ = true;
+    continue_requested_ = false;
+}
+
 void DebuggerGUI::set_docking_mode(bool enabled) {
     docking_mode_ = enabled;
+}
+
+void DebuggerGUI::render_window_menu_items() {
+    ImGui::MenuItem("Registers", nullptr, &show_registers_);
+    ImGui::MenuItem("Disassembly", nullptr, &show_disassembly_);
+    ImGui::MenuItem("Memory", nullptr, &show_memory_);
+    ImGui::MenuItem("Breakpoints", nullptr, &show_breakpoints_);
+    ImGui::MenuItem("Watches", nullptr, &show_watches_);
+    ImGui::MenuItem("Stack", nullptr, &show_stack_);
+    ImGui::MenuItem("I/O Registers", nullptr, &show_io_registers_);
+    ImGui::MenuItem("Sprites (OAM)", nullptr, &show_sprites_);
 }
 
 void DebuggerGUI::apply_debug_theme() {
@@ -307,9 +371,8 @@ void DebuggerGUI::render_menu_bar() {
             
             ImGui::Separator();
             
-            if (ImGui::MenuItem("Close Debugger", "F12")) {
-                visible_ = false;
-                paused_ = false;
+            if (ImGui::MenuItem("Close Debugger", "F11")) {
+                set_visible(false);
             }
             
             ImGui::EndMenu();
@@ -369,16 +432,16 @@ void DebuggerGUI::render_registers_window() {
                     continue_execution();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Step (F10)")) {
-                    step_requested_ = true;
+                if (ImGui::Button("Step Over (F10)")) {
+                    request_step_over();
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Step Into (F11)")) {
-                    step_requested_ = true;
+                if (ImGui::Button("Step Into")) {
+                    request_step();
                 }
             } else {
                 if (ImGui::Button("Pause (F5)")) {
-                    paused_ = true;
+                    pause_execution();
                 }
             }
             
@@ -445,9 +508,11 @@ void DebuggerGUI::render_disassembly_window() {
         ImGui::SetNextItemWidth(60);
         if (ImGui::InputText("Go to", disasm_goto_address_, sizeof(disasm_goto_address_),
                              ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_EnterReturnsTrue)) {
-            u16 addr = static_cast<u16>(std::strtol(disasm_goto_address_, nullptr, 16));
-            disasm_address_ = addr;
-            follow_pc_ = false;
+            u16 addr = 0;
+            if (parse_hex_u16(disasm_goto_address_, addr)) {
+                disasm_address_ = addr;
+                follow_pc_ = false;
+            }
         }
         
         // Quick jump buttons for common Game Boy code locations
@@ -572,11 +637,18 @@ void DebuggerGUI::render_memory_window() {
         (ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse) : 0;
     
     if (ImGui::Begin("Memory Viewer", docking_mode_ ? nullptr : &show_memory_, flags)) {
+        constexpr int rows = 16;
+        const int cols = memory_view_columns_;
+        memory_view_address_ = clamp_memory_view_start(memory_view_address_, rows, cols);
+
         // Controls
         ImGui::SetNextItemWidth(60);
         if (ImGui::InputText("Address", memory_goto_address_, sizeof(memory_goto_address_),
                              ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_EnterReturnsTrue)) {
-            memory_view_address_ = static_cast<u16>(std::strtol(memory_goto_address_, nullptr, 16));
+            u16 addr = 0;
+            if (parse_hex_u16(memory_goto_address_, addr)) {
+                memory_view_address_ = clamp_memory_view_start(addr, rows, cols);
+            }
         }
         
         ImGui::SameLine();
@@ -603,14 +675,14 @@ void DebuggerGUI::render_memory_window() {
         ImGui::BeginChild("MemoryScroll", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar);
         
         // Use a monospace font appearance
-        int cols = memory_view_columns_;
-        int rows = 16;
-        
         for (int row = 0; row < rows; ++row) {
-            u16 row_addr = memory_view_address_ + row * cols;
+            const u32 row_addr = static_cast<u32>(memory_view_address_) + static_cast<u32>(row * cols);
+            if (row_addr > ADDR_MAX) {
+                break;
+            }
             
             // Address
-            ImGui::Text("%04X: ", row_addr);
+            ImGui::Text("%04X: ", static_cast<u16>(row_addr));
             ImGui::SameLine();
             
             // Hex values
@@ -618,8 +690,12 @@ void DebuggerGUI::render_memory_window() {
             std::string ascii_line;
             
             for (int col = 0; col < cols; ++col) {
-                u16 addr = row_addr + col;
-                u8 val = debugger_->read_memory(addr);
+                const u32 addr = row_addr + static_cast<u32>(col);
+                if (addr > ADDR_MAX) {
+                    break;
+                }
+
+                u8 val = debugger_->read_memory(static_cast<u16>(addr));
                 
                 std::stringstream ss;
                 ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << static_cast<int>(val) << " ";
@@ -642,19 +718,33 @@ void DebuggerGUI::render_memory_window() {
         
         // Navigation
         if (ImGui::Button("◄◄")) {
-            memory_view_address_ = (memory_view_address_ >= PAGE_SIZE) ? memory_view_address_ - PAGE_SIZE : 0;
+            const u32 current = memory_view_address_;
+            memory_view_address_ = clamp_memory_view_start(
+                current >= PAGE_SIZE ? current - PAGE_SIZE : 0,
+                rows,
+                cols);
         }
         ImGui::SameLine();
         if (ImGui::Button("◄")) {
-            memory_view_address_ = (memory_view_address_ >= cols) ? memory_view_address_ - cols : 0;
+            const u32 current = memory_view_address_;
+            memory_view_address_ = clamp_memory_view_start(
+                current >= static_cast<u32>(cols) ? current - static_cast<u32>(cols) : 0,
+                rows,
+                cols);
         }
         ImGui::SameLine();
         if (ImGui::Button("►")) {
-            memory_view_address_ = (memory_view_address_ + cols <= ADDR_MAX - rows * cols) ? memory_view_address_ + cols : memory_view_address_;
+            memory_view_address_ = clamp_memory_view_start(
+                static_cast<u32>(memory_view_address_) + static_cast<u32>(cols),
+                rows,
+                cols);
         }
         ImGui::SameLine();
         if (ImGui::Button("►►")) {
-            memory_view_address_ = (memory_view_address_ + PAGE_SIZE <= ADDR_MAX - rows * cols) ? memory_view_address_ + PAGE_SIZE : memory_view_address_;
+            memory_view_address_ = clamp_memory_view_start(
+                static_cast<u32>(memory_view_address_) + PAGE_SIZE,
+                rows,
+                cols);
         }
     }
     ImGui::End();
@@ -677,15 +767,19 @@ void DebuggerGUI::render_breakpoints_window() {
         ImGui::SetNextItemWidth(60);
         if (ImGui::InputText("##bp_addr", breakpoint_address_, sizeof(breakpoint_address_),
                              ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_EnterReturnsTrue)) {
-            u16 addr = static_cast<u16>(std::strtol(breakpoint_address_, nullptr, 16));
-            debugger_->add_breakpoint(addr);
-            std::memset(breakpoint_address_, 0, sizeof(breakpoint_address_));
+            u16 addr = 0;
+            if (parse_hex_u16(breakpoint_address_, addr)) {
+                debugger_->add_breakpoint(addr);
+                std::memset(breakpoint_address_, 0, sizeof(breakpoint_address_));
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("Add")) {
-            u16 addr = static_cast<u16>(std::strtol(breakpoint_address_, nullptr, 16));
-            debugger_->add_breakpoint(addr);
-            std::memset(breakpoint_address_, 0, sizeof(breakpoint_address_));
+            u16 addr = 0;
+            if (parse_hex_u16(breakpoint_address_, addr)) {
+                debugger_->add_breakpoint(addr);
+                std::memset(breakpoint_address_, 0, sizeof(breakpoint_address_));
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("Clear All")) {
@@ -761,10 +855,12 @@ void DebuggerGUI::render_watches_window() {
         ImGui::Checkbox("Break", &watch_break_on_change_);
         ImGui::SameLine();
         if (ImGui::Button("Add Watch")) {
-            u16 addr = static_cast<u16>(std::strtol(watch_address_, nullptr, 16));
-            debugger_->add_watch(addr, watch_label_, watch_break_on_change_);
-            std::memset(watch_address_, 0, sizeof(watch_address_));
-            std::memset(watch_label_, 0, sizeof(watch_label_));
+            u16 addr = 0;
+            if (parse_hex_u16(watch_address_, addr)) {
+                debugger_->add_watch(addr, watch_label_, watch_break_on_change_);
+                std::memset(watch_address_, 0, sizeof(watch_address_));
+                std::memset(watch_label_, 0, sizeof(watch_label_));
+            }
         }
         
         ImGui::Separator();
@@ -852,18 +948,18 @@ void DebuggerGUI::render_stack_window() {
             ImGui::BeginChild("StackContents", ImVec2(0, 0), true);
             
             for (int i = 0; i < 16; ++i) {
-                u16 addr = regs->sp + i * 2;
+                const u32 addr = static_cast<u32>(regs->sp) + static_cast<u32>(i * 2);
                 if (addr > STACK_ADDR_LIMIT) break;
                 
-                u8 lo = debugger_->read_memory(addr);
-                u8 hi = debugger_->read_memory(addr + 1);
+                u8 lo = debugger_->read_memory(static_cast<u16>(addr));
+                u8 hi = debugger_->read_memory(static_cast<u16>(addr + 1));
                 u16 val = (hi << 8) | lo;
                 
                 if (i == 0) {
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
                 }
                 
-                ImGui::Text("$%04X: %04X", addr, val);
+                ImGui::Text("$%04X: %04X", static_cast<u16>(addr), val);
                 
                 if (i == 0) {
                     ImGui::PopStyleColor();

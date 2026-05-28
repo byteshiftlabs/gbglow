@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "../core/constants.h"
+
 #include <string>
 #include <vector>
 #include <ctime>
@@ -42,6 +44,10 @@ class RecentRoms {
 public:
     RecentRoms();
     ~RecentRoms();
+    RecentRoms(const RecentRoms&) = delete;
+    RecentRoms& operator=(const RecentRoms&) = delete;
+    RecentRoms(RecentRoms&&) = delete;
+    RecentRoms& operator=(RecentRoms&&) = delete;
     
     // Add or update a ROM in the recent list
     // Moves to top if already exists, adds if new
@@ -58,10 +64,11 @@ public:
     
 private:
     // Maximum number of recent ROMs to track
-    static constexpr size_t MAX_RECENT_ROMS = 10;
+    static constexpr size_t MAX_RECENT_ROMS = constants::recent_roms::kMaxEntries;
     
     // List of recent ROM entries (sorted newest first)
     std::vector<RecentRomEntry> recent_roms_;
+    bool dirty_ = false;
     
     // Path to the config file
     std::string config_path_;

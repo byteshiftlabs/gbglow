@@ -7,24 +7,29 @@ Thank you for your interest in contributing. This document describes the workflo
 | Tool | Minimum version |
 |---|---|
 | GCC or Clang | GCC 11 / Clang 13 (C++17 required) |
-| CMake | 3.10 |
+| CMake | 3.14 |
 | SDL2 | 2.0.20 |
 | cppcheck | 2.7 |
 
-Install on Ubuntu/Debian:
+Install on Ubuntu 24.04:
 ```bash
 sudo apt install build-essential cmake libsdl2-dev pkg-config cppcheck
+```
+
+Or use the helper script:
+```bash
+sudo bash ./install_deps_ubuntu.sh
 ```
 
 ## Building
 
 ```bash
-git clone --recurse-submodules https://github.com/byteshiftlabs/gbglow.git
+git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 ./build.sh
 ```
 
-`build.sh` compiles, runs tests, and runs static analysis. All three must be clean before a PR is accepted.
+`build.sh` compiles, runs tests, and runs static analysis. Dear ImGui is fetched automatically by CMake during configure. All three stages must be clean before a PR is accepted.
 
 ## Workflow
 

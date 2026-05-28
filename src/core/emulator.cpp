@@ -4,11 +4,13 @@
 
 #include "emulator.h"
 #include "../audio/apu.h"
+#include "logging.h"
 #include "timer.h"
 #include <stdexcept>
-#include <iostream>
 
 namespace gbglow {
+
+using namespace constants::emulator;
 
 Emulator::Emulator()
     : memory_(std::make_unique<Memory>())
@@ -20,18 +22,18 @@ Emulator::Emulator()
     memory_->set_ppu(ppu_.get());
     
     // Attach debugger to CPU, Memory, and PPU
-    debugger_->attach(cpu_.get(), memory_.get(), ppu_.get());
+    debugger_->attach(*cpu_, *memory_, *ppu_);
     
     // Note: Joypad is owned by Memory, not Emulator
     
     // Try to load boot ROM (optional - emulator works without it)
     // Common locations: dmg_boot.bin, boot.gb, etc.
     if (memory_->load_boot_rom("dmg_boot.bin")) {
-        std::cout << "Boot ROM loaded" << std::endl;
+        log::info("Boot ROM loaded from dmg_boot.bin");
     } else if (memory_->load_boot_rom("boot.gb")) {
-        std::cout << "Boot ROM loaded" << std::endl;
+        log::info("Boot ROM loaded from boot.gb");
     } else {
-        std::cout << "No boot ROM found (emulator will skip boot sequence)" << std::endl;
+        log::warning("No boot ROM found; emulator will skip boot sequence");
     }
 }
 
@@ -48,14 +50,14 @@ bool Emulator::load_rom(const std::string& path) {
         std::string save_path = get_save_path();
         if (auto* saved_cartridge = memory_->cartridge()) {
             if (saved_cartridge->load_ram_from_file(save_path)) {
-                std::cout << "Loaded save file: " << save_path << std::endl;
+                log::info("Loaded save file: " + save_path);
             }
         }
         
         reset();
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to load ROM: " << e.what() << std::endl;
+        log::error(std::string("Failed to load ROM: ") + e.what());
         return false;
     }
 }
@@ -66,7 +68,6 @@ void Emulator::reset() {
 
 void Emulator::run_frame() {
     // One frame = ~70224 cycles (59.7 fps)
-    // 154 scanlines × 456 dots = 70224 cycles
     run_cycles(CYCLES_PER_FRAME);
 }
 
@@ -94,12 +95,16 @@ Debugger& Emulator::debugger() {
     return *debugger_;
 }
 
+const Debugger& Emulator::debugger() const {
+    return *debugger_;
+}
+
 const PPU& Emulator::ppu() const
 {
     return *ppu_;
 }
 
-PPU& Emulator::ppu()
+PPU& Emulator::ppu_for_testing()
 {
     return *ppu_;
 }
@@ -109,7 +114,7 @@ const CPU& Emulator::cpu() const
     return *cpu_;
 }
 
-CPU& Emulator::cpu()
+CPU& Emulator::cpu_for_testing()
 {
     return *cpu_;
 }
@@ -119,17 +124,36 @@ Joypad& Emulator::joypad()
     return memory_->joypad();
 }
 
+const Joypad& Emulator::joypad() const
+{
+    return memory_->joypad();
+}
+
 Cartridge* Emulator::cartridge()
 {
     return memory_->cartridge();
 }
 
-Memory& Emulator::memory()
+const Cartridge* Emulator::cartridge() const
+{
+    return memory_->cartridge();
+}
+
+Memory& Emulator::memory_for_testing()
+{
+    return *memory_;
+}
+
+const Memory& Emulator::memory() const
 {
     return *memory_;
 }
 
 RecentRoms& Emulator::recent_roms() {
+    return *recent_roms_;
+}
+
+const RecentRoms& Emulator::recent_roms() const {
     return *recent_roms_;
 }
 

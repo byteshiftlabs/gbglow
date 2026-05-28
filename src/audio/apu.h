@@ -36,6 +36,10 @@ class Memory;
 class APU {
 public:
     explicit APU(Memory& memory);
+    APU(const APU&) = delete;
+    APU& operator=(const APU&) = delete;
+    APU(APU&&) = delete;
+    APU& operator=(APU&&) = delete;
     
     /**
      * Step the APU forward by the given number of cycles

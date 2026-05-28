@@ -3,10 +3,12 @@
 // This file is part of gbglow. See LICENSE for details.
 
 #include "cpu.h"
-#include "cpu_constants.h"
+#include "constants.h"
 #include <iostream>
 
 namespace gbglow {
+
+using namespace constants::cpu;
 
 CPU::CPU(Memory& memory)
     : memory_(memory)
@@ -25,7 +27,7 @@ Cycles CPU::step()
     // If CPU is halted, don't execute instructions but still consume cycles
     if (halted_)
     {
-        return CYCLES_REGISTER_OP;
+        return kCyclesRegisterOp;
     }
     
     // Fetch opcode from memory at current PC
@@ -41,8 +43,8 @@ void CPU::handle_interrupts()
     // Exception: HALT mode is exited even if IME is disabled
     
     // Read interrupt flags (IF) and interrupt enable (IE) registers
-    u8 interrupt_flags = memory_.read(REG_INTERRUPT_FLAG);
-    u8 interrupt_enable = memory_.read(REG_INTERRUPT_ENABLE);
+    u8 interrupt_flags = memory_.read(kRegInterruptFlag);
+    u8 interrupt_enable = memory_.read(kRegInterruptEnable);
     
     // Calculate which interrupts are both pending (IF) and enabled (IE)
     u8 triggered_interrupts = interrupt_flags & interrupt_enable;
@@ -65,30 +67,30 @@ void CPU::handle_interrupts()
     u8 interrupt_bit = 0;
     u16 interrupt_vector = 0;
     
-    if (triggered_interrupts & INT_VBLANK_BIT)
+    if (triggered_interrupts & kInterruptVBlankBit)
     {
-        interrupt_bit = INT_VBLANK_BIT;
-        interrupt_vector = INT_VBLANK_VECTOR;
+        interrupt_bit = kInterruptVBlankBit;
+        interrupt_vector = kInterruptVBlankVector;
     }
-    else if (triggered_interrupts & INT_LCD_STAT_BIT)
+    else if (triggered_interrupts & kInterruptLcdStatBit)
     {
-        interrupt_bit = INT_LCD_STAT_BIT;
-        interrupt_vector = INT_LCD_STAT_VECTOR;
+        interrupt_bit = kInterruptLcdStatBit;
+        interrupt_vector = kInterruptLcdStatVector;
     }
-    else if (triggered_interrupts & INT_TIMER_BIT)
+    else if (triggered_interrupts & kInterruptTimerBit)
     {
-        interrupt_bit = INT_TIMER_BIT;
-        interrupt_vector = INT_TIMER_VECTOR;
+        interrupt_bit = kInterruptTimerBit;
+        interrupt_vector = kInterruptTimerVector;
     }
-    else if (triggered_interrupts & INT_SERIAL_BIT)
+    else if (triggered_interrupts & kInterruptSerialBit)
     {
-        interrupt_bit = INT_SERIAL_BIT;
-        interrupt_vector = INT_SERIAL_VECTOR;
+        interrupt_bit = kInterruptSerialBit;
+        interrupt_vector = kInterruptSerialVector;
     }
-    else if (triggered_interrupts & INT_JOYPAD_BIT)
+    else if (triggered_interrupts & kInterruptJoypadBit)
     {
-        interrupt_bit = INT_JOYPAD_BIT;
-        interrupt_vector = INT_JOYPAD_VECTOR;
+        interrupt_bit = kInterruptJoypadBit;
+        interrupt_vector = kInterruptJoypadVector;
     }
     else
     {
@@ -100,7 +102,7 @@ void CPU::handle_interrupts()
     ime_ = false;
     
     // 2. Clear the interrupt flag for the serviced interrupt
-    memory_.write(REG_INTERRUPT_FLAG, interrupt_flags & ~interrupt_bit);
+    memory_.write(kRegInterruptFlag, interrupt_flags & ~interrupt_bit);
     
     // 3. Push current PC onto stack
     push_stack(regs_.pc);
@@ -145,8 +147,8 @@ bool CPU::is_halted() const
 void CPU::request_interrupt(u8 interrupt_bit)
 {
     // Set the corresponding bit in the IF register to request an interrupt
-    u8 interrupt_flags = memory_.read(REG_INTERRUPT_FLAG);
-    memory_.write(REG_INTERRUPT_FLAG, interrupt_flags | interrupt_bit);
+    u8 interrupt_flags = memory_.read(kRegInterruptFlag);
+    memory_.write(kRegInterruptFlag, interrupt_flags | interrupt_bit);
 }
 
 // ============================================================================
@@ -190,7 +192,7 @@ void CPU::alu_add(u8 value, bool use_carry)
     u16 result = regs_.a + value + carry;
     
     // Half-carry: check if carry from bit 3 to bit 4
-    bool half_carry = ((regs_.a & NIBBLE_MASK) + (value & NIBBLE_MASK) + carry) > NIBBLE_MASK;
+    bool half_carry = ((regs_.a & kNibbleMask) + (value & kNibbleMask) + carry) > kNibbleMask;
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, false);
@@ -206,7 +208,7 @@ void CPU::alu_sub(u8 value, bool use_carry)
     int result = regs_.a - value - carry;
     
     // Half-carry: check if borrow from bit 4
-    bool half_carry = ((regs_.a & NIBBLE_MASK) < ((value & NIBBLE_MASK) + carry));
+    bool half_carry = ((regs_.a & kNibbleMask) < ((value & kNibbleMask) + carry));
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, true);
@@ -247,7 +249,7 @@ void CPU::alu_cp(u8 value)
 {
     // Compare is like subtraction but doesn't store result
     int result = regs_.a - value;
-    bool half_carry = ((regs_.a & NIBBLE_MASK) < (value & NIBBLE_MASK));
+    bool half_carry = ((regs_.a & kNibbleMask) < (value & kNibbleMask));
     
     regs_.set_flag(Registers::FLAG_Z, (result & 0xFF) == 0);
     regs_.set_flag(Registers::FLAG_N, true);
@@ -257,7 +259,7 @@ void CPU::alu_cp(u8 value)
 
 void CPU::alu_inc(u8& reg)
 {
-    bool half_carry = ((reg & NIBBLE_MASK) == NIBBLE_MASK);
+    bool half_carry = ((reg & kNibbleMask) == kNibbleMask);
     reg++;
     
     regs_.set_flag(Registers::FLAG_Z, reg == 0);
@@ -268,7 +270,7 @@ void CPU::alu_inc(u8& reg)
 
 void CPU::alu_dec(u8& reg)
 {
-    bool half_carry = ((reg & NIBBLE_MASK) == 0);
+    bool half_carry = ((reg & kNibbleMask) == 0);
     reg--;
     
     regs_.set_flag(Registers::FLAG_Z, reg == 0);
@@ -319,7 +321,7 @@ void CPU::deserialize(const u8* data, size_t data_size, size_t& offset)
 
     // Registers
     regs_.a = data[offset++];
-    regs_.f = data[offset++];
+    regs_.f = data[offset++] & 0xF0;
     regs_.b = data[offset++];
     regs_.c = data[offset++];
     regs_.d = data[offset++];

@@ -22,7 +22,7 @@ namespace gbglow {
  * 0x4000-0x5FFF: RAM Bank Number / Upper ROM Bank bits
  * 0x6000-0x7FFF: Banking Mode Select
  */
-class MBC1 : public Cartridge {
+class MBC1 final : public Cartridge {
 public:
     explicit MBC1(std::vector<u8> rom_data, size_t ram_size);
     

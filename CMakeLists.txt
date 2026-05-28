@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(gbglow VERSION 0.1.0 LANGUAGES CXX)
+
+include(FetchContent)
 
 # C++17 required for clean modern syntax
 set(CMAKE_CXX_STANDARD 17)
@@ -12,35 +14,26 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(MSVC)
-        add_compile_options(/O2)
-    else()
-        # Core optimizations for maximum performance
-        add_compile_options(
-            -O3                      # Maximum optimization level
-            -march=native            # Optimize for your specific CPU architecture
-            -mtune=native            # Fine-tune for your CPU microarchitecture
-            -ffast-math              # Fast floating-point math operations
-            -funroll-loops           # Unroll small loops (excellent for emulation)
-            -finline-functions       # Aggressive function inlining
-            -fomit-frame-pointer     # Free up register for computations
-        )
-        # Strip debug symbols in release
-        add_link_options(-s)
-        # Enable Link Time Optimization
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    endif()
+    # Core optimizations for the supported Ubuntu 24.04 toolchain.
+    add_compile_options(
+        -O3
+        -march=native
+        -mtune=native
+        -ffast-math
+        -funroll-loops
+        -finline-functions
+        -fomit-frame-pointer
+    )
+    add_link_options(-s)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 # Compiler warnings
-if(MSVC)
-    add_compile_options(/W4 /WX)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-endif()
+add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
 # Source files
 set(CORE_SOURCES
+    src/core/constants.cpp
     src/core/cpu.cpp
     src/core/memory.cpp
     src/core/registers.cpp
@@ -83,8 +76,20 @@ set(UI_SOURCES
     src/ui/screenshot.cpp
 )
 
-# ImGui sources
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui)
+# Find and link SDL2 for graphics output
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2)
+
+# Dear ImGui dependency
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.91.8
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+set(IMGUI_DIR ${imgui_SOURCE_DIR})
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -93,6 +98,14 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
     ${IMGUI_DIR}/backends/imgui_impl_sdlrenderer2.cpp
 )
+
+add_library(imgui_backend STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui_backend PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${SDL2_INCLUDE_DIRS}
+)
+target_link_libraries(imgui_backend PUBLIC ${SDL2_LIBRARIES})
 
 # Main executable
 add_executable(gbglow
@@ -104,20 +117,12 @@ add_executable(gbglow
     ${AUDIO_SOURCES}
     ${DEBUG_SOURCES}
     ${UI_SOURCES}
-    ${IMGUI_SOURCES}
 )
 
 target_include_directories(gbglow PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${IMGUI_DIR}
-    ${IMGUI_DIR}/backends
 )
-
-# Find and link SDL2 for graphics output
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED sdl2)
-target_include_directories(gbglow PRIVATE ${SDL2_INCLUDE_DIRS})
-target_link_libraries(gbglow ${SDL2_LIBRARIES})
+target_link_libraries(gbglow PRIVATE imgui_backend ${SDL2_LIBRARIES})
 
 # Testing support
 enable_testing()

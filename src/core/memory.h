@@ -39,6 +39,10 @@ class Memory {
 public:
     Memory();
     ~Memory();  // Defined in .cpp where Cartridge is complete
+    Memory(const Memory&) = delete;
+    Memory& operator=(const Memory&) = delete;
+    Memory(Memory&&) = delete;
+    Memory& operator=(Memory&&) = delete;
     
     // Load a cartridge into memory
     void load_cartridge(std::unique_ptr<Cartridge> cartridge);
@@ -48,12 +52,15 @@ public:
     
     // Get joypad reference for input handling
     Joypad& joypad();
+    const Joypad& joypad() const;
     
     // Get timer reference for timing operations
     Timer& timer();
+    const Timer& timer() const;
     
     // Get APU reference for audio operations
     APU& apu();
+    const APU& apu() const;
     
     // Set PPU reference (called by Emulator after PPU creation)
     void set_ppu(PPU* ppu);
@@ -65,6 +72,7 @@ public:
     // Read/Write operations
     u8 read(u16 address) const;
     void write(u16 address, u8 value);
+    void write_io_register(u16 address, u8 value);
     
     // 16-bit read/write helpers (little-endian)
     u16 read16(u16 address) const;

@@ -11,7 +11,32 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+require_tool() {
+    local tool="$1"
+    local package_hint="$2"
+
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo -e "${RED}Missing required tool: ${tool}${NC}"
+        if [ -n "$package_hint" ]; then
+            echo -e "${YELLOW}Install it first, for example: ${package_hint}${NC}"
+        fi
+        echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
+        exit 1
+    fi
+}
+
 echo -e "${GREEN}=== gbglow Build Script ===${NC}"
+
+require_tool cmake "sudo apt install cmake"
+require_tool pkg-config "sudo apt install pkg-config"
+require_tool cppcheck "sudo apt install cppcheck"
+
+if ! pkg-config --exists sdl2; then
+    echo -e "${RED}Missing SDL2 development package detected via pkg-config.${NC}"
+    echo -e "${YELLOW}Install it first, for example: sudo apt install libsdl2-dev${NC}"
+    echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
+    exit 1
+fi
 
 # Parse arguments
 if [ "$1" = "--clean" ] || [ "$1" = "-c" ]; then

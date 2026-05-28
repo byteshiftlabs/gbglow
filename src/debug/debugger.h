@@ -10,6 +10,7 @@
 #include <string>
 #include <deque>
 #include <functional>
+#include <memory>
 
 namespace gbglow {
 
@@ -55,12 +56,16 @@ struct MemoryWatch {
 class Debugger {
 public:
     Debugger();
-    ~Debugger() = default;
+    ~Debugger();
+    Debugger(const Debugger&) = delete;
+    Debugger& operator=(const Debugger&) = delete;
+    Debugger(Debugger&&) = delete;
+    Debugger& operator=(Debugger&&) = delete;
     
     /**
      * Connect debugger to emulator components
      */
-    void attach(CPU* cpu, Memory* memory, PPU* ppu);
+    void attach(CPU& cpu, Memory& memory, PPU& ppu);
     
     /**
      * Check if debugger is attached
@@ -105,7 +110,14 @@ public:
      * Check if execution should pause (hit breakpoint)
      * Call before each CPU step
      */
-    bool should_break(u16 pc) const;
+    bool should_break(u16 pc);
+
+    /**
+     * Ignore a breakpoint exactly once at the given PC.
+     * Used when continuing from a paused breakpoint so the current
+     * instruction can execute instead of immediately re-triggering.
+     */
+    void skip_breakpoint_once(u16 pc);
     
     /**
      * Request single step
@@ -116,6 +128,13 @@ public:
      * Request step over (skip calls)
      */
     void request_step_over();
+
+    /**
+     * Prepare step over for the current instruction.
+     * Returns true if step-over execution was armed, false if callers should
+     * fall back to a normal single step.
+     */
+    bool prepare_step_over_for_current_instruction();
     
     /**
      * Check if step was requested
@@ -252,31 +271,15 @@ public:
     static std::string format_address(u16 address);
     
 private:
+    struct ExecutionServices;
+    struct InspectionServices;
+
     CPU* cpu_;
     Memory* memory_;
     PPU* ppu_;
-    
-    // Breakpoints
-    std::set<u16> breakpoints_;
-    
-    // Step control
-    bool step_requested_;
-    bool step_over_active_;
-    u16 step_over_return_address_;
-    
-    // Memory watches
-    std::vector<MemoryWatch> watches_;
-    
-    // Execution history
-    std::deque<u16> execution_history_;
-    size_t max_history_size_;
-    
-    // Disassembly helpers
-    std::string disassemble_opcode(u8 opcode, u16 address, u16& next_address, std::vector<u8>& bytes) const;
-    std::string disassemble_cb_opcode(u8 opcode) const;
-    std::string get_register_name_8(u8 reg_index) const;
-    std::string get_register_name_16(u8 reg_index) const;
-    std::string get_condition_name(u8 cond_index) const;
+
+    std::unique_ptr<ExecutionServices> execution_;
+    std::unique_ptr<InspectionServices> inspection_;
 };
 
 } // namespace gbglow
