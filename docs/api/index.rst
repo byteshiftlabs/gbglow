@@ -69,7 +69,7 @@ Constants
    constexpr int SCREEN_HEIGHT = 144;
    
    // Timing
-   constexpr Cycles CYCLES_PER_FRAME = 70224;  // ~59.7 Hz
+   constexpr Cycles CYCLES_PER_FRAME = 70224;
    constexpr Cycles CYCLES_PER_SCANLINE = 456;
 
 Quick Start
@@ -96,7 +96,7 @@ Basic usage example:
            return 1;
        }
        
-       // Run for 60 frames (1 second at 60fps)
+         // Run for 60 frames
        for (int frame = 0; frame < 60; ++frame) {
            emulator.run_frame();
        }
@@ -136,36 +136,6 @@ For multi-threaded applications:
 * Create separate ``Emulator`` instances per thread
 * Use external synchronization if sharing state
 * Render calls must be synchronized with emulation
-
-Performance Considerations
---------------------------
-
-Cycle Accuracy
-~~~~~~~~~~~~~~
-
-gbglow aims for cycle-accurate emulation:
-
-* Each instruction returns its exact cycle count
-* PPU operates at correct timing
-* Memory access delays are modeled
-
-For best performance:
-
-* Batch frame execution with ``run_frame()``
-* Minimize rendering calls
-* Use Release builds (-O3 optimization)
-
-Memory Usage
-~~~~~~~~~~~~
-
-Typical memory footprint:
-
-* Base emulator: ~100KB
-* Cartridge ROM: 32KB - 8MB
-* Save RAM: 8KB - 128KB
-* Video framebuffer: 23KB (160×144)
-
-Total: ~150KB + ROM size
 
 Building
 --------

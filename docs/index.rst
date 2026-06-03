@@ -3,9 +3,8 @@ gbglow Documentation
 
 **A Game Boy Color Emulator**
 
-Welcome to gbglow, a Game Boy Color emulator implementation focused on code clarity, 
-maintainability, and educational value. Every component is thoroughly documented with 
-references to actual Game Boy hardware behavior.
+Welcome to the gbglow documentation. This site covers the emulator layout,
+architecture notes, API reference, and contributor guidance.
 
 .. toctree::
    :maxdepth: 2
@@ -52,14 +51,13 @@ Running a ROM
 Features
 --------
 
-* **Complete CPU Emulation**: All 512 opcodes (256 base + 256 CB-prefixed)
-* **PPU with CGB Support**: Background/sprite rendering, DMG and CGB color palettes
-* **APU**: 4-channel audio with real-time playback
-* **Cartridge Support**: MBC1, MBC3, MBC5 memory bank controllers
-* **Save States**: 10 slots with metadata and timestamps
-* **GUI Menu**: ImGui-based interface with configuration options
+* **CPU**: Instruction decoding and execution for the LR35902 core
+* **PPU**: Background and sprite rendering with DMG and CGB palette handling
+* **APU**: Four audio channels
+* **Cartridge Support**: MBC1, MBC3, and MBC5 memory bank controllers
+* **Save States**: Slot-based state persistence
+* **GUI Menu**: ImGui-based interface and debugger overlay
 * **Configurable Controls**: Rebindable keyboard controls with persistence
-* **Performance**: Optimized with -O3, LTO, and native CPU instructions
 
 Indices and tables
 ==================

@@ -1155,17 +1155,17 @@ void Display::render_about_dialog() {
         ImGui::Text("Build: %s %s", __DATE__, __TIME__);
         ImGui::Separator();
         
-        ImGui::Text("A cycle-accurate Game Boy Color emulator");
+        ImGui::Text("A Game Boy Color emulator");
         ImGui::Text("written in C++17 with SDL2 and ImGui.");
         ImGui::Separator();
         
         ImGui::Text("Features:");
-        ImGui::BulletText("Full CPU emulation");
+        ImGui::BulletText("CPU, PPU, audio, and cartridge subsystems");
         ImGui::BulletText("PPU with DMG/CGB color support");
         ImGui::BulletText("APU with 4 sound channels");
         ImGui::BulletText("Cartridge support (MBC1, MBC3, MBC5)");
-        ImGui::BulletText("Real-time audio playback");
-        ImGui::BulletText("Turbo mode for fast-forward");
+        ImGui::BulletText("Debugger overlay and save states");
+        ImGui::BulletText("Turbo mode and audio output");
         ImGui::Separator();
         
         if (ImGui::Button("Close")) {

@@ -691,11 +691,6 @@ PPU tests verify:
 Test ROMs
 ~~~~~~~~~
 
-**Pokémon Red/Blue**
-   * Tests OAM DMA, sprite rendering, 8x16 sprites
-   * Game Freak logo uses sprites
-   * Battle scenes test sprite positioning
-
 **Test ROM Suite**
    * blargg's test ROMs for PPU timing
    * Sprite priority tests
@@ -709,7 +704,7 @@ Not Yet Implemented
 
 * Color support (CGB mode)
 * VRAM banking (CGB mode)
-* Cycle-accurate OAM DMA delay (currently instant)
+* OAM DMA delay modeling
 * Sprite rendering edge cases (X=0 wrapping)
 
 Implemented Features
