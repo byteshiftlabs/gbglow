@@ -112,12 +112,7 @@ run_frame()
 
    void run_frame();
 
-Executes exactly one frame (70224 cycles, ~16.67ms).
-
-**Frame Duration**
-   * 70224 M-cycles
-   * ~59.7 Hz (60 fps)
-   * Includes VBlank period
+Executes one emulated frame.
 
 **Example**
 
@@ -130,10 +125,6 @@ Executes exactly one frame (70224 cycles, ~16.67ms).
        // Render frame
        const auto& framebuffer = emulator.ppu().framebuffer();
        render_to_screen(framebuffer);
-       
-       // Cap to 60 fps
-       std::this_thread::sleep_until(next_frame_time);
-       next_frame_time += 16ms;
    }
 
 run_cycles()
@@ -324,37 +315,6 @@ Save states include:
 * Timer registers
 * APU state
 * Cartridge RAM and MBC banking registers (including MBC3 RTC)
-
-Performance
------------
-
-Timing
-~~~~~~
-
-One frame execution:
-
-* 70224 M-cycles
-* ~180,000 instructions
-* ~10-20ms on modern CPU
-
-Optimization Tips
-~~~~~~~~~~~~~~~~~
-
-1. **Batch Execution**: Use ``run_frame()`` instead of ``run_cycles(1)``
-2. **Reduce Rendering**: Don't render every frame if not needed
-3. **Release Build**: Use -O3 optimization
-4. **Profile**: Focus on CPU instruction dispatch
-
-Example: Frame Skipping
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: cpp
-
-   constexpr int FRAME_SKIP = 2;  // Render every 3rd frame
-   
-   for (int frame = 0; frame < 180; ++frame) {
-       emulator.run_frame();
-   }
 
 Thread Safety
 -------------
