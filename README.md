@@ -55,10 +55,10 @@ Required tools:
 - GCC or Clang with C++17 support
 - CMake 3.14 or newer
 - SDL2 development package
-- pkg-config
+- pkg-config, used to detect the SDL2 development package and provide the compiler/linker flags for it
 - cppcheck
 
-Dear ImGui is fetched automatically during CMake configure.
+The debugger UI uses Dear ImGui. It is fetched automatically during CMake configure, so no separate manual install is needed.
 
 ## Testing
 
