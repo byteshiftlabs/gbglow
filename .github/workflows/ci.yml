@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-docs:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            cppcheck \
+            git \
+            libsdl2-dev \
+            pkg-config \
+            python3-pip \
+            python3-venv \
+            zenity
+
+      - name: Build, test, and run static analysis
+        run: ./build.sh --clean
+
+      - name: Build documentation
+        run: |
+          python3 -m pip install --break-system-packages -r docs/requirements.txt
+          make -C docs html
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gbglow-docs
+          path: docs/_build/html
