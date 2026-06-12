@@ -25,11 +25,13 @@ require_tool() {
     fi
 }
 
+CPPCHECK_BIN="${CPPCHECK_BIN:-cppcheck}"
+
 echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 require_tool cmake "sudo apt install cmake"
 require_tool pkg-config "sudo apt install pkg-config"
-require_tool cppcheck "sudo apt install cppcheck"
+require_tool "$CPPCHECK_BIN" "sudo apt install cppcheck"
 
 if ! pkg-config --exists sdl2; then
     echo -e "${RED}Missing SDL2 development package detected via pkg-config.${NC}"
@@ -68,7 +70,7 @@ ctest --output-on-failure
 echo -e "${YELLOW}Running static analysis...${NC}"
 cd ..
 CPPCHECK_EXIT=0
-cppcheck --enable=all --inline-suppr --quiet \
+"$CPPCHECK_BIN" --enable=all --inline-suppr --quiet \
     --suppress=missingIncludeSystem \
     --suppress=missingInclude \
     --suppress=unmatchedSuppression \
