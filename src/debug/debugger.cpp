@@ -752,11 +752,15 @@ std::vector<DisassembledInstruction> Debugger::disassemble_around_pc(int lines_b
     }
 
     int pc_index = -1;
-    for (size_t index = 0; index < all_instructions.size(); ++index) {
-        if (all_instructions[index].address == pc) {
-            pc_index = static_cast<int>(index);
-            break;
+    const auto pc_it = std::find_if(
+        all_instructions.begin(),
+        all_instructions.end(),
+        [pc](const DisassembledInstruction& instruction) {
+            return instruction.address == pc;
         }
+    );
+    if (pc_it != all_instructions.end()) {
+        pc_index = static_cast<int>(std::distance(all_instructions.begin(), pc_it));
     }
 
     std::vector<DisassembledInstruction> result;

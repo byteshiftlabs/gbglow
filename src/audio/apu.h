@@ -339,7 +339,7 @@ private:
     void update_channel4_envelope();
     
     int calculate_noise_sample();
-    int calculate_noise_frequency(u8 divisor_code, u8 clock_shift) const;
+        static int calculate_noise_frequency(u8 divisor_code, u8 clock_shift);
 };
 
 } // namespace gbglow
