@@ -76,7 +76,7 @@ private:
      * @param rom_name Name of ROM for filename
      * @return Generated filename (not full path)
      */
-    std::string generate_filename(const std::string& rom_name) const;
+    static std::string generate_filename(const std::string& rom_name);
     
     /**
      * Extract ROM name from path

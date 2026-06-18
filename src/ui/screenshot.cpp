@@ -97,7 +97,7 @@ std::string Screenshot::get_screenshot_dir()
     return base_dir;
 }
 
-std::string Screenshot::generate_filename(const std::string& rom_name) const
+std::string Screenshot::generate_filename(const std::string& rom_name)
 {
     // Get current time
     std::time_t now = std::time(nullptr);

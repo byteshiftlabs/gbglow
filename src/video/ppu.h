@@ -169,7 +169,7 @@ private:
     u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const;
 
     // CGB Color conversion
-    void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) const;
+    static void cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b);
 
     // STAT interrupt helpers
     // Recompute the combined STAT IRQ OR-gate and fire IF bit 1 only on a low→high edge.
