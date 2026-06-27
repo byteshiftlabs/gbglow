@@ -15,21 +15,89 @@ require_tool() {
     local tool="$1"
     local package_hint="$2"
 
-    if ! command -v "$tool" >/dev/null 2>&1; then
-        echo -e "${RED}Missing required tool: ${tool}${NC}"
-        if [ -n "$package_hint" ]; then
-            echo -e "${YELLOW}Install it first, for example: ${package_hint}${NC}"
+    if [[ "$tool" == */* ]]; then
+        if [ -x "$tool" ]; then
+            return
         fi
-        echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
-        exit 1
+    elif command -v "$tool" >/dev/null 2>&1; then
+        return
     fi
+
+    echo -e "${RED}Missing required tool: ${tool}${NC}"
+    if [ -n "$package_hint" ]; then
+        echo -e "${YELLOW}Install it first, for example: ${package_hint}${NC}"
+    fi
+    echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
+    exit 1
 }
+
+bootstrap_cppcheck() {
+    local install_dir="$1"
+    local source_dir="$2"
+    local build_dir="$3"
+    local version="$4"
+
+    if [ -x "$install_dir/bin/cppcheck" ]; then
+        return
+    fi
+
+    require_tool curl "sudo apt install curl"
+
+    echo -e "${YELLOW}Bootstrapping pinned cppcheck ${version}...${NC}"
+    mkdir -p .tools
+    if [ ! -d "$source_dir" ]; then
+        curl -L "https://github.com/danmar/cppcheck/archive/refs/tags/${version}.tar.gz" \
+            | tar -xz -C .tools
+    fi
+
+    cmake -S "$source_dir" \
+        -B "$build_dir" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$PWD/$install_dir"
+    cmake --build "$build_dir" -j"$(nproc)"
+    cmake --install "$build_dir"
+}
+
+CPPCHECK_VERSION="${CPPCHECK_VERSION:-2.20.0}"
+CPPCHECK_INSTALL_DIR=".tools/cppcheck-${CPPCHECK_VERSION}"
+CPPCHECK_SOURCE_DIR=".tools/cppcheck-${CPPCHECK_VERSION}"
+CPPCHECK_BUILD_DIR=".tools/cppcheck-build"
+DEFAULT_CPPCHECK_BIN="$CPPCHECK_INSTALL_DIR/bin/cppcheck"
+CPPCHECK_BIN="${CPPCHECK_BIN:-}"
+CLEAN_BUILD=0
+BOOTSTRAP_CPPCHECK=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --clean|-c)
+            CLEAN_BUILD=1
+            ;;
+        --bootstrap-cppcheck)
+            BOOTSTRAP_CPPCHECK=1
+            ;;
+        *)
+            echo -e "${RED}Unknown argument: ${arg}${NC}"
+            echo -e "${YELLOW}Usage: ./build.sh [--clean|-c] [--bootstrap-cppcheck]${NC}"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$BOOTSTRAP_CPPCHECK" -eq 1 ]; then
+    bootstrap_cppcheck "$CPPCHECK_INSTALL_DIR" "$CPPCHECK_SOURCE_DIR" "$CPPCHECK_BUILD_DIR" "$CPPCHECK_VERSION"
+    CPPCHECK_BIN="$DEFAULT_CPPCHECK_BIN"
+elif [ -z "$CPPCHECK_BIN" ] && [ -x "$DEFAULT_CPPCHECK_BIN" ]; then
+    CPPCHECK_BIN="$DEFAULT_CPPCHECK_BIN"
+fi
+
+CPPCHECK_BIN="${CPPCHECK_BIN:-cppcheck}"
 
 echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 require_tool cmake "sudo apt install cmake"
 require_tool pkg-config "sudo apt install pkg-config"
-require_tool cppcheck "sudo apt install cppcheck"
+require_tool "$CPPCHECK_BIN" "sudo apt install cppcheck"
+echo -e "${YELLOW}Using cppcheck: ${CPPCHECK_BIN}${NC}"
 
 if ! pkg-config --exists sdl2; then
     echo -e "${RED}Missing SDL2 development package detected via pkg-config.${NC}"
@@ -39,7 +107,7 @@ if ! pkg-config --exists sdl2; then
 fi
 
 # Parse arguments
-if [ "$1" = "--clean" ] || [ "$1" = "-c" ]; then
+if [ "$CLEAN_BUILD" -eq 1 ]; then
     if [ -d "build" ]; then
         echo -e "${YELLOW}Cleaning previous build...${NC}"
         rm -rf build
@@ -68,9 +136,11 @@ ctest --output-on-failure
 echo -e "${YELLOW}Running static analysis...${NC}"
 cd ..
 CPPCHECK_EXIT=0
-cppcheck --enable=all --inline-suppr --quiet \
+"$CPPCHECK_BIN" --enable=all --inline-suppr --quiet \
     --suppress=missingIncludeSystem \
     --suppress=missingInclude \
+    --suppress=normalCheckLevelMaxBranches \
+    --suppress=checkersReport \
     --suppress=unmatchedSuppression \
     --suppressions-list=cppcheck.suppressions \
     --error-exitcode=1 \
@@ -86,3 +156,4 @@ echo -e "${GREEN}=== Build Complete! ===${NC}"
 echo -e "${GREEN}Executable: build/gbglow${NC}"
 echo -e "${YELLOW}Usage: ./build/gbglow <rom_file>${NC}"
 echo -e "${YELLOW}Tip:   ./build.sh --clean for a full rebuild${NC}"
+echo -e "${YELLOW}Tip:   ./build.sh --bootstrap-cppcheck --clean to match CI locally${NC}"

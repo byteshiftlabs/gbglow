@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-docs:
+    runs-on: ubuntu-24.04
+    env:
+      CPPCHECK_VERSION: 2.20.0
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            libsdl2-dev \
+            pkg-config \
+            python3-pip \
+            python3-venv \
+            zenity
+
+      - name: Restore cached cppcheck
+        id: cppcheck-cache
+        uses: actions/cache@v4
+        with:
+          path: .tools/cppcheck-${{ env.CPPCHECK_VERSION }}
+          key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_VERSION }}
+
+      - name: Build, test, and run static analysis
+        run: ./build.sh --bootstrap-cppcheck --clean
+
+      - name: Build documentation
+        run: |
+          python3 -m pip install --break-system-packages -r docs/requirements.txt
+          make -C docs html
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gbglow-docs
+          path: docs/_build/html

@@ -66,6 +66,12 @@ The debugger UI uses Dear ImGui. It is fetched automatically during CMake config
 ./build.sh
 ```
 
+To run the exact same pinned ``cppcheck`` version that CI uses:
+
+```bash
+./build.sh --bootstrap-cppcheck --clean
+```
+
 Manual test run:
 
 ```bash

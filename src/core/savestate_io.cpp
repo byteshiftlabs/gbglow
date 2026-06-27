@@ -81,7 +81,7 @@ bool Emulator::save_state(int slot) {
     ppu_->serialize(state_data);
     memory_->apu().serialize(state_data);
     memory_->timer().serialize(state_data);
-    if (auto* cart = memory_->cartridge()) {
+    if (const auto* cart = memory_->cartridge()) {
         cart->serialize(state_data);
     }
 
@@ -137,7 +137,7 @@ bool Emulator::load_state(int slot) {
     ppu_->serialize(expected_state);
     memory_->apu().serialize(expected_state);
     memory_->timer().serialize(expected_state);
-    if (auto* cart = memory_->cartridge()) {
+    if (const auto* cart = memory_->cartridge()) {
         cart->serialize(expected_state);
     }
 

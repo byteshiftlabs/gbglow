@@ -54,7 +54,7 @@ public:
      * Update RTC if not halted
      * Should be called periodically (e.g., every frame)
      */
-    void update_rtc();
+    static void update_rtc();
     
 private:
     // Banking registers

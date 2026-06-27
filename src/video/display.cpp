@@ -570,7 +570,7 @@ void Display::poll_events(Joypad* joypad) {
         ImGui_ImplSDL2_ProcessEvent(&event);
         
         // Check if ImGui wants to capture input
-        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiIO& io = ImGui::GetIO();
         bool imgui_wants_keyboard = io.WantCaptureKeyboard;
         
         // Exception: If waiting for key rebinding, allow keyboard events through
@@ -816,7 +816,7 @@ int Display::height() const {
     return LCD_HEIGHT * scale_factor_;
 }
 
-std::string Display::get_sdl_error() const {
+std::string Display::get_sdl_error() {
     const char* error = SDL_GetError();
     return error ? std::string(error) : "Unknown SDL error";
 }
@@ -1052,8 +1052,8 @@ void Display::render_menu_bar() {
             
             ImGui::Separator();
             
-            bool debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
-            if (ImGui::MenuItem("Debugger", "F11", debugger_visible)) {
+            bool is_debugger_visible = debugger_gui_ && debugger_gui_->is_visible();
+            if (ImGui::MenuItem("Debugger", "F11", is_debugger_visible)) {
                 if (debugger_gui_) {
                     toggle_debugger_mode();
                 }
@@ -1188,7 +1188,7 @@ void Display::request_open_rom_dialog() {
     }
 }
 
-std::string Display::browse_for_rom_file(std::string& error_message) const {
+std::string Display::browse_for_rom_file(std::string& error_message) {
     error_message.clear();
 
     if (command_exists("zenity")) {
@@ -1420,7 +1420,7 @@ void Display::delete_slot_metadata(int slot) {
     slot_metadata_.erase(slot);
 }
 
-bool Display::check_slot_exists(const std::string& state_path) const {
+bool Display::check_slot_exists(const std::string& state_path) {
     std::error_code error;
     return std::filesystem::exists(state_path, error) && !error;
 }
@@ -1477,7 +1477,7 @@ std::string Display::get_slot_label(int slot, const std::string& rom_path) const
     return label;
 }
 
-std::string Display::get_keybindings_path() const {
+std::string Display::get_keybindings_path() {
     const char* xdg_config = std::getenv("XDG_CONFIG_HOME");
     std::string base_dir;
     if (xdg_config) {
@@ -1489,7 +1489,7 @@ std::string Display::get_keybindings_path() const {
     return base_dir + "/" + kConfigDirectoryName + "/" + kKeybindingsFileName;
 }
 
-std::string Display::get_gamepad_config_path() const {
+std::string Display::get_gamepad_config_path() {
     const char* xdg_config = std::getenv("XDG_CONFIG_HOME");
     std::string base_dir;
     if (xdg_config) {

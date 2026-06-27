@@ -69,6 +69,14 @@ Recommended build path:
 * test execution with ``ctest --output-on-failure``
 * ``cppcheck`` static analysis
 
+To match the CI analyzer version locally, use:
+
+.. code-block:: bash
+
+   ./build.sh --bootstrap-cppcheck --clean
+
+This bootstraps the pinned ``cppcheck`` release into ``.tools/`` if it is not already present, then runs the same static-analysis command as the pipeline.
+
 Clean rebuild:
 
 .. code-block:: bash
@@ -144,13 +152,7 @@ Run ``cppcheck`` manually:
 
 .. code-block:: bash
 
-   cppcheck --enable=all --inline-suppr --quiet \
-       --suppress=missingIncludeSystem \
-       --suppress=missingInclude \
-       --suppress=unmatchedSuppression \
-       --suppressions-list=cppcheck.suppressions \
-       --error-exitcode=1 \
-       -I src/ src/
+   ./build.sh --bootstrap-cppcheck --clean
 
 If a suppression is necessary, keep it narrow and add a short justification comment in ``cppcheck.suppressions``.
 

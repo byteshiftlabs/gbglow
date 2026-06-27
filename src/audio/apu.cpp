@@ -408,7 +408,7 @@ void APU::update_channel4_envelope() {
     }
 }
 
-int APU::calculate_noise_frequency(u8 divisor_code, u8 clock_shift) const {
+int APU::calculate_noise_frequency(u8 divisor_code, u8 clock_shift) {
     static const int freq_table[8] = {
         NOISE_FREQ_BASE * 2,
         NOISE_FREQ_DIV_2,

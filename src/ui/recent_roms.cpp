@@ -265,8 +265,8 @@ RecentRomEntry::RecentRomEntry(const std::string& path, std::time_t time)
 }
 
 RecentRoms::RecentRoms()
+    : config_path_(get_config_dir() + "/" + kRecentRomsFileName)
 {
-    config_path_ = get_config_dir() + "/" + kRecentRomsFileName;
     load_from_file();
 }
 
@@ -416,7 +416,7 @@ void RecentRoms::save_to_file()
     dirty_ = false;
 }
 
-std::string RecentRoms::get_config_dir() const
+std::string RecentRoms::get_config_dir()
 {
     // Use XDG_CONFIG_HOME if set, otherwise ~/.config
     const char* xdg_config = std::getenv("XDG_CONFIG_HOME");

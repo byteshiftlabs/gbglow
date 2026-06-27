@@ -80,7 +80,7 @@ private:
     void save_to_file();
     
     // Get the config directory path (creates if needed)
-    std::string get_config_dir() const;
+    static std::string get_config_dir();
 };
 
 } // namespace gbglow
