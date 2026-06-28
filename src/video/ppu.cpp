@@ -228,6 +228,28 @@ PPU::PPU(Memory& memory)
     obj_palette_ram_.fill(0);     // Initialize to black (sprites unused by default)
 }
 
+void PPU::write_stat_mode_bits(Mode mode) {
+    u8 stat_register = memory_.read(REG_STAT);
+    stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode);
+    memory_.write_io_register(REG_STAT, stat_register);
+}
+
+u8 PPU::read_vram_bank_1(u16 address) const {
+    u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
+    memory_.write(REG_VBK, BIT_1);
+    u8 value = memory_.read(address);
+    memory_.write(REG_VBK, saved_bank);
+    return value;
+}
+
+void PPU::read_vram_bank_1_pair(u16 address, u8& first_byte, u8& second_byte) const {
+    u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
+    memory_.write(REG_VBK, BIT_1);
+    first_byte = memory_.read(address);
+    second_byte = memory_.read(address + BIT_1);
+    memory_.write(REG_VBK, saved_bank);
+}
+
 // Recompute the combined STAT IRQ OR-gate (mode-enable bits | LYC=LY enable) and
 // fire IF bit 1 only when the line transitions low→high.  Real GB hardware routes
 // all STAT conditions through a single OR gate; multiple simultaneous condition
@@ -261,9 +283,7 @@ void PPU::update_lyc_coincidence() {
 }
 
 void PPU::refresh_stat_signal() {
-    u8 stat_register = memory_.read(REG_STAT);
-    stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-    memory_.write_io_register(REG_STAT, stat_register);
+    write_stat_mode_bits(mode_);
     update_lyc_coincidence();
 }
 
@@ -280,9 +300,7 @@ void PPU::step(Cycles cycles) {
             dots_ = 0;
             mode_ = Mode::HBlank;
             memory_.write_io_register(REG_LY, 0);
-            u8 stat_register = memory_.read(REG_STAT);
-            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::HBlank);
-            memory_.write_io_register(REG_STAT, stat_register);
+            write_stat_mode_bits(Mode::HBlank);
             stat_irq_line_ = false;  // IRQ line is low while LCD is off
             lcd_was_on_ = false;
         }
@@ -297,9 +315,7 @@ void PPU::step(Cycles cycles) {
         window_line_counter_ = 0;
         lcd_was_on_ = true;
         // Sync STAT mode bits and LYC=LY flag for the new frame start
-        u8 stat_register = memory_.read(REG_STAT);
-        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(Mode::OAMSearch);
-        memory_.write_io_register(REG_STAT, stat_register);
+        write_stat_mode_bits(Mode::OAMSearch);
         update_lyc_coincidence();  // LY=0; fires STAT interrupt if LYC=0 and enabled
     }
 
@@ -323,11 +339,7 @@ void PPU::step(Cycles cycles) {
                     render_scanline();
                     mode_ = Mode::HBlank;
                     // Write STAT mode bits before evaluating the IRQ line (S2)
-                    {
-                        u8 stat_register = memory_.read(REG_STAT);
-                        stat_register &= STAT_MODE_MASK;
-                        memory_.write_io_register(REG_STAT, stat_register);
-                    }
+                    write_stat_mode_bits(mode_);
                     update_stat_irq_line();
                 }
                 break;
@@ -347,19 +359,11 @@ void PPU::step(Cycles cycles) {
                         memory_.write(REG_IF, interrupt_flags | VBLANK_INT_BIT);
 
                         // Write STAT mode bits before evaluating the IRQ line (S2)
-                        {
-                            u8 stat_register = memory_.read(REG_STAT);
-                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write_io_register(REG_STAT, stat_register);
-                        }
+                        write_stat_mode_bits(mode_);
                     } else {
                         mode_ = Mode::OAMSearch;
                         // Write STAT mode bits before evaluating the IRQ line (S2)
-                        {
-                            u8 stat_register = memory_.read(REG_STAT);
-                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write_io_register(REG_STAT, stat_register);
-                        }
+                        write_stat_mode_bits(mode_);
                     }
 
                     // Update LYC=LY coincidence then fire STAT if conditions are met
@@ -378,11 +382,7 @@ void PPU::step(Cycles cycles) {
                         window_line_counter_ = 0;  // Reset window counter for new frame
                         mode_ = Mode::OAMSearch;
                         // Write STAT mode bits before evaluating the IRQ line (S2)
-                        {
-                            u8 stat_register = memory_.read(REG_STAT);
-                            stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-                            memory_.write_io_register(REG_STAT, stat_register);
-                        }
+                        write_stat_mode_bits(mode_);
                     }
 
                     // Update LYC=LY coincidence then fire STAT if conditions are met
@@ -395,9 +395,7 @@ void PPU::step(Cycles cycles) {
         memory_.write_io_register(REG_LY, ly_);
 
         // Update STAT register mode bits (idempotent after transition sites already wrote them)
-        u8 stat_register = memory_.read(REG_STAT);
-        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
-        memory_.write_io_register(REG_STAT, stat_register);
+        write_stat_mode_bits(mode_);
     }
 }
 
@@ -462,10 +460,7 @@ void PPU::render_background() {
             // restore the original bank afterward. This is safe because
             // render_background() runs entirely within the PPU step and
             // no other subsystem reads VBK concurrently.
-            u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
-            memory_.write(REG_VBK, BIT_1);
-            u8 tile_attr = memory_.read(map_addr);
-            memory_.write(REG_VBK, saved_bank);
+            u8 tile_attr = read_vram_bank_1(map_addr);
             
             palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
             x_flip = (tile_attr & CGB_ATTR_X_FLIP_BIT) != BIT_0;
@@ -555,10 +550,7 @@ void PPU::render_window() {
         bool y_flip = false;
 
         if (is_cgb) {
-            u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
-            memory_.write(REG_VBK, BIT_1);
-            u8 tile_attr = memory_.read(map_addr);
-            memory_.write(REG_VBK, saved_bank);
+            u8 tile_attr = read_vram_bank_1(map_addr);
 
             palette_num = tile_attr & CGB_ATTR_PALETTE_MASK;
             x_flip = (tile_attr & CGB_ATTR_X_FLIP_BIT) != BIT_0;
@@ -726,11 +718,7 @@ u8 PPU::get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, b
     u8 byte1;
     u8 byte2;
     if (use_vram_bank_1) {
-        u8 saved_bank = memory_.read(REG_VBK) & BIT_1;
-        memory_.write(REG_VBK, BIT_1);
-        byte1 = memory_.read(tile_addr);
-        byte2 = memory_.read(tile_addr + BIT_1);
-        memory_.write(REG_VBK, saved_bank);
+        read_vram_bank_1_pair(tile_addr, byte1, byte2);
     } else {
         byte1 = memory_.read(tile_addr);
         byte2 = memory_.read(tile_addr + BIT_1);
@@ -1040,9 +1028,9 @@ void PPU::deserialize(const u8* data, size_t data_size, size_t& offset)
     // Publish sanitized LY and mode/coincidence bits back to MMIO immediately so
     // CPU reads after load observe the same canonical PPU state the renderer uses.
     memory_.write_io_register(REG_LY, ly_);
+    write_stat_mode_bits(mode_);
     {
         u8 stat_register = memory_.read(REG_STAT);
-        stat_register = (stat_register & STAT_MODE_MASK) | static_cast<u8>(mode_);
         if (ly_ == memory_.read(REG_LYC)) {
             stat_register |= STAT_COINCIDENCE_FLAG;
         } else {
