@@ -9,7 +9,7 @@ A Game Boy emulator written in C++17.
 
 gbglow includes CPU, PPU, audio, cartridge, input, save-state, and debugger components.
 
-The current release target is Ubuntu 24.04. Release builds are tuned for the local machine by default, so packaged binaries should be produced on the system you intend to run them on.
+The current release target is Ubuntu 24.04. Release builds stay portable by default. Host-specific tuning is available when you explicitly ask for it.
 
 Supported cartridge families:
 
@@ -24,6 +24,11 @@ Supported cartridge families:
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 ./build.sh
+
+# Optional: enable host-specific tuning for a personal build on this machine
+./build.sh --native-tuning
+
+# 3. Run a ROM
 ./run.sh path/to/game.gb
 ```
 
@@ -48,6 +53,11 @@ cd gbglow
 
 Current support target: Ubuntu 24.04.
 
+Dear ImGui is fetched automatically during CMake configure.
+
+Release builds stay portable by default. If you want `-march=native` and `-mtune=native`, opt in explicitly with `./build.sh --native-tuning` or `-DGBGLOW_ENABLE_NATIVE_TUNING=ON` during CMake configure.
+
+Install on Ubuntu 24.04:
 ```bash
 sudo apt install build-essential cmake libsdl2-dev pkg-config cppcheck zenity
 ```
