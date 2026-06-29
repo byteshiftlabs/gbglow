@@ -163,7 +163,7 @@ private:
     
     // Sprite helpers
     u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, bool use_vram_bank_1) const;
-    bool is_sprite_priority(u8 sprite_flags, u8 bg_color) const;
+    static bool is_sprite_priority(u8 sprite_flags, u8 bg_color);
     u8 read_vram_bank_1(u16 address) const;
     void read_vram_bank_1_pair(u16 address, u8& first_byte, u8& second_byte) const;
     

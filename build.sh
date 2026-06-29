@@ -110,21 +110,12 @@ if ! pkg-config --exists sdl2; then
     exit 1
 fi
 
-# Parse arguments
-<<<<<<< HEAD
 if [ "$CLEAN_BUILD" -eq 1 ]; then
     if [ -d "build" ]; then
         echo -e "${YELLOW}Cleaning previous build...${NC}"
         rm -rf build
     fi
 fi
-=======
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --clean|-c)
-            if [ -d "build" ]; then
-                echo -e "${YELLOW}Cleaning previous build...${NC}"
-                rm -rf build
 
 CMAKE_ARGS=()
 
@@ -132,6 +123,16 @@ if [ "$ENABLE_NATIVE_TUNING" -eq 1 ]; then
     echo -e "${YELLOW}Enabling host-specific release tuning...${NC}"
     CMAKE_ARGS+=("-DGBGLOW_ENABLE_NATIVE_TUNING=ON")
 fi
+
+# Create build directory if needed
+mkdir -p build
+
+# Navigate to build directory
+cd build
+
+# Run CMake configuration
+echo -e "${YELLOW}Configuring with CMake...${NC}"
+cmake .. "${CMAKE_ARGS[@]}"
 
 # Build the project
 echo -e "${YELLOW}Building project...${NC}"
