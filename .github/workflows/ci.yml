@@ -44,7 +44,10 @@ jobs:
 
       - name: Build documentation
         run: |
-          python3 -m pip install --break-system-packages -r docs/requirements.txt
+          python3 -m venv .docs-venv
+          . .docs-venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r docs/requirements.txt
           make -C docs html
 
       - name: Upload documentation artifact
