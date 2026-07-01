@@ -66,6 +66,7 @@ DEFAULT_CPPCHECK_BIN="$CPPCHECK_INSTALL_DIR/bin/cppcheck"
 CPPCHECK_BIN="${CPPCHECK_BIN:-}"
 CLEAN_BUILD=0
 BOOTSTRAP_CPPCHECK=0
+ENABLE_NATIVE_TUNING=0
 
 for arg in "$@"; do
     case "$arg" in
@@ -75,9 +76,12 @@ for arg in "$@"; do
         --bootstrap-cppcheck)
             BOOTSTRAP_CPPCHECK=1
             ;;
+        --native-tuning)
+            ENABLE_NATIVE_TUNING=1
+            ;;
         *)
             echo -e "${RED}Unknown argument: ${arg}${NC}"
-            echo -e "${YELLOW}Usage: ./build.sh [--clean|-c] [--bootstrap-cppcheck]${NC}"
+            echo -e "${YELLOW}Usage: ./build.sh [--clean|-c] [--bootstrap-cppcheck] [--native-tuning]${NC}"
             exit 1
             ;;
     esac
@@ -106,12 +110,18 @@ if ! pkg-config --exists sdl2; then
     exit 1
 fi
 
-# Parse arguments
 if [ "$CLEAN_BUILD" -eq 1 ]; then
     if [ -d "build" ]; then
         echo -e "${YELLOW}Cleaning previous build...${NC}"
         rm -rf build
     fi
+fi
+
+CMAKE_ARGS=()
+
+if [ "$ENABLE_NATIVE_TUNING" -eq 1 ]; then
+    echo -e "${YELLOW}Enabling host-specific release tuning...${NC}"
+    CMAKE_ARGS+=("-DGBGLOW_ENABLE_NATIVE_TUNING=ON")
 fi
 
 # Create build directory if needed
@@ -122,7 +132,7 @@ cd build
 
 # Run CMake configuration
 echo -e "${YELLOW}Configuring with CMake...${NC}"
-cmake ..
+cmake .. "${CMAKE_ARGS[@]}"
 
 # Build the project
 echo -e "${YELLOW}Building project...${NC}"
@@ -157,3 +167,4 @@ echo -e "${GREEN}Executable: build/gbglow${NC}"
 echo -e "${YELLOW}Usage: ./build/gbglow <rom_file>${NC}"
 echo -e "${YELLOW}Tip:   ./build.sh --clean for a full rebuild${NC}"
 echo -e "${YELLOW}Tip:   ./build.sh --bootstrap-cppcheck --clean to match CI locally${NC}"
+echo -e "${YELLOW}Tip:   ./build.sh --native-tuning for a host-specific personal build${NC}"

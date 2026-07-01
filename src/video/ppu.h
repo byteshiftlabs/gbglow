@@ -164,6 +164,8 @@ private:
     // Sprite helpers
     u8 get_sprite_pixel(u8 tile_num, u8 sprite_flags, u8 pixel_x, u8 pixel_y, bool use_vram_bank_1) const;
     static bool is_sprite_priority(u8 sprite_flags, u8 bg_color);
+    u8 read_vram_bank_1(u16 address) const;
+    void read_vram_bank_1_pair(u16 address, u8& first_byte, u8& second_byte) const;
     
     // Tile data
     u8 get_tile_pixel(u16 tile_data_addr, u8 tile_num, u8 x, u8 y) const;
@@ -176,6 +178,7 @@ private:
     // Must be called after every mode transition and after every REG_STAT / LY change.
     void update_stat_irq_line();
     void update_lyc_coincidence();  // Sync LYC=LY flag then call update_stat_irq_line()
+    void write_stat_mode_bits(Mode mode);
 };
 
 } // namespace gbglow
