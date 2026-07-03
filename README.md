@@ -32,6 +32,15 @@ cd gbglow
 ./run.sh path/to/game.gb
 ```
 
+## Beginner Ramp-Up
+
+If you are new to the emulator, use this order:
+
+1. Run `./build.sh` and launch a known-good ROM with `./run.sh path/to/game.gb`.
+2. Run `cd build && ctest --output-on-failure` so you understand the current automated test surface.
+3. Rebuild the docs only if you are changing public documentation or developer docs.
+4. Read [ROADMAP.md](ROADMAP.md) before opening larger emulator accuracy or tooling changes so you stay aligned with the current priorities.
+
 ## Controls
 
 | Key | Action |
@@ -113,6 +122,8 @@ make -C docs html
 ```
 
 On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
+
+See [ROADMAP.md](ROADMAP.md) for the current validation, documentation, and follow-up work priorities.
 
 ## License
 
