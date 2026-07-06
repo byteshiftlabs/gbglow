@@ -355,12 +355,16 @@ Building Documentation
 
 .. code-block:: bash
 
-   cd docs/sphinx
-   pip install -r requirements.txt
-   make html
+   python3 -m venv .docs-venv
+   source .docs-venv/bin/activate
+   python -m pip install --upgrade pip
+   python -m pip install -r docs/requirements.txt
+   make -C docs html
    
    # Open in browser
-   open _build/html/index.html
+   xdg-open docs/_build/html/index.html
+
+Use the repository-root virtualenv path above on Ubuntu 24.04 rather than installing Sphinx into the system interpreter.
 
 Documentation Style
 ~~~~~~~~~~~~~~~~~~~

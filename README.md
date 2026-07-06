@@ -103,8 +103,16 @@ Current test targets:
 Build the docs with:
 
 ```bash
-cd docs && pip install -r requirements.txt && make html
+python3 -m venv .docs-venv
+source .docs-venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r docs/requirements.txt
+make -C docs html
+
+# Open docs/_build/html/index.html in your browser
 ```
+
+On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
 
 ## License
 

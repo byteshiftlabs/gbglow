@@ -28,7 +28,6 @@ architecture notes, API reference, and contributor guidance.
    :maxdepth: 2
    :caption: Development
    
-   implementation/index
    development/index
 
 Quick Start
