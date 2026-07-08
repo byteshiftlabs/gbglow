@@ -66,7 +66,6 @@ DEFAULT_CPPCHECK_BIN="$CPPCHECK_INSTALL_DIR/bin/cppcheck"
 CPPCHECK_BIN="${CPPCHECK_BIN:-}"
 CLEAN_BUILD=0
 BOOTSTRAP_CPPCHECK=0
-ENABLE_NATIVE_TUNING=0
 HELP=0
 
 print_help() {
@@ -76,8 +75,7 @@ Usage: ./build.sh [options]
 Options:
   --help, -h              Show this help message and exit
   --clean, -c             Remove the build directory before building
-  --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis
-  --native-tuning         Enable host-specific compiler tuning
+    --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis
 EOF
 }
 
@@ -88,9 +86,6 @@ for arg in "$@"; do
             ;;
         --bootstrap-cppcheck)
             BOOTSTRAP_CPPCHECK=1
-            ;;
-        --native-tuning)
-            ENABLE_NATIVE_TUNING=1
             ;;
         --help|-h)
             HELP=1
@@ -120,16 +115,11 @@ CPPCHECK_BIN="${CPPCHECK_BIN:-cppcheck}"
 echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 require_tool cmake "sudo apt install cmake"
-require_tool pkg-config "sudo apt install pkg-config"
 require_tool "$CPPCHECK_BIN" "sudo apt install cppcheck"
 echo -e "${YELLOW}Using cppcheck: ${CPPCHECK_BIN}${NC}"
 
-if ! pkg-config --exists sdl2; then
-    echo -e "${RED}Missing SDL2 development package detected via pkg-config.${NC}"
-    echo -e "${YELLOW}Install it first, for example: sudo apt install libsdl2-dev${NC}"
-    echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
-    exit 1
-fi
+# SDL2 detection is handled by CMake; let CMake report missing development
+# packages rather than requiring pkg-config here.
 
 if [ "$CLEAN_BUILD" -eq 1 ]; then
     if [ -d "build" ]; then
