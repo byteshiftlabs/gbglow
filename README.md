@@ -58,6 +58,10 @@ Full key mapping and developer notes are in `docs/`.
 
 ROM-only, MBC1, MBC3, MBC5
 
+On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
+
+See [ROADMAP.md](ROADMAP.md) for the current validation, documentation, and follow-up work priorities.
+
 ## License
 
 GPL-3.0 — see LICENSE
