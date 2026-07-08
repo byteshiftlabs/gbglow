@@ -3,123 +3,60 @@
 A Game Boy emulator written in C++17.
 
 ![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
-![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)
 
-## Overview
+## Quick start
 
-gbglow includes CPU, PPU, audio, cartridge, input, save-state, and debugger components.
-
-The current release target is Ubuntu 24.04. Release builds stay portable by default. Host-specific tuning is available when you explicitly ask for it.
-
-Supported cartridge families:
-
-- ROM-only
-- MBC1
-- MBC3
-- MBC5
-
-## Quick Start
+Clone, build, run:
 
 ```bash
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 ./build.sh
-
-# Optional: enable host-specific tuning for a personal build on this machine
-./build.sh --native-tuning
-
-# 3. Run a ROM
 ./run.sh path/to/game.gb
 ```
 
-## Beginner Ramp-Up
-
-If you are new to the emulator, use this order:
-
-1. Run `./build.sh` and launch a known-good ROM with `./run.sh path/to/game.gb`.
-2. Run `cd build && ctest --output-on-failure` so you understand the current automated test surface.
-3. Rebuild the docs only if you are changing public documentation or developer docs.
-4. Read [ROADMAP.md](ROADMAP.md) before opening larger emulator accuracy or tooling changes so you stay aligned with the current priorities.
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| Arrow keys | D-pad |
-| Z | A button |
-| X | B button |
-| Enter | Start |
-| Shift | Select |
-| Ctrl+O | Open ROM dialog |
-| Ctrl+R | Reset emulator |
-| F1-F9 | Save state |
-| Shift+F1-F9 | Load state |
-| F11 | Toggle debugger |
-| F12 | Capture screenshot |
-| ESC | Exit |
-
 ## Requirements
 
-Current support target: Ubuntu 24.04.
-
-Dear ImGui is fetched automatically during CMake configure.
-
-Release builds stay portable by default. If you want `-march=native` and `-mtune=native`, opt in explicitly with `./build.sh --native-tuning` or `-DGBGLOW_ENABLE_NATIVE_TUNING=ON` during CMake configure.
-
-Install on Ubuntu 24.04:
-```bash
-sudo apt install build-essential cmake libsdl2-dev pkg-config cppcheck zenity
-```
-
-Required tools:
-
-- GCC or Clang with C++17 support
-- CMake 3.14 or newer
+- C++17 compiler (GCC)
+- CMake 3.14+
 - SDL2 development package
-- pkg-config, used to detect the SDL2 development package and provide the compiler/linker flags for it
 - cppcheck
 
-The debugger UI uses Dear ImGui. It is fetched automatically during CMake configure, so no separate manual install is needed.
+On Debian/Ubuntu:
 
-Screenshots are supported in the emulator with `F12` and are saved to a local `gbglow` screenshot directory.
+```bash
+sudo apt install build-essential cmake libsdl2-dev
+```
 
-## Testing
+## Tests
+
+Build and run tests:
 
 ```bash
 ./build.sh
+cd build
+ctest --output-on-failure
 ```
 
-To run the exact same pinned ``cppcheck`` version that CI uses:
+Optional — run the pinned `cppcheck` used by CI (developer step):
 
 ```bash
+# Optional: bootstrap and run the pinned cppcheck used by CI
 ./build.sh --bootstrap-cppcheck --clean
 ```
 
-Manual test run:
+## Controls (summary)
 
-```bash
-cd build && ctest --output-on-failure
-```
+- D-pad: Arrow keys
+- A: `Z` — B: `X` — Start: `Enter` — Select: `Shift`
+- Save/load states: `F1-F9` / `Shift+F1-F9`
+- Debugger: `F11` — Screenshot: `F12` — Exit: `Esc`
 
-Current test targets:
+Full key mapping and developer notes are in `docs/`.
 
-- `test_core`
-- `test_persistence`
-- `test_ppu`
+## Supported cartridges
 
-## Documentation
-
-Build the docs with:
-
-```bash
-python3 -m venv .docs-venv
-source .docs-venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r docs/requirements.txt
-make -C docs html
-
-# Open docs/_build/html/index.html in your browser
-```
+ROM-only, MBC1, MBC3, MBC5
 
 On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
 
@@ -127,4 +64,4 @@ See [ROADMAP.md](ROADMAP.md) for the current validation, documentation, and foll
 
 ## License
 
-[GPL-3.0](LICENSE)
+GPL-3.0 — see LICENSE
