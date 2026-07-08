@@ -1,8 +1,10 @@
 # gbglow — Game Boy Emulator
 
-A Game Boy emulator written in C++17.
-
 ![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)
+![Language: C++17](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
+![CI](https://github.com/byteshiftlabs/gbglow/actions/workflows/ci.yml/badge.svg)
+
+A Game Boy emulator written in C++17.
 
 ## Quick start
 
