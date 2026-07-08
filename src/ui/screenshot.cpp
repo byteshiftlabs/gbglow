@@ -16,7 +16,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../../external/stb/stb_image_write.h"
+#include "../vendor/stb_image_write.h"
 #pragma GCC diagnostic pop
 
 #include <algorithm>

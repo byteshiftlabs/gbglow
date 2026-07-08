@@ -7,8 +7,9 @@
 // them internally, but they form the stable public surface documented in the headers.
 // They must NOT be removed — removal would break API consumers.
 
-// --- Third-party libraries in external/ — not our code, not our findings ---
+// --- Third-party libraries in external/ or vendor/ — not our code, not our findings ---
 *:external/*
+*:src/vendor/*
 
 // --- Cartridge introspection API (read by front-end for ROM info display) ---
 unusedFunction:src/cartridge/cartridge.cpp:184    // title()
