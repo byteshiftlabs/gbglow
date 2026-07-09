@@ -66,6 +66,7 @@ DEFAULT_CPPCHECK_BIN="$CPPCHECK_INSTALL_DIR/bin/cppcheck"
 CPPCHECK_BIN="${CPPCHECK_BIN:-}"
 CLEAN_BUILD=0
 BOOTSTRAP_CPPCHECK=0
+ENABLE_NATIVE_TUNING=0
 HELP=0
 
 print_help() {
@@ -75,7 +76,8 @@ Usage: ./build.sh [options]
 Options:
   --help, -h              Show this help message and exit
   --clean, -c             Remove the build directory before building
-    --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis
+  --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis
+  --native-tuning         Build with host-specific -march/-mtune optimizations
 EOF
 }
 
@@ -86,6 +88,9 @@ for arg in "$@"; do
             ;;
         --bootstrap-cppcheck)
             BOOTSTRAP_CPPCHECK=1
+            ;;
+        --native-tuning)
+            ENABLE_NATIVE_TUNING=1
             ;;
         --help|-h)
             HELP=1
