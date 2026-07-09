@@ -19,7 +19,7 @@ unusedFunction:src/cartridge/cartridge.h:63       // get_ram_data()
 unusedFunction:src/cartridge/cartridge.h:64       // set_ram_data()
 
 // --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
-unusedFunction:src/cartridge/mbc3.cpp:217         // update_rtc()
+unusedFunction:src/cartridge/mbc3.cpp:223         // update_rtc()
 
 // --- DebuggerGUI visibility toggle (called by Display on F11 key) ---
 unusedFunction:src/debug/debugger_gui.cpp:189     // toggle_visible()

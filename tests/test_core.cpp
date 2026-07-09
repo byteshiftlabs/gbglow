@@ -191,12 +191,50 @@ bool test_debugger_continue_skips_current_breakpoint_once() {
     return true;
 }
 
+// A ROM only has to clear MIN_HEADER_SIZE (0x150 bytes) to load, which is far
+// short of the 0x4000-byte fixed bank every mapper maps at 0x0000. Reading the
+// whole of bank 0 from such a ROM must stay inside the buffer.
+bool test_cartridge_undersized_rom_bank_0_reads_are_bounded() {
+    std::cout << "Testing mapper bank 0 reads on an undersized ROM...\n";
+
+    constexpr size_t kUndersizedRomSize = 0x150;
+    constexpr u16 kRomBank0End = 0x4000;
+    constexpr u8 kUnmapped = 0xFF;
+    constexpr u8 kSeed = 0xAB;
+
+    auto make_undersized = [&](u8 cartridge_type) {
+        std::vector<u8> rom(kUndersizedRomSize, kSeed);
+        rom[0x0147] = cartridge_type;
+        rom[0x0149] = 0x00;
+        return rom;
+    };
+
+    const std::vector<u8> mbc1_rom = make_undersized(0x01);
+    const std::vector<u8> mbc3_rom = make_undersized(0x0F);
+    const std::vector<u8> mbc5_rom = make_undersized(0x1C);
+
+    MBC1 mbc1(mbc1_rom, 0);
+    MBC3 mbc3(mbc3_rom, 0, false);
+    MBC5 mbc5(mbc5_rom, 0);
+
+    for (u16 address = 0; address < kRomBank0End; ++address) {
+        const bool in_rom = address < kUndersizedRomSize;
+        TEST_EQ(mbc1.read(address), in_rom ? mbc1_rom[address] : kUnmapped);
+        TEST_EQ(mbc3.read(address), in_rom ? mbc3_rom[address] : kUnmapped);
+        TEST_EQ(mbc5.read(address), in_rom ? mbc5_rom[address] : kUnmapped);
+    }
+
+    std::cout << "  PASS: Bank 0 reads stay within an undersized ROM buffer\n";
+    return true;
+}
+
 int main() {
     return test_support::run_suite("gbglow Core Tests", {
         {"registers", test_registers},
         {"memory", test_memory},
         {"cpu_basic", test_cpu_basic},
         {"cpu_flags", test_cpu_flags},
+        {"cartridge_undersized_rom", test_cartridge_undersized_rom_bank_0_reads_are_bounded},
         {"debugger_gui", test_debugger_gui_clears_execution_requests},
         {"debugger_step_over", test_debugger_prepare_step_over},
         {"debugger_continue", test_debugger_continue_skips_current_breakpoint_once},
