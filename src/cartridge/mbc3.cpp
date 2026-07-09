@@ -30,7 +30,13 @@ u8 MBC3::read(u16 address) const
 {
     // ROM Bank 0 (0x0000-0x3FFF)
     if (address < ROM_BANK_0_END) {
-        return rom_[address];
+        // A ROM file is untrusted input and may be shorter than a full
+        // bank, so the fixed bank needs the same bounds check as the
+        // switchable one below.
+        if (address < rom_.size()) {
+            return rom_[address];
+        }
+        return UNMAPPED_VALUE;
     }
     
     // ROM Bank N (0x4000-0x7FFF)
