@@ -71,7 +71,13 @@ ROM-only, MBC1, MBC3, MBC5. Any other cartridge type is rejected at load time wi
 
 ## Documentation
 
-The Sphinx sources live in `docs/`. To build them locally:
+The Sphinx sources live in `docs/`. Building them needs `python3-venv` in addition to the packages above — on Debian/Ubuntu the base `python3` package does not include it, and `venv` creation fails in `ensurepip` without it.
+
+```bash
+sudo apt install python3-venv
+```
+
+To build the docs:
 
 ```bash
 python3 -m venv .docs-venv
