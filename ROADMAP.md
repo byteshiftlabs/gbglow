@@ -2,35 +2,41 @@
 
 ## Purpose
 
-This document tracks feature areas and follow-up work for gbglow. It is a planning document, not a verification report.
+This document tracks feature areas and follow-up work for gbglow. It is a planning document, not a verification report — items listed as implemented describe code that exists, not code whose accuracy has been formally validated against hardware or a test-ROM suite.
 
-## Current Scope
+## Implemented
 
-The current codebase includes work across these areas:
+- CPU, memory, timer, and interrupt handling
+- PPU rendering, including CGB palettes, VRAM banking, and DMA-related behavior
+- APU and audio output
+- Cartridge support for ROM-only, MBC1, MBC3 (including RTC), and MBC5
+- Battery-backed `.sav` files and numbered save states across nine slots
+- Keyboard and gamepad input, with remappable Game Boy buttons
+- Dear ImGui debugger UI, screenshots, and a recent-ROM list
+- Sphinx documentation and a CMake/CTest test suite run by CI on every push and PR
 
-- Core CPU, memory, timer, and interrupt handling
-- PPU rendering and DMA-related behavior
-- APU and audio output plumbing
-- Cartridge support for ROM-only, MBC1, MBC3, and MBC5
-- Input handling, debugger UI, save states, and recent-ROM support
-- Project documentation and automated test targets
+## Known Issues
+
+- Heap out-of-bounds read in `MBC3::read` for undersized ROMs — [#26](https://github.com/byteshiftlabs/gbglow/issues/26). Reported from code review; not yet confirmed against a build.
 
 ## Ongoing Work
 
-- Expand behavioral validation against additional ROM-based test suites
+- Expand behavioral validation against ROM-based test suites. Correctness is currently backed by unit tests rather than by the standard accuracy suites, so accuracy claims should stay modest until that changes.
 - Close documented accuracy gaps, especially around timing-sensitive behavior
-- Continue tightening documentation so it stays aligned with the current implementation
+- Extend hardening tests over untrusted input paths — ROM headers, `.sav` files, and save states are all parsed from disk
 - Keep build, test, and static-analysis workflows current as the code changes
 
-## Deferred Work
+## Not Currently Supported
 
-- Serial and link-related behavior
-- Additional cartridge variants beyond the currently supported set
+- Serial port and link-cable behavior — not implemented
+- MBC2 and other cartridge types outside ROM-only/MBC1/MBC3/MBC5 — rejected at load time
 - Remaining Game Boy Color edge cases and timing details
 - Broader manual compatibility testing across ROM libraries
+- Platforms other than Ubuntu 24.04 with GCC, which is all CI exercises
 
 ## Working Notes
 
 - Prefer small, reviewable changes over large mixed refactors
 - Treat README and Sphinx docs as user-facing documentation that must stay factual
 - Record open gaps as follow-up work instead of treating them as completed milestones
+- Do not describe untested changes as verified; say what was actually run

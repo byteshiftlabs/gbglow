@@ -13,56 +13,76 @@ Clone, build, run:
 ```bash
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
+sudo bash ./install_deps_ubuntu.sh
 ./build.sh
 ./run.sh path/to/game.gb
 ```
 
+`build.sh` compiles, runs the test suite, and runs static analysis. `run.sh` builds first if `build/gbglow` is missing, then launches the emulator with the ROM you pass it.
+
 ## Requirements
 
-- C++17 compiler (GCC)
+- C++17 compiler (GCC; CI builds with the default GCC on Ubuntu 24.04)
 - CMake 3.14+
 - SDL2 development package
-- cppcheck
+- pkg-config — CMake locates SDL2 through it
+- cppcheck — `build.sh` runs static analysis on every build and will not proceed without it
+- zenity or kdialog — optional, only for the in-app "open ROM" file picker
 
-On Debian/Ubuntu:
+On Debian/Ubuntu, `install_deps_ubuntu.sh` installs all of the above. To do it by hand:
 
 ```bash
-sudo apt install build-essential cmake libsdl2-dev
+sudo apt install build-essential cmake cppcheck git libsdl2-dev pkg-config zenity
 ```
+
+Dear ImGui is fetched automatically by CMake during configure, so it does not need installing.
 
 ## Tests
 
-Build and run tests:
+`./build.sh` already runs the tests. To re-run them on their own against an existing build:
 
 ```bash
-./build.sh
 cd build
 ctest --output-on-failure
 ```
 
-Optional — run the pinned `cppcheck` used by CI (developer step):
+To build against the same pinned cppcheck version CI uses, rather than whatever your distro ships:
 
 ```bash
-# Optional: bootstrap and run the pinned cppcheck used by CI
 ./build.sh --bootstrap-cppcheck --clean
 ```
 
-## Controls (summary)
+This downloads and builds cppcheck into `.tools/` the first time, which is slow, then reuses it.
+
+## Controls
 
 - D-pad: Arrow keys
 - A: `Z` — B: `X` — Start: `Enter` — Select: `Shift`
-- Save/load states: `F1-F9` / `Shift+F1-F9`
+- Save state: `F1`–`F9` — Load state: `Shift+F1`–`Shift+F9`
+- Open ROM: `Ctrl+O` — Reset: `Ctrl+R`
+- Pause: `P` — Mute: `M` — Fast-forward: hold `Space`
 - Debugger: `F11` — Screenshot: `F12` — Exit: `Esc`
 
-Full key mapping and developer notes are in `docs/`.
+Game Boy button bindings can be remapped in `config/keybindings.conf`. The debugger adds `F5` (continue/pause) and `F10` (step over) while it is open. See `docs/` for developer notes.
 
 ## Supported cartridges
 
-ROM-only, MBC1, MBC3, MBC5
+ROM-only, MBC1, MBC3, MBC5. Any other cartridge type is rejected at load time with an error — MBC2 in particular is not supported.
 
-On Ubuntu 24.04, prefer the virtualenv path above instead of installing Sphinx into the system interpreter.
+## Documentation
 
-See [ROADMAP.md](ROADMAP.md) for the current validation, documentation, and follow-up work priorities.
+The Sphinx sources live in `docs/`. To build them locally:
+
+```bash
+python3 -m venv .docs-venv
+. .docs-venv/bin/activate
+python -m pip install -r docs/requirements.txt
+make -C docs html
+```
+
+Output lands in `docs/_build/html`.
+
+See [ROADMAP.md](ROADMAP.md) for what is and is not currently in scope, and [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
 
 ## License
 
