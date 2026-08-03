@@ -29,7 +29,7 @@ This document tracks feature areas and follow-up work for gbglow. It is a planni
 ## Not Currently Supported
 
 - Serial port and link-cable behavior — not implemented
-- MBC2 and other cartridge types outside ROM-only/MBC1/MBC3/MBC5 — rejected at load time
+- Cartridge types outside ROM-only/MBC1/MBC3/MBC5 — rejected at load time
 - Remaining Game Boy Color edge cases and timing details
 - Broader manual compatibility testing across ROM libraries
 - Platforms other than Ubuntu 24.04 with GCC, which is all CI exercises

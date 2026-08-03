@@ -13,10 +13,11 @@ Clone, build, run:
 ```bash
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
-sudo bash ./install_deps_ubuntu.sh
 ./build.sh
 ./run.sh path/to/game.gb
 ```
+
+Install the dependencies below first if you do not already have them.
 
 `build.sh` compiles, runs the test suite, and runs static analysis. `run.sh` builds first if `build/gbglow` is missing, then launches the emulator with the ROM you pass it.
 
@@ -29,11 +30,13 @@ sudo bash ./install_deps_ubuntu.sh
 - cppcheck — `build.sh` runs static analysis on every build and will not proceed without it
 - zenity or kdialog — optional, only for the in-app "open ROM" file picker
 
-On Debian/Ubuntu, `install_deps_ubuntu.sh` installs all of the above. To do it by hand:
+On Debian/Ubuntu:
 
 ```bash
 sudo apt install build-essential cmake cppcheck git libsdl2-dev pkg-config zenity
 ```
+
+`install_deps_ubuntu.sh` runs that same command for you, but it refuses to run on anything other than Ubuntu 24.04.
 
 Dear ImGui is fetched automatically by CMake during configure, so it does not need installing.
 
@@ -67,7 +70,7 @@ Game Boy button bindings can be remapped in `config/keybindings.conf`. The debug
 
 ## Supported cartridges
 
-ROM-only, MBC1, MBC3, MBC5. Any other cartridge type is rejected at load time with an error — MBC2 in particular is not supported.
+ROM-only, MBC1, MBC3, MBC5. Any other cartridge type is rejected at load time with an error.
 
 ## Documentation
 
