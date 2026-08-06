@@ -9,7 +9,7 @@
 namespace gbglow {
 
 /**
- * Thread-safe localtime wrapper for the supported Ubuntu 24.04 environment.
+ * Thread-safe localtime wrapper for the supported Ubuntu 22.04 environment.
  */
 inline std::tm* portable_localtime(const std::time_t* timer, std::tm* buf) {
     return localtime_r(timer, buf);

@@ -6,18 +6,14 @@ Thank you for your interest in contributing. This document describes the workflo
 
 See [Requirements](README.md#requirements) in the README for the package list and what each dependency is for.
 
-The versions the project is actually developed and tested against:
+Development and CI both run on Ubuntu 22.04 LTS, with these versions:
 
-| Tool | Developed against (Ubuntu 22.04) | CI (Ubuntu 24.04) |
-|---|---|---|
-| GCC | 11.4 | Ubuntu 24.04 default |
-| CMake | 3.22 (`CMakeLists.txt` requires 3.14+) | Ubuntu 24.04 default |
-| SDL2 | 2.0.20 | Ubuntu 24.04 default |
-| cppcheck | 2.7 (system package) | 2.20.0 (pinned, bootstrapped) |
-
-None of these are enforced by the build, so they are the known-good configurations rather than hard minimums. Other compilers and platforms may well work, but nothing tests them — if you build somewhere else and hit problems, an issue or PR is welcome.
-
-Note that `install_deps_ubuntu.sh` only runs on Ubuntu 24.04; on 22.04 it exits before installing anything.
+| Tool | Version |
+|---|---|
+| GCC | 11.4 |
+| CMake | 3.22 (`CMakeLists.txt` requires 3.14+) |
+| SDL2 | 2.0.20 |
+| cppcheck | 2.7 from apt locally; CI bootstraps a pinned 2.20.0 |
 
 ## Building
 

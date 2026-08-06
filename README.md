@@ -41,11 +41,11 @@ What each one is for:
 
 Dear ImGui is fetched automatically by CMake during configure, so it does not need installing.
 
-`install_deps_ubuntu.sh` runs the same apt command, but it checks `/etc/os-release` and exits on anything that is not Ubuntu 24.04.
+`install_deps_ubuntu.sh` runs the same apt command, and exits on anything that is not Ubuntu 22.04.
 
 ### Platforms
 
-Developed and built on **Ubuntu 22.04 LTS** (GCC 11, CMake 3.22, SDL2 2.0.20, cppcheck 2.7). CI builds and tests on **Ubuntu 24.04**. Those are the two configurations known to work; anything else is untested rather than unsupported.
+Developed, built, and tested on **Ubuntu 22.04 LTS** — GCC 11, CMake 3.22, SDL2 2.0.20. CI runs on the same release.
 
 ## Tests
 

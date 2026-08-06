@@ -83,7 +83,7 @@ const std::string& Screenshot::get_last_screenshot_path() const
 
 std::string Screenshot::get_screenshot_dir()
 {
-    // Use ~/Pictures/gbglow/ on Ubuntu 24.04.
+    // Use ~/Pictures/gbglow/ on Ubuntu 22.04.
     const char* home = std::getenv("HOME");
     std::string base_dir;
     
