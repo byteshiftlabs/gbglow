@@ -32,7 +32,7 @@ This document tracks feature areas and follow-up work for gbglow. It is a planni
 - Cartridge types outside ROM-only/MBC1/MBC3/MBC5 — rejected at load time
 - Remaining Game Boy Color edge cases and timing details
 - Broader manual compatibility testing across ROM libraries
-- Platforms other than Ubuntu 24.04 with GCC, which is all CI exercises
+- Platforms beyond Ubuntu 22.04, where it is developed, and Ubuntu 24.04, where CI builds and tests it
 
 ## Working Notes
 

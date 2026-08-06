@@ -23,22 +23,29 @@ Install the dependencies below first if you do not already have them.
 
 ## Requirements
 
-- C++17 compiler (GCC; CI builds with the default GCC on Ubuntu 24.04)
-- CMake 3.14+
-- SDL2 development package
-- pkg-config — CMake locates SDL2 through it
-- cppcheck — `build.sh` runs static analysis on every build and will not proceed without it
-- zenity or kdialog — optional, only for the in-app "open ROM" file picker
-
 On Debian/Ubuntu:
 
 ```bash
 sudo apt install build-essential cmake cppcheck git libsdl2-dev pkg-config zenity
 ```
 
-`install_deps_ubuntu.sh` runs that same command for you, but it refuses to run on anything other than Ubuntu 24.04.
+What each one is for:
+
+- **build-essential** — a C++17 compiler; GCC is what the project is built with
+- **cmake** — 3.14 or newer, as required by `CMakeLists.txt`
+- **libsdl2-dev** — video, audio, and input
+- **pkg-config** — CMake locates SDL2 through it
+- **cppcheck** — `build.sh` runs static analysis on every build and will not proceed without it
+- **git** — CMake uses it to fetch Dear ImGui
+- **zenity** — optional; only for the in-app "open ROM" file picker, which also accepts kdialog
 
 Dear ImGui is fetched automatically by CMake during configure, so it does not need installing.
+
+`install_deps_ubuntu.sh` runs the same apt command, but it checks `/etc/os-release` and exits on anything that is not Ubuntu 24.04.
+
+### Platforms
+
+Developed and built on **Ubuntu 22.04 LTS** (GCC 11, CMake 3.22, SDL2 2.0.20, cppcheck 2.7). CI builds and tests on **Ubuntu 24.04**. Those are the two configurations known to work; anything else is untested rather than unsupported.
 
 ## Tests
 

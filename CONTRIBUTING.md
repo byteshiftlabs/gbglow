@@ -4,26 +4,20 @@ Thank you for your interest in contributing. This document describes the workflo
 
 ## Prerequisites
 
-| Tool | Version |
-|---|---|
-| GCC | CI builds with the default GCC on Ubuntu 24.04 (C++17 required) |
-| CMake | 3.14 or newer (enforced by `CMakeLists.txt`) |
-| SDL2 | Development package; located via pkg-config |
-| pkg-config | Required — CMake uses it to find SDL2 |
-| cppcheck | Required by `build.sh`; CI pins 2.20.0 |
-| zenity or kdialog | Optional, only for the in-app ROM file picker |
+See [Requirements](README.md#requirements) in the README for the package list and what each dependency is for.
 
-Install on Ubuntu 24.04:
-```bash
-sudo bash ./install_deps_ubuntu.sh
-```
+The versions the project is actually developed and tested against:
 
-Or by hand:
-```bash
-sudo apt install build-essential cmake cppcheck git libsdl2-dev pkg-config zenity
-```
+| Tool | Developed against (Ubuntu 22.04) | CI (Ubuntu 24.04) |
+|---|---|---|
+| GCC | 11.4 | Ubuntu 24.04 default |
+| CMake | 3.22 (`CMakeLists.txt` requires 3.14+) | Ubuntu 24.04 default |
+| SDL2 | 2.0.20 | Ubuntu 24.04 default |
+| cppcheck | 2.7 (system package) | 2.20.0 (pinned, bootstrapped) |
 
-Only GCC on Ubuntu 24.04 is exercised by CI. Other compilers and platforms may well work, but they are not tested — if you build somewhere else and hit problems, an issue or PR is welcome.
+None of these are enforced by the build, so they are the known-good configurations rather than hard minimums. Other compilers and platforms may well work, but nothing tests them — if you build somewhere else and hit problems, an issue or PR is welcome.
+
+Note that `install_deps_ubuntu.sh` only runs on Ubuntu 24.04; on 22.04 it exits before installing anything.
 
 ## Building
 
