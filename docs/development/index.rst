@@ -259,15 +259,9 @@ Use Debugger
 
 .. code-block:: bash
 
-   # GDB
    gdb ./gbglow
    (gdb) break CPU::step
-   (gdb) run tetris.gb
-   
-   # LLDB
-   lldb ./gbglow
-   (lldb) breakpoint set --name CPU::step
-   (lldb) run tetris.gb
+   (gdb) run game.gb
 
 Instruction Tracing
 ~~~~~~~~~~~~~~~~~~~
