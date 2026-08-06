@@ -12,7 +12,7 @@ bool test_recent_roms_round_trip() {
     namespace fs = std::filesystem;
     const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_test";
     const fs::path config_root = temp_root / "config";
-    const fs::path rom_path = temp_root / "Pokemon Red.gb";
+    const fs::path rom_path = temp_root / "Sample Game.gb";
 
     fs::remove_all(temp_root);
     fs::create_directories(config_root);
@@ -39,7 +39,7 @@ bool test_recent_roms_round_trip() {
         TEST_ASSERT(!reloaded_recent_roms.is_empty());
         TEST_EQ(reloaded_recent_roms.get_roms().size(), static_cast<size_t>(1));
         TEST_ASSERT(reloaded_recent_roms.get_roms().front().file_path == rom_path.string());
-        TEST_ASSERT(reloaded_recent_roms.get_roms().front().display_name == "Pokemon Red.gb");
+        TEST_ASSERT(reloaded_recent_roms.get_roms().front().display_name == "Sample Game.gb");
     }
 
     fs::remove_all(temp_root);
@@ -55,7 +55,7 @@ bool test_recent_roms_ignores_malformed_entries() {
     const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_malformed_test";
     const fs::path config_root = temp_root / "config";
     const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
-    const fs::path rom_path = temp_root / "Kirby.gb";
+    const fs::path rom_path = temp_root / "Sample.gb";
     const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
 
     fs::remove_all(temp_root);
@@ -87,7 +87,7 @@ bool test_recent_roms_ignores_malformed_entries() {
         TEST_ASSERT(!recent_roms.is_empty());
         TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
         TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
-        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Kirby.gb");
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Sample.gb");
     }
 
     fs::remove_all(temp_root);
@@ -141,7 +141,7 @@ bool test_recent_roms_handles_paths_with_delimiters() {
     const fs::path temp_root = fs::temp_directory_path() / "gbglow_recent_roms_delimiter_test";
     const fs::path config_root = temp_root / "config";
     const fs::path app_config_dir = config_root / constants::application::kConfigDirectoryName;
-    const fs::path rom_path = temp_root / "Legend ] of } Zelda \"DX\".gb";
+    const fs::path rom_path = temp_root / "Sample ] of } Game \"DX\".gb";
     const fs::path config_file = app_config_dir / constants::application::kRecentRomsFileName;
 
     fs::remove_all(temp_root);
@@ -171,7 +171,7 @@ bool test_recent_roms_handles_paths_with_delimiters() {
         TEST_ASSERT(!recent_roms.is_empty());
         TEST_EQ(recent_roms.get_roms().size(), static_cast<size_t>(1));
         TEST_ASSERT(recent_roms.get_roms().front().file_path == rom_path.string());
-        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Legend ] of } Zelda \"DX\".gb");
+        TEST_ASSERT(recent_roms.get_roms().front().display_name == "Sample ] of } Game \"DX\".gb");
     }
 
     fs::remove_all(temp_root);

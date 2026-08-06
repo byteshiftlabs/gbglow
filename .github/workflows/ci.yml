@@ -11,7 +11,10 @@ permissions:
 
 jobs:
   build-test-docs:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
     env:
       CPPCHECK_VERSION: 2.20.0
 
@@ -37,7 +40,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tools/cppcheck-${{ env.CPPCHECK_VERSION }}
-          key: ${{ runner.os }}-cppcheck-${{ env.CPPCHECK_VERSION }}
+          # Keyed on the runner image, not runner.os: cppcheck is built from
+          # source here, so a binary built on one Ubuntu release links against
+          # a glibc the other may not have.
+          key: ${{ matrix.os }}-cppcheck-${{ env.CPPCHECK_VERSION }}
 
       - name: Build, test, and run static analysis
         run: ./build.sh --bootstrap-cppcheck --clean
