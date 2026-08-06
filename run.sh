@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 if [ $# -eq 0 ]; then
     echo -e "${RED}Error: No ROM file specified${NC}"
     echo -e "${YELLOW}Usage: $0 <rom_file>${NC}"
-    echo -e "${YELLOW}Example: $0 pokemon_red.gb${NC}"
+    echo -e "${YELLOW}Example: $0 game.gb${NC}"
     exit 1
 fi
 

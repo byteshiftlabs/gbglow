@@ -26,7 +26,7 @@ int main(int argc, const char* argv[])
     {
         std::ostringstream usage;
         usage << "Usage: " << argv[0] << " <rom_file>\n"
-              << "Example: " << argv[0] << " tetris.gb\n\n"
+              << "Example: " << argv[0] << " game.gb\n\n"
               << "Controls:\n"
               << "  Arrow keys = D-pad\n"
               << "  Z = A button\n"
