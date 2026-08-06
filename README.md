@@ -100,6 +100,26 @@ Output lands in `docs/_build/html`.
 
 See [ROADMAP.md](ROADMAP.md) for what is and is not currently in scope, and [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
 
+## Acknowledgments
+
+Hardware references this was built from:
+
+- [Pan Docs](https://gbdev.io/pandocs/) — the Game Boy hardware reference
+- [Game Boy CPU Manual](http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf)
+- [GB Opcodes](https://gbdev.io/gb-opcodes/) — opcode tables
+- [awesome-gbdev](https://github.com/gbdev/awesome-gbdev)
+
+Test ROMs used to check accuracy:
+
+- [blargg's test ROMs](https://github.com/retrio/gb-test-roms)
+- [Mooneye Test Suite](https://github.com/Gekkio/mooneye-test-suite)
+
+Third-party code:
+
+- [SDL2](https://www.libsdl.org/) — video, audio, and input
+- [Dear ImGui](https://github.com/ocornut/imgui) v1.91.8 — debugger UI, fetched by CMake
+- [stb_image_write](https://github.com/nothings/stb) v1.16 by Sean Barrett — PNG screenshots, vendored in `src/vendor/`
+
 ## License
 
 GPL-3.0 — see LICENSE
