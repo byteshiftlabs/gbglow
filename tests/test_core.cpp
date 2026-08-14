@@ -4,6 +4,8 @@
 
 #include "test_common.h"
 
+#include "../src/video/display.h"
+
 bool test_registers() {
     std::cout << "Testing registers...\n";
 
@@ -228,12 +230,42 @@ bool test_cartridge_undersized_rom_bank_0_reads_are_bounded() {
     return true;
 }
 
+// F5 sits inside the F1-F9 save-state range. While the debugger is open it has
+// to reach the debugger instead of being swallowed as a save-state request,
+// because debugging always happens with a ROM loaded.
+bool test_display_f5_reaches_debugger_while_open() {
+    std::cout << "Testing F5 hotkey routing...\n";
+
+    RecentRoms recent_roms;
+    const std::string rom_path = "/tmp/gbglow_hotkey_test.gb";
+
+    // Debugger closed: F5 stays save-state slot 5 (index 4).
+    Display closed;
+    closed.bind_session_context(rom_path, recent_roms);
+    closed.handle_keydown_for_testing(SDLK_F5, 0, false);
+    TEST_EQ(closed.get_save_state_slot(), 4);
+
+    // Debugger open: F5 must not be taken as a save-state request.
+    Display with_debugger;
+    with_debugger.bind_session_context(rom_path, recent_roms);
+    with_debugger.handle_keydown_for_testing(SDLK_F5, 0, true);
+    TEST_EQ(with_debugger.get_save_state_slot(), -1);
+
+    // Neighbouring slots keep working while the debugger is open.
+    with_debugger.handle_keydown_for_testing(SDLK_F4, 0, true);
+    TEST_EQ(with_debugger.get_save_state_slot(), 3);
+
+    std::cout << "  PASS: F5 reaches the debugger, other slots unaffected\n";
+    return true;
+}
+
 int main() {
     return test_support::run_suite("gbglow Core Tests", {
         {"registers", test_registers},
         {"memory", test_memory},
         {"cpu_basic", test_cpu_basic},
         {"cpu_flags", test_cpu_flags},
+        {"display_f5_routing", test_display_f5_reaches_debugger_while_open},
         {"cartridge_undersized_rom", test_cartridge_undersized_rom_bank_0_reads_are_bounded},
         {"debugger_gui", test_debugger_gui_clears_execution_requests},
         {"debugger_step_over", test_debugger_prepare_step_over},

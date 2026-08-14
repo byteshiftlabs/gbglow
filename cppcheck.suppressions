@@ -36,10 +36,11 @@ unusedFunction:src/input/gamepad.cpp:397          // save_config()
 
 // --- Display utility/state accessors used by front-end or future tools ---
 unusedFunction:src/video/display.cpp:275          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:819          // get_sdl_error()
-unusedFunction:src/video/display.cpp:914          // is_muted()
+unusedFunction:src/video/display.cpp:830          // get_sdl_error()
+unusedFunction:src/video/display.cpp:925          // is_muted()
 
 // --- Emulator testing hooks exposed for focused unit/integration tests ---
+unusedFunction:src/video/display.cpp:633          // handle_keydown_for_testing()
 unusedFunction:src/core/emulator.cpp:107          // ppu_for_testing()
 unusedFunction:src/core/emulator.cpp:117          // cpu_for_testing()
 unusedFunction:src/core/emulator.cpp:142          // memory_for_testing()
@@ -55,8 +56,8 @@ unusedFunction:src/debug/debugger.cpp:606         // write_memory()
 unusedFunction:src/debug/debugger.cpp:612         // read_memory_region()
 unusedFunction:src/debug/debugger.cpp:642         // get_execution_history()
 unusedFunction:src/debug/debugger.cpp:737         // disassemble_around_pc()
-unusedFunction:src/video/display.cpp:811          // width()
-unusedFunction:src/video/display.cpp:815          // height()
+unusedFunction:src/video/display.cpp:822          // width()
+unusedFunction:src/video/display.cpp:826          // height()
 
 // --- CPU/PPU public API accessors ---
 unusedFunction:src/core/cpu.cpp:132               // ime()

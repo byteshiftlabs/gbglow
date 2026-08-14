@@ -160,6 +160,15 @@ public:
     float get_speed_multiplier() const;
     
     /**
+     * Route a key through the same handler the SDL event loop uses, without
+     * needing an initialized window. Exposed for tests of hotkey routing.
+     * @param key SDL keycode
+     * @param modifiers SDL key modifier mask
+     * @param debugger_mode Whether the debugger view is open
+     */
+    void handle_keydown_for_testing(int key, int modifiers, bool debugger_mode);
+
+    /**
      * Check if save state was requested
      */
     int get_save_state_slot() const;
