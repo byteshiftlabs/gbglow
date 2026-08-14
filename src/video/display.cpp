@@ -630,6 +630,11 @@ bool Display::is_global_shortcut(int key, int modifiers) const {
     return key >= SDLK_F1 && key <= SDLK_F12;
 }
 
+void Display::handle_keydown_for_testing(int key, int modifiers, bool debugger_mode) {
+    debugger_mode_ = debugger_mode;
+    handle_keydown(key, modifiers, nullptr);
+}
+
 void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
     // If waiting for key rebinding, capture it
     if (waiting_for_key_ >= 0) {
@@ -673,7 +678,13 @@ void Display::handle_keydown(int key, int modifiers, Joypad* joypad) {
         return;
     }
 
-    if (!current_rom_path_.empty() && key >= SDLK_F1 && key < SDLK_F1 + kHotkeySlotCount) {
+    // F5 falls inside the F1-F9 save-state range, but belongs to the debugger
+    // while it is open. Without this the debugger's continue/pause key is
+    // unreachable, because debugging always happens with a ROM loaded.
+    const bool debugger_owns_key = debugger_mode_ && debugger_gui_ && key == SDLK_F5;
+
+    if (!debugger_owns_key && !current_rom_path_.empty() &&
+        key >= SDLK_F1 && key < SDLK_F1 + kHotkeySlotCount) {
         const int slot = key - SDLK_F1;
         if (shift_pressed) {
             load_state_slot_ = slot;

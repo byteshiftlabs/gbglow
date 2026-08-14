@@ -18,7 +18,9 @@ set(GBGLOW_TEST_RUNTIME_SOURCES
     ../src/input/joypad.cpp
     ../src/audio/apu.cpp
     ../src/video/ppu.cpp
+    ../src/video/display.cpp
     ../src/ui/recent_roms.cpp
+    ../src/ui/screenshot.cpp
 )
 
 function(add_gbglow_test target test_source)
