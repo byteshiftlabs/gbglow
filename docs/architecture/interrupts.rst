@@ -373,8 +373,5 @@ Future Enhancements
 Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
-* LCD STAT interrupt conditions
-* Timer overflow interrupt
 * Serial transfer interrupt
-* Joypad interrupt
 * HALT bug emulation (DMG)
