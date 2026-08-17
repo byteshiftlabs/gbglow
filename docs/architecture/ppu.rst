@@ -702,8 +702,6 @@ Future Enhancements
 Not Yet Implemented
 ~~~~~~~~~~~~~~~~~~~
 
-* Color support (CGB mode)
-* VRAM banking (CGB mode)
 * OAM DMA delay modeling
 * Sprite rendering edge cases (X=0 wrapping)
 
