@@ -298,8 +298,9 @@ Most advanced MBC, used in later games.
    0x3000-0x3FFF: ROM Bank (9th bit)
    0x4000-0x5FFF: RAM Bank
 
-MBC5 support includes 9-bit bank selection and optional rumble motor
-handling.
+MBC5 support includes 9-bit bank selection. The rumble bit of the RAM bank
+register is decoded and kept in save states, but gbglow drives no motor output
+from it.
 
 Implementation
 --------------
@@ -429,6 +430,6 @@ Implemented Features
 
 * ✅ MBC1 with ROM/RAM banking modes
 * ✅ MBC3 with Real-Time Clock
-* ✅ MBC5 with 9-bit banking and optional rumble
+* ✅ MBC5 with 9-bit banking (rumble bit decoded and serialized, no motor output)
 * ✅ Battery-backed RAM persistence
 * ✅ MBC state serialization in save states (banking registers, RTC)
