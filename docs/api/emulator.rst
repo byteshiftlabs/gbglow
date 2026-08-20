@@ -86,7 +86,7 @@ Loads a Game Boy ROM file.
 .. code-block:: cpp
 
    Emulator emulator;
-   if (!emulator.load_rom("tetris.gb")) {
+   if (!emulator.load_rom("game.gb")) {
        std::cerr << "Failed to load ROM\n";
        return 1;
    }

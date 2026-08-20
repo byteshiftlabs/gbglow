@@ -9,14 +9,14 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 if [ ! -r /etc/os-release ]; then
-    echo "Cannot determine operating system. This installer only supports Ubuntu 24.04."
+    echo "Cannot determine operating system. This installer only supports Ubuntu 22.04."
     exit 1
 fi
 
 . /etc/os-release
 
-if [ "${ID:-}" != "ubuntu" ] || [ "${VERSION_ID:-}" != "24.04" ]; then
-    echo "Unsupported distribution: ${PRETTY_NAME:-${ID:-unknown}}. This installer only supports Ubuntu 24.04."
+if [ "${ID:-}" != "ubuntu" ] || [ "${VERSION_ID:-}" != "22.04" ]; then
+    echo "Unsupported distribution: ${PRETTY_NAME:-${ID:-unknown}}. This installer only supports Ubuntu 22.04."
     exit 1
 fi
 
