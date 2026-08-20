@@ -47,12 +47,19 @@ By default `build.sh` uses whatever `cppcheck` is on your `PATH`, which may diff
 
 ## Code Standards
 
-- **C++17** — no C++20 features.
+Enforced by `./build.sh` and CI, so a PR that breaks one of these fails:
+
+- **C++17** — no C++20 features. `CMakeLists.txt` sets the standard and turns compiler extensions off.
+- Zero compiler warnings. The build runs `-Wall -Wextra -Wpedantic -Werror`.
+- Zero cppcheck findings. See Static Analysis below.
+
+Expected, but checked by review rather than by tooling:
+
 - Follow the **C++ Core Guidelines** for naming, const-correctness, and ownership.
 - No magic numbers — use `constexpr` named constants.
-- No shadow variables — locals must not shadow members, parameters, or outer variables.
+- No shadow variables — locals must not shadow members, parameters, or outer variables. `-Wshadow` is not among the build's warning flags, so the compiler will not catch these.
 - Prefer `std::copy` / `std::fill` over raw loops where intent is clearer.
-- Every public function must have a Doxygen-style doc comment in the header.
+- Public functions carry a Doxygen-style doc comment in the header. Overrides of an already documented base method are the usual exception.
 - Bounds-check before indexing into ROM and RAM buffers. A ROM file is untrusted input and may be shorter than its header claims, so mapper `read`/`write` paths must validate offsets against the actual buffer size rather than assuming a well-formed cartridge.
 - Copyright header on every new source file:
   ```cpp
