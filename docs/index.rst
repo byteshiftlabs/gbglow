@@ -17,6 +17,7 @@ architecture notes, API reference, and contributor guidance.
    :caption: Architecture
    
    architecture/index
+   decisions
 
 .. toctree::
    :maxdepth: 2
