@@ -283,20 +283,6 @@ Add temporary logging in CPU:
        // ... execute instruction
    }
 
-Compare with Other Emulators
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Run same ROM in multiple emulators:
-
-.. code-block:: bash
-
-   # Generate execution trace
-   ./gbglow --trace rom.gb > gbglow_trace.txt
-   
-   # Compare with reference emulator
-   ./bgb --trace rom.gb > bgb_trace.txt
-   diff gbglow_trace.txt bgb_trace.txt
-
 Contributing
 ------------
 
@@ -383,4 +369,3 @@ Emulator Development
 
 * `Emulator Development Guide <https://github.com/gbdev/awesome-gbdev>`_
 * `GB Opcodes <https://gbdev.io/gb-opcodes/>`_
-* `BGB Emulator <https://bgb.bircd.org/>`_ - Reference for testing
