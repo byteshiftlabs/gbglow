@@ -1,7 +1,7 @@
 APU (Audio Processing Unit)
 ===========================
 
-The APU generates Game Boy audio using a hardware-accurate implementation.
+The APU generates Game Boy audio.
 
 Overview
 --------
