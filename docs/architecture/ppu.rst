@@ -688,14 +688,6 @@ PPU tests verify:
 * VRAM access during different modes
 * OAM DMA transfer functionality
 
-Test ROMs
-~~~~~~~~~
-
-**Test ROM Suite**
-   * blargg's test ROMs for PPU timing
-   * Sprite priority tests
-   * OAM timing tests
-
 Future Enhancements
 -------------------
 

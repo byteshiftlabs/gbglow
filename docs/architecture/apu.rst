@@ -212,10 +212,7 @@ U8 samples are converted to S16:
 Testing
 -------
 
-The APU is tested with:
-
-1. Manual audio checks with representative ROM behavior
-2. blargg's ``dmg_sound`` test ROMs
+The APU is checked by manual audio comparison against representative ROM behavior.
 
 See Also
 --------

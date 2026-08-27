@@ -384,10 +384,3 @@ Emulator Development
 * `Emulator Development Guide <https://github.com/gbdev/awesome-gbdev>`_
 * `GB Opcodes <https://gbdev.io/gb-opcodes/>`_
 * `BGB Emulator <https://bgb.bircd.org/>`_ - Reference for testing
-
-Test ROMs
-~~~~~~~~~
-
-* `Blargg's Test ROMs <https://github.com/retrio/gb-test-roms>`_
-* `Mooneye Test Suite <https://github.com/Gekkio/mooneye-test-suite>`_
-* `dmg-acid2 <https://github.com/mattcurrie/dmg-acid2>`_
