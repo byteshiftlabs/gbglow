@@ -66,6 +66,7 @@ void Emulator::reset() {
     cpu_->reset();
 }
 
+// cppcheck-suppress unusedFunction
 void Emulator::run_frame() {
     // One frame = ~70224 cycles (59.7 fps)
     run_cycles(CYCLES_PER_FRAME);
@@ -91,6 +92,7 @@ void Emulator::run_cycles(Cycles cycles) {
     }
 }
 
+// cppcheck-suppress unusedFunction
 Debugger& Emulator::debugger() {
     return *debugger_;
 }
@@ -99,21 +101,25 @@ const Debugger& Emulator::debugger() const {
     return *debugger_;
 }
 
+// cppcheck-suppress unusedFunction
 const PPU& Emulator::ppu() const
 {
     return *ppu_;
 }
 
+// cppcheck-suppress unusedFunction
 PPU& Emulator::ppu_for_testing()
 {
     return *ppu_;
 }
 
+// cppcheck-suppress unusedFunction
 const CPU& Emulator::cpu() const
 {
     return *cpu_;
 }
 
+// cppcheck-suppress unusedFunction
 CPU& Emulator::cpu_for_testing()
 {
     return *cpu_;
@@ -139,16 +145,19 @@ const Cartridge* Emulator::cartridge() const
     return memory_->cartridge();
 }
 
+// cppcheck-suppress unusedFunction
 Memory& Emulator::memory_for_testing()
 {
     return *memory_;
 }
 
+// cppcheck-suppress unusedFunction
 const Memory& Emulator::memory() const
 {
     return *memory_;
 }
 
+// cppcheck-suppress unusedFunction
 RecentRoms& Emulator::recent_roms() {
     return *recent_roms_;
 }

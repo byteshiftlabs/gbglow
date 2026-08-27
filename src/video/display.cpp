@@ -272,6 +272,7 @@ void Display::pause_debugger() {
     }
 }
 
+// cppcheck-suppress unusedFunction
 bool Display::is_debugger_mode() const {
     return debugger_mode_;
 }
@@ -630,6 +631,7 @@ bool Display::is_global_shortcut(int key, int modifiers) const {
     return key >= SDLK_F1 && key <= SDLK_F12;
 }
 
+// cppcheck-suppress unusedFunction
 void Display::handle_keydown_for_testing(int key, int modifiers, bool debugger_mode) {
     debugger_mode_ = debugger_mode;
     handle_keydown(key, modifiers, nullptr);
@@ -819,14 +821,17 @@ void Display::handle_keyup(int key, Joypad* joypad) {
     }
 }
 
+// cppcheck-suppress unusedFunction
 int Display::width() const {
     return LCD_WIDTH * scale_factor_;
 }
 
+// cppcheck-suppress unusedFunction
 int Display::height() const {
     return LCD_HEIGHT * scale_factor_;
 }
 
+// cppcheck-suppress unusedFunction
 std::string Display::get_sdl_error() {
     const char* error = SDL_GetError();
     return error ? std::string(error) : "Unknown SDL error";
@@ -922,6 +927,7 @@ void Display::toggle_mute() {
     }
 }
 
+// cppcheck-suppress unusedFunction
 bool Display::is_muted() const {
     return is_muted_;
 }

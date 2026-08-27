@@ -252,14 +252,17 @@ void Gamepad::release_all_inputs(Joypad* joypad) {
     joypad->release_select();
 }
 
+// cppcheck-suppress unusedFunction
 bool Gamepad::is_connected() const {
     return !controllers_.empty();
 }
 
+// cppcheck-suppress unusedFunction
 int Gamepad::get_controller_count() const {
     return static_cast<int>(controllers_.size());
 }
 
+// cppcheck-suppress unusedFunction
 std::string Gamepad::get_controller_name(int index) const {
     if (index < 0 || index >= static_cast<int>(controllers_.size())) {
         return "";
@@ -272,6 +275,7 @@ std::string Gamepad::get_controller_name(int index) const {
     return name ? name : "Unknown Controller";
 }
 
+// cppcheck-suppress unusedFunction
 std::vector<std::string> Gamepad::get_controller_names() const {
     std::vector<std::string> names;
     for (const auto& pair : controllers_) {
@@ -281,10 +285,12 @@ std::vector<std::string> Gamepad::get_controller_names() const {
     return names;
 }
 
+// cppcheck-suppress unusedFunction
 const Gamepad::ButtonMapping& Gamepad::get_button_mapping() const {
     return button_mapping_;
 }
 
+// cppcheck-suppress unusedFunction
 void Gamepad::set_button_mapping(const ButtonMapping& mapping) {
     button_mapping_ = mapping;
 }
@@ -299,6 +305,7 @@ void Gamepad::reset_default_mapping() {
     button_mapping_.gb_select = SDL_CONTROLLER_BUTTON_BACK;
 }
 
+// cppcheck-suppress unusedFunction
 int Gamepad::get_deadzone() const {
     return deadzone_;
 }
@@ -394,6 +401,7 @@ void Gamepad::load_config(const std::string& path) {
     }
 }
 
+// cppcheck-suppress unusedFunction
 void Gamepad::save_config(const std::string& path) {
     std::error_code error;
     const std::filesystem::path config_path(path);

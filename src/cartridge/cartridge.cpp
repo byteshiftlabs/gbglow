@@ -181,16 +181,19 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
     }
 }
 
+// cppcheck-suppress unusedFunction
 const std::string& Cartridge::title() const
 {
     return title_;
 }
 
+// cppcheck-suppress unusedFunction
 u8 Cartridge::cartridge_type() const
 {
     return cartridge_type_;
 }
 
+// cppcheck-suppress unusedFunction
 bool Cartridge::has_battery() const
 {
     return has_battery_;

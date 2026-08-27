@@ -1,74 +1,12 @@
 // cppcheck suppression list for gbglow
-// Each group below documents WHY the finding is intentionally suppressed.
 //
-// Policy: only unusedFunction findings are suppressed here.
-// These are all intentional public API methods exposed for the ImGui debugger GUI,
-// gamepad configuration UI, or future front-ends. The emulator core does not call
-// them internally, but they form the stable public surface documented in the headers.
-// They must NOT be removed — removal would break API consumers.
+// Per-symbol unusedFunction suppressions live inline, as
+// `// cppcheck-suppress unusedFunction` directly above the symbol, so they
+// travel with the code instead of breaking whenever a file shifts by a line.
+// build.sh passes --inline-suppr, which is what makes those effective.
+//
+// Only path-wide suppressions that have no single line to attach to remain here.
 
-// --- Third-party libraries in external/ or vendor/ — not our code, not our findings ---
+// --- Third-party libraries in external/ or vendor/ - not our code, not our findings ---
 *:external/*
 *:src/vendor/*
-
-// --- Cartridge introspection API (read by front-end for ROM info display) ---
-unusedFunction:src/cartridge/cartridge.cpp:184    // title()
-unusedFunction:src/cartridge/cartridge.cpp:189    // cartridge_type()
-unusedFunction:src/cartridge/cartridge.cpp:194    // has_battery()
-unusedFunction:src/cartridge/cartridge.h:63       // get_ram_data()
-unusedFunction:src/cartridge/cartridge.h:64       // set_ram_data()
-
-// --- MBC3 RTC (placeholder for frame-based RTC updates, intentionally empty stub) ---
-unusedFunction:src/cartridge/mbc3.cpp:223         // update_rtc()
-
-// --- DebuggerGUI visibility toggle (called by Display on F11 key) ---
-unusedFunction:src/debug/debugger_gui.cpp:189     // toggle_visible()
-
-// --- Gamepad configuration API (called by keybinding UI in config/keybindings.conf) ---
-unusedFunction:src/input/gamepad.cpp:255          // is_connected()
-unusedFunction:src/input/gamepad.cpp:259          // get_controller_count()
-unusedFunction:src/input/gamepad.cpp:263          // get_controller_name()
-unusedFunction:src/input/gamepad.cpp:275          // get_controller_names()
-unusedFunction:src/input/gamepad.cpp:284          // get_button_mapping()
-unusedFunction:src/input/gamepad.cpp:288          // set_button_mapping()
-unusedFunction:src/input/gamepad.cpp:302          // get_deadzone()
-unusedFunction:src/input/gamepad.cpp:397          // save_config()
-
-// --- Display utility/state accessors used by front-end or future tools ---
-unusedFunction:src/video/display.cpp:275          // is_debugger_mode()
-unusedFunction:src/video/display.cpp:830          // get_sdl_error()
-unusedFunction:src/video/display.cpp:925          // is_muted()
-
-// --- Emulator testing hooks exposed for focused unit/integration tests ---
-unusedFunction:src/video/display.cpp:633          // handle_keydown_for_testing()
-unusedFunction:src/core/emulator.cpp:107          // ppu_for_testing()
-unusedFunction:src/core/emulator.cpp:117          // cpu_for_testing()
-unusedFunction:src/core/emulator.cpp:142          // memory_for_testing()
-
-// --- Emulator and debugger inspection API used by front-ends and tooling ---
-unusedFunction:src/core/emulator.cpp:94           // debugger()
-unusedFunction:src/core/emulator.cpp:102          // ppu()
-unusedFunction:src/core/emulator.cpp:112          // cpu()
-unusedFunction:src/core/emulator.cpp:147          // memory()
-unusedFunction:src/core/emulator.cpp:152          // recent_roms()
-unusedFunction:src/debug/debugger.cpp:582         // is_step_over_active()
-unusedFunction:src/debug/debugger.cpp:606         // write_memory()
-unusedFunction:src/debug/debugger.cpp:612         // read_memory_region()
-unusedFunction:src/debug/debugger.cpp:642         // get_execution_history()
-unusedFunction:src/debug/debugger.cpp:737         // disassemble_around_pc()
-unusedFunction:src/video/display.cpp:822          // width()
-unusedFunction:src/video/display.cpp:826          // height()
-
-// --- CPU/PPU public API accessors ---
-unusedFunction:src/core/cpu.cpp:132               // ime()
-unusedFunction:src/core/cpu.cpp:137               // set_ime()
-unusedFunction:src/core/cpu.cpp:142               // is_halted()
-unusedFunction:src/core/cpu.cpp:282               // set_halted()
-unusedFunction:src/core/emulator.cpp:69           // run_frame()
-unusedFunction:src/video/ppu.cpp:747              // mode()
-unusedFunction:src/video/ppu.cpp:752              // set_mode()
-unusedFunction:src/video/ppu.cpp:761              // scanline()
-unusedFunction:src/video/ppu.cpp:766              // set_scanline()
-unusedFunction:src/video/ppu.cpp:783              // framebuffer()
-unusedFunction:src/video/ppu.h:71                 // get_ly()
-unusedFunction:src/video/ppu.h:72                 // get_mode()

@@ -68,7 +68,9 @@ public:
     void set_scanline(u8 ly);
     
     // Save state accessors (return raw values for serialization)
+    // cppcheck-suppress unusedFunction
     u8 get_ly() const { return ly_; }
+    // cppcheck-suppress unusedFunction
     u8 get_mode() const { return static_cast<u8>(mode_); }
 
     // Frame buffer access

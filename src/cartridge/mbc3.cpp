@@ -220,6 +220,7 @@ void MBC3::write_rtc_register(u8 value)
     rtc_base_days_ = current_days;
 }
 
+// cppcheck-suppress unusedFunction
 void MBC3::update_rtc()
 {
     // RTC update is handled during latching

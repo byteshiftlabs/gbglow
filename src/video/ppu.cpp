@@ -744,11 +744,13 @@ bool PPU::is_sprite_priority(u8 sprite_flags, u8 bg_color) {
     return cgb_pixel_color_index(bg_color) == BIT_0;
 }
 
+// cppcheck-suppress unusedFunction
 PPU::Mode PPU::mode() const
 {
     return mode_;
 }
 
+// cppcheck-suppress unusedFunction
 void PPU::set_mode(Mode mode)
 {
     const u8 raw_mode = static_cast<u8>(mode);
@@ -758,11 +760,13 @@ void PPU::set_mode(Mode mode)
     refresh_stat_signal();
 }
 
+// cppcheck-suppress unusedFunction
 u8 PPU::scanline() const
 {
     return ly_;
 }
 
+// cppcheck-suppress unusedFunction
 void PPU::set_scanline(u8 ly)
 {
     ly_ = std::min<u8>(ly, SCANLINES_TOTAL - 1);
@@ -780,6 +784,7 @@ void PPU::clear_frame_ready()
     frame_ready_ = false;
 }
 
+// cppcheck-suppress unusedFunction
 const std::array<u8, PPU::SCREEN_WIDTH * PPU::SCREEN_HEIGHT>& PPU::framebuffer() const
 {
     return framebuffer_;
