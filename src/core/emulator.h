@@ -24,7 +24,7 @@ namespace gbglow {
  * Main emulator class that coordinates all components
  * 
  * The Emulator ties together the CPU, Memory, PPU, and Cartridge
- * into a functioning Game Boy Color system. It manages execution
+ * into a functioning Game Boy system. It manages execution
  * timing and component synchronization.
  */
 class Emulator

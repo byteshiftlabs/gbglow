@@ -3,9 +3,9 @@
 // This file is part of gbglow. See LICENSE for details.
 
 /**
- * gbglow - Game Boy Color Emulator
+ * gbglow - Game Boy Emulator
  * 
- * An educational Game Boy Color emulator implementation.
+ * An educational Game Boy emulator implementation.
  * Every line of code is designed to teach how the hardware works.
  * 
  * Main entry point - demonstrates ROM loading and continuous execution.
@@ -68,7 +68,7 @@ int main(int argc, const char* argv[])
         gbglow::log::info("Loaded ROM: " + rom_path);
 
         // Run emulator with display (game loop)
-        emulator.run("gbglow - Game Boy Color Emulator");
+        emulator.run("gbglow - Game Boy Emulator");
         return 0;
     } catch (const std::exception& exception) {
         gbglow::log::error(std::string("Fatal error: ") + exception.what());

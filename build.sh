@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # gbglow Build Script
-# Builds the Game Boy Color emulator
+# Builds the Game Boy emulator
 
 set -e  # Exit on error
 
