@@ -109,11 +109,6 @@ Hardware references this was built from:
 - [GB Opcodes](https://gbdev.io/gb-opcodes/) — opcode tables
 - [awesome-gbdev](https://github.com/gbdev/awesome-gbdev)
 
-Test ROMs used to check accuracy:
-
-- [blargg's test ROMs](https://github.com/retrio/gb-test-roms)
-- [Mooneye Test Suite](https://github.com/Gekkio/mooneye-test-suite)
-
 Third-party code:
 
 - [SDL2](https://www.libsdl.org/) — video, audio, and input
