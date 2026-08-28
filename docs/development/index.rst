@@ -15,13 +15,9 @@ Required tools:
 * ``cppcheck``
 * Git
 
-Ubuntu 24.04 example:
-
-.. code-block:: bash
-
-   sudo apt install build-essential cmake pkg-config libsdl2-dev cppcheck
-
-Or use the helper script from the repository root:
+The Ubuntu 22.04 package list, and what each dependency is for, lives in the
+Requirements section of ``README.md``. It is kept there only, so the two cannot
+drift apart. Or use the helper script from the repository root:
 
 .. code-block:: bash
 
@@ -344,7 +340,7 @@ Building Documentation
    # Open in browser
    xdg-open docs/_build/html/index.html
 
-Use the repository-root virtualenv path above on Ubuntu 24.04 rather than installing Sphinx into the system interpreter.
+Use the repository-root virtualenv path above on Ubuntu 22.04 rather than installing Sphinx into the system interpreter.
 
 Documentation Style
 ~~~~~~~~~~~~~~~~~~~
