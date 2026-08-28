@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # gbglow Build Script
-# Builds the Game Boy Color emulator
+# Builds the Game Boy emulator
 
 set -e  # Exit on error
 
@@ -27,7 +27,7 @@ require_tool() {
     if [ -n "$package_hint" ]; then
         echo -e "${YELLOW}Install it first, for example: ${package_hint}${NC}"
     fi
-    echo -e "${YELLOW}On Ubuntu 24.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
+    echo -e "${YELLOW}On Ubuntu 22.04, you can also run: sudo bash ./install_deps_ubuntu.sh${NC}"
     exit 1
 }
 

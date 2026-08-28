@@ -1,7 +1,7 @@
 gbglow Documentation
 ====================
 
-**A Game Boy Color Emulator**
+**A Game Boy Emulator**
 
 Welcome to the gbglow documentation. This site covers the emulator layout,
 architecture notes, API reference, and contributor guidance.
