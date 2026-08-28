@@ -61,8 +61,6 @@ MBC5
    };
 
 Supports up to 8 MB ROM (9-bit bank number) and 128 KB RAM (16 banks).
-Optionally includes rumble motor support — when enabled, bit 3 of the
-RAM bank register controls the motor.
 
 Serialization
 -------------

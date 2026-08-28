@@ -95,7 +95,7 @@ Loads a Game Boy ROM file.
    * ROM-only cartridges
    * MBC1 cartridges
    * MBC3 cartridges (with RTC support)
-   * MBC5 cartridges (with rumble support)
+   * MBC5 cartridges
    * Battery-backed RAM
 
 **Throws**
