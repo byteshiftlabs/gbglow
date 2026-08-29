@@ -186,6 +186,7 @@ void DebuggerGUI::attach(Debugger& debugger) {
     debugger_ = &debugger;
 }
 
+// cppcheck-suppress unusedFunction
 void DebuggerGUI::toggle_visible() {
     set_visible(!visible_);
 }
