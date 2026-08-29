@@ -116,9 +116,9 @@ void APU::step(Cycles cycles) {
     
     cycle_accumulator_ += cycles;
     
-    // Hardware-accurate approach: length counters, envelopes, and sweep are applied
-    // per-sample inside generate_sample() using RATE-based accumulators.
-    // This eliminates the need for a separate 512Hz frame sequencer.
+    // Length counters, envelopes, and sweep are applied per-sample inside
+    // generate_sample() using RATE-based accumulators, in place of the 512Hz
+    // frame sequencer the hardware uses.
     
     // Generate audio samples as CPU cycles accumulate
     while (cycle_accumulator_ >= CYCLES_PER_SAMPLE) {

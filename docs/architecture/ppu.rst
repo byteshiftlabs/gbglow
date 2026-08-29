@@ -705,7 +705,7 @@ Implemented Features
 * ✅ Sprite rendering (8x8 and 8x16)
 * ✅ Sprite priority system
 * ✅ OAM DMA transfer
-* ✅ Hardware-accurate sprite visibility
+* ✅ Sprite visibility rules
 * ✅ Sprite flip (X and Y)
 * ✅ Proper 8x16 tile selection
 * ✅ STAT interrupts (HBlank, OAM, LYC=LY) with rising-edge deduplication
