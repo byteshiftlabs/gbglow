@@ -55,7 +55,7 @@ Type Byte     Class     RAM Banks     Features
 0x00          ROMOnly   None          32 KB ROM, no banking
 0x01–0x03     MBC1      0–4           Up to 2 MB ROM, 32 KB RAM
 0x0F–0x13     MBC3      0–4           RTC, battery-backed RAM
-0x19–0x1E     MBC5      0–16          Up to 8 MB ROM, 128 KB RAM, rumble
+0x19–0x1E     MBC5      0–16          Up to 8 MB ROM, 128 KB RAM
 ============  ========  ============  ==================================
 
 Save RAM
