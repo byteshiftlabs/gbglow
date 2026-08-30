@@ -579,6 +579,7 @@ void Debugger::clear_step_request() {
     execution_->clear_step_request();
 }
 
+// cppcheck-suppress unusedFunction
 bool Debugger::is_step_over_active() const {
     return execution_->step_over_active;
 }
@@ -603,12 +604,14 @@ u8 Debugger::read_memory(u16 address) const {
     return memory_->read(address);
 }
 
+// cppcheck-suppress unusedFunction
 void Debugger::write_memory(u16 address, u8 value) {
     if (memory_) {
         memory_->write(address, value);
     }
 }
 
+// cppcheck-suppress unusedFunction
 std::vector<u8> Debugger::read_memory_region(u16 start, u16 length) const {
     std::vector<u8> data;
     data.reserve(length);
@@ -639,6 +642,7 @@ void Debugger::record_execution(u16 pc) {
     inspection_->record_execution(pc);
 }
 
+// cppcheck-suppress unusedFunction
 const std::deque<u16>& Debugger::get_execution_history() const {
     return inspection_->execution_history;
 }
@@ -734,6 +738,7 @@ std::vector<DisassembledInstruction> Debugger::disassemble_range(u16 start, int 
     return results;
 }
 
+// cppcheck-suppress unusedFunction
 std::vector<DisassembledInstruction> Debugger::disassemble_around_pc(int lines_before, int lines_after) const {
     if (!cpu_) {
         return {};

@@ -129,16 +129,19 @@ Registers& CPU::registers()
     return regs_;
 }
 
+// cppcheck-suppress unusedFunction
 bool CPU::ime() const
 {
     return ime_;
 }
 
+// cppcheck-suppress unusedFunction
 void CPU::set_ime(bool value)
 {
     ime_ = value;
 }
 
+// cppcheck-suppress unusedFunction
 bool CPU::is_halted() const
 {
     return halted_;
@@ -279,6 +282,7 @@ void CPU::alu_dec(u8& reg)
     // Carry flag is not affected
 }
 
+// cppcheck-suppress unusedFunction
 void CPU::set_halted(bool value)
 {
     halted_ = value;
