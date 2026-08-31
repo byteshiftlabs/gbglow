@@ -148,11 +148,63 @@ bool test_ppu_8x16_y_flip_uses_bottom_tile_first() {
     return true;
 }
 
+// A cartridge flagged 0x80 supports colour but still runs on original hardware,
+// which is the console gbglow emulates. It must therefore take the DMG path all
+// the way through, including the BGP lookup. The bug this guards against had the
+// renderer treat 0x80 as CGB and the RGBA conversion treat it as DMG, so neither
+// applied BGP and every fade or flash the game asked for did nothing.
+bool test_ppu_dmg_compatible_cart_honours_bgp() {
+    std::cout << "Testing BGP handling for a DMG-compatible CGB cartridge...\n";
+
+    auto render_with_bgp = [](u8 cgb_flag, u8 bgp) {
+        std::vector<u8> rom(0x8000, 0x00);
+        rom[0x0143] = cgb_flag;
+        rom[0x0147] = 0x00;
+        ROMOnly cartridge(std::move(rom));
+
+        Memory memory;
+        PPU ppu(memory);
+        memory.set_ppu(&ppu);
+        ppu.set_cartridge(&cartridge);
+
+        memory.write(io_reg::REG_LCDC, 0x80 | 0x10 | 0x01);
+        memory.write(io_reg::REG_SCX, 0);
+        memory.write(io_reg::REG_SCY, 0);
+        memory.write(io_reg::REG_BGP, bgp);
+
+        memory.write(io_reg::REG_VBK, 0);
+        memory.write(0x9800, 0x00);
+        memory.write(0x8000, 0xFF);  // every pixel in the row is colour index 1
+        memory.write(0x8001, 0x00);
+
+        ppu.step(252);
+        return ppu.get_rgba_framebuffer()[0];
+    };
+
+    // 0xE4 maps index 1 to light grey; 0x1B maps it to dark grey.
+    const u8 plain_dmg_normal = render_with_bgp(0x00, 0xE4);
+    const u8 plain_dmg_inverted = render_with_bgp(0x00, 0x1B);
+    TEST_ASSERT(plain_dmg_normal != plain_dmg_inverted);
+
+    const u8 enhanced_normal = render_with_bgp(0x80, 0xE4);
+    const u8 enhanced_inverted = render_with_bgp(0x80, 0x1B);
+    TEST_ASSERT(enhanced_normal != enhanced_inverted);
+
+    // A DMG-compatible cartridge must render exactly like a plain DMG one.
+    TEST_EQ(enhanced_normal, plain_dmg_normal);
+    TEST_EQ(enhanced_inverted, plain_dmg_inverted);
+
+    std::cout << "  PASS: A 0x80 cartridge renders as DMG and honours BGP\n";
+    return true;
+}
+
 bool test_ppu_cgb_window_uses_palette_attributes() {
     std::cout << "Testing PPU CGB window palette attributes...\n";
 
+    // 0xC0, not 0x80: gbglow emulates original hardware, so only a CGB-only
+    // cartridge takes the colour path. See test_ppu_dmg_compatible_cart_honours_bgp.
     std::vector<u8> rom(0x8000, 0x00);
-    rom[0x0143] = 0x80;
+    rom[0x0143] = 0xC0;
     rom[0x0147] = 0x00;
     ROMOnly cartridge(std::move(rom));
 
@@ -229,6 +281,7 @@ int main() {
         {"ppu_timing_sanitize", test_ppu_deserialize_sanitizes_timing_state_and_syncs_registers},
         {"ppu_mmio_live_writes", test_ppu_live_mmio_writes_preserve_hardware_owned_bits},
         {"ppu_8x16_y_flip", test_ppu_8x16_y_flip_uses_bottom_tile_first},
+        {"ppu_dmg_compatible_bgp", test_ppu_dmg_compatible_cart_honours_bgp},
         {"ppu_cgb_window_palette", test_ppu_cgb_window_uses_palette_attributes},
         {"ppu_cgb_sprite_palette", test_ppu_cgb_sprite_uses_obj_palette_priority_and_vram_bank},
     });

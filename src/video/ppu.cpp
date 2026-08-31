@@ -414,7 +414,7 @@ void PPU::render_background() {
     bool bg_enabled = (lcdc & LCDC_BG_ENABLE_BIT) != 0;
     
     // Check if we're in CGB mode
-    bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    bool is_cgb = in_cgb_mode();
     
     if (!bg_enabled) {
         // Background disabled, fill with white
@@ -491,7 +491,7 @@ void PPU::render_window() {
     u8 lcdc = memory_.read(REG_LCDC);
     bool window_enabled = (lcdc & LCDC_WINDOW_ENABLE_BIT) != 0;
     bool bg_enabled = (lcdc & LCDC_BG_ENABLE_BIT) != 0;  // Window requires BG enable on DMG
-    bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    bool is_cgb = in_cgb_mode();
     
     if (!window_enabled || !bg_enabled) {
         return;
@@ -636,7 +636,7 @@ void PPU::render_sprites() {
     
     // Determine sprite height
     u8 sprite_height = (lcdc & LCDC_OBJ_SIZE_BIT) ? SPRITE_HEIGHT_8X16 : SPRITE_HEIGHT_8X8;
-    const bool is_cgb = cartridge_ && cartridge_->is_cgb_supported();
+    const bool is_cgb = in_cgb_mode();
     
     // Render sprites in reverse order (lower OAM index = higher priority)
     for (auto it = scanline_sprites_.rbegin(); it != scanline_sprites_.rend(); ++it) {
@@ -822,12 +822,13 @@ std::vector<u8> PPU::get_rgba_framebuffer() const {
     const size_t rgba_size = pixel_count * RGBA_CHANNELS;
     std::vector<u8> rgba_framebuffer(rgba_size);
     
-    // Only use CGB color mode for CGB-only games (flag 0xC0)
-    // Games with flag 0x80 (CGB supported but also works on DMG) like Pokémon Red
-    // are DMG games that don't use CGB color palettes
-    bool is_cgb_only = cartridge_ && cartridge_->is_cgb_only();
-    
-    if (is_cgb_only) {
+    // The renderer and this conversion must agree on the mode, or the palette
+    // handling falls between them: the CGB path deliberately skips the BGP/OBP
+    // lookup because palette RAM replaces it, so a frame rendered as CGB and
+    // converted as DMG would lose those registers entirely.
+    const bool is_cgb = in_cgb_mode();
+
+    if (is_cgb) {
         // CGB mode: Framebuffer stores palette identity, color index, and whether
         // the source pixel came from BG or OBJ palette RAM.
         for (size_t i = 0; i < pixel_count; i++) {
@@ -942,6 +943,10 @@ void PPU::write_ocpd(u8 value) {
 
 void PPU::set_cartridge(const Cartridge* cartridge) {
     cartridge_ = cartridge;
+}
+
+bool PPU::in_cgb_mode() const {
+    return cartridge_ && cartridge_->is_cgb_only();
 }
 
 void PPU::cgb_rgb555_to_rgba(u16 rgb555, u8& r, u8& g, u8& b) {
