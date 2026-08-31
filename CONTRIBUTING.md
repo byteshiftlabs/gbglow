@@ -85,6 +85,7 @@ Add tests for any new public API in the relevant test target under `tests/`:
 - `tests/test_core.cpp` — CPU registers, memory read/write, instructions, cartridge loading
 - `tests/test_persistence.cpp` — save-state round-trip, per-component deserialization hardening, gamepad config, recent-ROM list
 - `tests/test_ppu.cpp` — sprite and window rendering, CGB palette and VRAM-bank behavior, PPU state sanitization
+- `tests/test_instructions.cpp` — ALU flag behavior, INC/DEC, and the CB-prefixed rotate, shift and bit operations
 
 Test names follow the pattern `test_<module>_<scenario>_<expected>`.
 
