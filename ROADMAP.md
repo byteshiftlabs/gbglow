@@ -7,7 +7,8 @@ This document tracks feature areas and follow-up work for gbglow. It is a planni
 ## Implemented
 
 - CPU, memory, timer, and interrupt handling
-- PPU rendering, including CGB palettes, VRAM banking, and DMA-related behavior
+- PPU rendering, including DMA-related behavior, plus CGB palettes and VRAM
+  banking for color-only cartridges
 - APU and audio output
 - Cartridge support for ROM-only, MBC1, MBC3 (including RTC), and MBC5
 - Battery-backed `.sav` files and numbered save states across nine slots
@@ -25,6 +26,11 @@ This document tracks feature areas and follow-up work for gbglow. It is a planni
 
 - Serial port and link-cable behavior — not implemented
 - Cartridge types outside ROM-only/MBC1/MBC3/MBC5 — rejected at load time
+- Color output is unverified. gbglow emulates original hardware, so only a
+  cartridge whose header marks it color-only takes the color path; cartridges
+  that support color but also run in monochrome are emulated in monochrome. No
+  color ROM has been run through the emulator, so the color path is written and
+  unit-tested but never exercised end to end.
 - Remaining Game Boy Color edge cases and timing details
 - Broader manual compatibility testing across ROM libraries
 
