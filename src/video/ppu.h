@@ -108,6 +108,12 @@ public:
     void refresh_stat_signal();
     
 private:
+    // Whether the loaded cartridge is emulated in CGB mode. Rendering and the
+    // final RGBA conversion must agree on this: a cartridge flagged 0x80 runs
+    // on original hardware too, and gbglow emulates that console, so it takes
+    // the DMG path and keeps its BGP/OBP palette handling.
+    bool in_cgb_mode() const;
+
     Memory& memory_;
     const Cartridge* cartridge_;  // Non-owning pointer for CGB mode detection
     

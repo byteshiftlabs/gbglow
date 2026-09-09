@@ -199,6 +199,10 @@ bool Cartridge::has_battery() const
     return has_battery_;
 }
 
+// Not called internally: gbglow emulates original hardware, so only
+// is_cgb_only() selects the colour path. Kept as part of the cartridge
+// header API and documented in docs/api/cartridge.rst.
+// cppcheck-suppress unusedFunction
 bool Cartridge::is_cgb_supported() const
 {
     // Check if CGB flag indicates CGB support
