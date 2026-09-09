@@ -319,28 +319,10 @@ Save states include:
 Thread Safety
 -------------
 
-The ``Emulator`` class is **not thread-safe**.
-
-For multi-threaded use:
-
-.. code-block:: cpp
-
-   // Emulation thread
-   std::thread emu_thread([&emulator]() {
-       while (running) {
-           emulator.run_frame();
-       }
-   });
-   
-   // Render thread (needs synchronization!)
-   std::mutex frame_mutex;
-   std::thread render_thread([&emulator, &frame_mutex]() {
-       while (running) {
-           std::lock_guard lock(frame_mutex);
-           const auto& fb = emulator.ppu().framebuffer();
-           render(fb);
-       }
-   });
+The ``Emulator`` class is **not thread-safe**, and gbglow does not use threads:
+emulation, rendering and input all run on one thread, driven by the game loop in
+``src/core/game_loop.cpp``. Calling into an ``Emulator`` from more than one thread
+is untested and unsupported.
 
 Debugging
 ---------
