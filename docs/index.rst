@@ -52,7 +52,8 @@ Features
 --------
 
 * **CPU**: Instruction decoding and execution for the LR35902 core
-* **PPU**: Background and sprite rendering with DMG and CGB palette handling
+* **PPU**: Background and sprite rendering, with CGB palette handling for
+  color-only cartridges (see the roadmap on how far that is verified)
 * **APU**: Four audio channels
 * **Cartridge Support**: MBC1, MBC3, and MBC5 memory bank controllers
 * **Save States**: Slot-based state persistence
