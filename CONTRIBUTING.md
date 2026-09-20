@@ -76,7 +76,7 @@ Run cppcheck against your changes before submitting:
 ./build.sh --bootstrap-cppcheck --clean
 ```
 
-This bootstraps the pinned `cppcheck` version used in CI into `.tools/` when needed, then runs the same static-analysis command as the pipeline. The first bootstrap builds cppcheck from source and takes a while; afterwards it is reused. If a finding cannot be cleanly fixed (e.g., an intentional public API method that is not called internally), add an entry to `cppcheck.suppressions` with a justification comment explaining why.
+This bootstraps the pinned `cppcheck` version used in CI into `.tools/` when needed, then runs the same static-analysis command as the pipeline. The first bootstrap builds cppcheck from source and takes a while; afterwards it is reused. If a finding cannot be cleanly fixed (e.g., an intentional public API method that is not called internally), add `// cppcheck-suppress <id>` directly above the symbol, with a comment explaining why it's kept. `cppcheck.suppressions` holds only path-wide suppressions with no single line to attach to, such as vendored third-party code.
 
 ## Tests
 
