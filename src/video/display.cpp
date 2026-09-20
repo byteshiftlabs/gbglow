@@ -272,6 +272,8 @@ void Display::pause_debugger() {
     }
 }
 
+// Not called internally: debugger_mode_ is read directly wherever this
+// class needs it. Kept as a read accessor for external callers.
 // cppcheck-suppress unusedFunction
 bool Display::is_debugger_mode() const {
     return debugger_mode_;
@@ -831,6 +833,9 @@ int Display::height() const {
     return LCD_HEIGHT * scale_factor_;
 }
 
+// Not called internally: call sites use SDL_GetError() directly (e.g. the
+// audio-device failure path above). Kept as a formatting helper for
+// external callers that want the same wrapping.
 // cppcheck-suppress unusedFunction
 std::string Display::get_sdl_error() {
     const char* error = SDL_GetError();
@@ -927,6 +932,8 @@ void Display::toggle_mute() {
     }
 }
 
+// Not called internally: is_muted_ is read directly wherever this class
+// needs it. Kept as a read accessor for external callers.
 // cppcheck-suppress unusedFunction
 bool Display::is_muted() const {
     return is_muted_;

@@ -66,6 +66,10 @@ void Emulator::reset() {
     cpu_->reset();
 }
 
+// Not called internally: run_cycles(CYCLES_PER_FRAME) is called directly
+// instead. Kept as the documented public entry point for running exactly
+// one frame (see docs/api/emulator.rst), for callers embedding gbglow
+// without its own game loop.
 // cppcheck-suppress unusedFunction
 void Emulator::run_frame() {
     // One frame = ~70224 cycles (59.7 fps)

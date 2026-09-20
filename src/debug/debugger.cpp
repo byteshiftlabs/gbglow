@@ -604,6 +604,9 @@ u8 Debugger::read_memory(u16 address) const {
     return memory_->read(address);
 }
 
+// Not called internally: the debugger has no front-end memory editor yet
+// (issue #1). Kept as the memory-write half of the inspection API that
+// read_memory() already exposes.
 // cppcheck-suppress unusedFunction
 void Debugger::write_memory(u16 address, u8 value) {
     if (memory_) {
@@ -611,6 +614,8 @@ void Debugger::write_memory(u16 address, u8 value) {
     }
 }
 
+// Not called internally: no front-end memory viewer exists yet (issue #1).
+// Kept as part of the debugger's inspection API.
 // cppcheck-suppress unusedFunction
 std::vector<u8> Debugger::read_memory_region(u16 start, u16 length) const {
     std::vector<u8> data;
@@ -642,6 +647,9 @@ void Debugger::record_execution(u16 pc) {
     inspection_->record_execution(pc);
 }
 
+// Not called internally: record_execution() populates this, but nothing
+// reads it back yet (issue #1). Kept as part of the debugger's
+// inspection API.
 // cppcheck-suppress unusedFunction
 const std::deque<u16>& Debugger::get_execution_history() const {
     return inspection_->execution_history;
@@ -738,6 +746,8 @@ std::vector<DisassembledInstruction> Debugger::disassemble_range(u16 start, int 
     return results;
 }
 
+// Not called internally: no disassembly view exists yet (issue #1). Kept
+// as part of the debugger's inspection API.
 // cppcheck-suppress unusedFunction
 std::vector<DisassembledInstruction> Debugger::disassemble_around_pc(int lines_before, int lines_after) const {
     if (!cpu_) {

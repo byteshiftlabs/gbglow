@@ -181,18 +181,24 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
     }
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 const std::string& Cartridge::title() const
 {
     return title_;
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 u8 Cartridge::cartridge_type() const
 {
     return cartridge_type_;
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 bool Cartridge::has_battery() const
 {
