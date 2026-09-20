@@ -10,6 +10,7 @@
 #include "../src/core/io_registers.h"
 #include "../src/core/memory.h"
 #include "../src/core/registers.h"
+#include "../src/core/rom_path_utils.h"
 #include "../src/core/timer.h"
 #include "../src/audio/apu.h"
 #include "../src/cartridge/cartridge.h"

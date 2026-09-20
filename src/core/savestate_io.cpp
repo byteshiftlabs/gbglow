@@ -4,6 +4,7 @@
 
 #include "emulator.h"
 #include "constants.h"
+#include "rom_path_utils.h"
 #include "timer.h"
 #include "io_registers.h"
 #include "../audio/apu.h"
@@ -60,14 +61,7 @@ bool replace_file_with_temp(const std::filesystem::path& path, const std::vector
 
 std::string Emulator::get_save_path() const
 {
-    // Replace .gb/.gbc extension with .sav
-    std::string save_path = rom_path_;
-    size_t dot_pos = save_path.rfind('.');
-    if (dot_pos != std::string::npos) {
-        save_path.resize(dot_pos);
-    }
-    save_path += ".sav";
-    return save_path;
+    return derive_rom_sibling_path(rom_path_, ".sav");
 }
 
 bool Emulator::save_state(int slot) {
@@ -168,17 +162,7 @@ bool Emulator::load_state(int slot) {
 }
 
 std::string Emulator::get_state_path(int slot) const {
-    if (rom_path_.empty()) {
-        return {};
-    }
-
-    std::string state_path = rom_path_;
-    size_t dot_pos = state_path.rfind('.');
-    if (dot_pos != std::string::npos) {
-        state_path.resize(dot_pos);
-    }
-    state_path += ".slot" + std::to_string(slot + 1) + ".state";
-    return state_path;
+    return derive_rom_sibling_path(rom_path_, ".slot" + std::to_string(slot + 1) + ".state");
 }
 
 bool Emulator::delete_state(int slot) {

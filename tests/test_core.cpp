@@ -259,6 +259,30 @@ bool test_display_f5_reaches_debugger_while_open() {
     return true;
 }
 
+// A ROM file with no extension of its own, sitting inside a directory whose
+// name happens to contain a dot, must keep that directory intact rather than
+// having derive_rom_sibling_path mistake the directory name for an
+// extension. All three save-path call sites (get_save_path, get_state_path,
+// Display::get_slot_label) route through this one function so this single
+// test covers all three.
+bool test_rom_path_utils_handles_dotted_directory() {
+    std::cout << "Testing ROM sibling path derivation...\n";
+
+    TEST_ASSERT(derive_rom_sibling_path("/home/user/game.gb", ".sav") ==
+                "/home/user/game.sav");
+
+    TEST_ASSERT(derive_rom_sibling_path("/home/user/my.roms/pokemon", ".sav") ==
+                "/home/user/my.roms/pokemon.sav");
+
+    TEST_ASSERT(derive_rom_sibling_path("/home/user/my.roms/pokemon", ".slot1.state") ==
+                "/home/user/my.roms/pokemon.slot1.state");
+
+    TEST_ASSERT(derive_rom_sibling_path("", ".sav").empty());
+
+    std::cout << "  PASS: ROM sibling paths handle a dotted directory correctly\n";
+    return true;
+}
+
 int main() {
     return test_support::run_suite("gbglow Core Tests", {
         {"registers", test_registers},
@@ -267,6 +291,7 @@ int main() {
         {"cpu_flags", test_cpu_flags},
         {"display_f5_routing", test_display_f5_reaches_debugger_while_open},
         {"cartridge_undersized_rom", test_cartridge_undersized_rom_bank_0_reads_are_bounded},
+        {"rom_path_utils_dotted_dir", test_rom_path_utils_handles_dotted_directory},
         {"debugger_gui", test_debugger_gui_clears_execution_requests},
         {"debugger_step_over", test_debugger_prepare_step_over},
         {"debugger_continue", test_debugger_continue_skips_current_breakpoint_once},
