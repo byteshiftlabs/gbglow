@@ -259,6 +259,39 @@ bool test_display_f5_reaches_debugger_while_open() {
     return true;
 }
 
+// An unsupported cartridge type is a real failure a developer or a bug report
+// has to read off the error message. The message is prefixed "0x", so it must
+// actually be hex - type 0x20 (MBC6) printed as decimal would misleadingly
+// read "0x32".
+bool test_cartridge_unsupported_type_error_is_hex() {
+    std::cout << "Testing unsupported cartridge type error formatting...\n";
+
+    std::vector<u8> rom(0x8000, 0x00);
+    rom[0x0147] = 0x20;  // MBC6 - not implemented
+    rom[0x0149] = 0x00;
+
+    const std::filesystem::path rom_path =
+        std::filesystem::temp_directory_path() / "gbglow_unsupported_type_test.gb";
+    std::ofstream rom_file(rom_path, std::ios::binary);
+    rom_file.write(reinterpret_cast<const char*>(rom.data()), static_cast<std::streamsize>(rom.size()));
+    rom_file.close();
+
+    bool threw = false;
+    try {
+        Cartridge::load_rom_from_file(rom_path.string());
+    } catch (const std::runtime_error& error) {
+        threw = true;
+        const std::string message = error.what();
+        TEST_ASSERT(message.find("0x20") != std::string::npos);
+        TEST_ASSERT(message.find("0x32") == std::string::npos);
+    }
+    std::filesystem::remove(rom_path);
+    TEST_ASSERT(threw);
+
+    std::cout << "  PASS: Unsupported cartridge type is reported in hex\n";
+    return true;
+}
+
 int main() {
     return test_support::run_suite("gbglow Core Tests", {
         {"registers", test_registers},
@@ -267,6 +300,7 @@ int main() {
         {"cpu_flags", test_cpu_flags},
         {"display_f5_routing", test_display_f5_reaches_debugger_while_open},
         {"cartridge_undersized_rom", test_cartridge_undersized_rom_bank_0_reads_are_bounded},
+        {"cartridge_unsupported_type_hex", test_cartridge_unsupported_type_error_is_hex},
         {"debugger_gui", test_debugger_gui_clears_execution_requests},
         {"debugger_step_over", test_debugger_prepare_step_over},
         {"debugger_continue", test_debugger_continue_skips_current_breakpoint_once},
