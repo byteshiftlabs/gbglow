@@ -50,12 +50,6 @@ public:
      */
     bool load_ram_from_file(const std::string& path) override;
     
-    /**
-     * Update RTC if not halted
-     * Should be called periodically (e.g., every frame)
-     */
-    static void update_rtc();
-    
 private:
     // Banking registers
     bool ram_rtc_enabled_;

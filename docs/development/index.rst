@@ -236,19 +236,22 @@ Additional project documentation:
 Debugging Tips
 --------------
 
-Enable Debug Logging
-~~~~~~~~~~~~~~~~~~~~
+Logging
+~~~~~~~
+
+``src/core/logging.h`` provides ``gbglow::log::info``, ``gbglow::log::warning``,
+and ``gbglow::log::error``, each writing a leveled, prefixed line to
+``std::clog`` or ``std::cerr``. There is no separate debug level; use
+``gbglow::log::info`` for ad-hoc tracing and remove the calls once done:
 
 .. code-block:: cpp
 
-   #ifdef DEBUG
-   #define LOG_DEBUG(msg) std::cout << "[DEBUG] " << msg << '\n'
-   #else
-   #define LOG_DEBUG(msg)
-   #endif
-   
-   // Usage
-   LOG_DEBUG("Executing opcode: " << std::hex << opcode);
+   #include "core/logging.h"
+   #include <sstream>
+
+   std::ostringstream trace;
+   trace << "Executing opcode: 0x" << std::hex << static_cast<int>(opcode);
+   gbglow::log::info(trace.str());
 
 Use Debugger
 ~~~~~~~~~~~~

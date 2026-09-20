@@ -37,9 +37,13 @@ int main(int argc, const char* argv[])
               << "  Ctrl+R = Reset emulator\n"
               << "  F1-F9 = Save states\n"
               << "  Shift+F1-F9 = Load states\n"
+              << "  P = Pause\n"
+              << "  M = Mute\n"
+              << "  Space (hold) = Fast-forward\n"
               << "  F11 = Toggle debugger\n"
               << "  F12 = Capture screenshot\n"
-              << "  ESC = Exit";
+              << "  ESC = Exit\n"
+              << "  While the debugger is open: F5 = Continue/pause, F10 = Step over";
         gbglow::log::error(usage.str());
         return 1;
     }

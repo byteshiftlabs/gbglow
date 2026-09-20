@@ -1,0 +1,13 @@
+name: Sync labels
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays, to pick up manifest changes
+
+permissions:
+  issues: write
+
+jobs:
+  labels:
+    uses: byteshiftlabs/.github/.github/workflows/reusable-label-sync.yml@main

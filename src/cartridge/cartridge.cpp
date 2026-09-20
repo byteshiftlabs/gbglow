@@ -5,6 +5,8 @@
 #include "cartridge.h"
 
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <cstring>
 
@@ -175,24 +177,33 @@ std::unique_ptr<Cartridge> Cartridge::load_rom_from_file(const std::string& path
         case CART_MBC5_RUMBLE_RAM_BAT:
             return std::make_unique<MBC5>(std::move(rom_data), ram_size, true);
             
-        default:
-            throw std::runtime_error("Unsupported cartridge type: 0x" + 
-                                    std::to_string(cart_type));
+        default: {
+            std::ostringstream message;
+            message << "Unsupported cartridge type: 0x" << std::hex << std::uppercase
+                    << std::setfill('0') << std::setw(2) << static_cast<int>(cart_type);
+            throw std::runtime_error(message.str());
+        }
     }
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 const std::string& Cartridge::title() const
 {
     return title_;
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 u8 Cartridge::cartridge_type() const
 {
     return cartridge_type_;
 }
 
+// Not called internally, but part of the cartridge header API and
+// documented in docs/api/cartridge.rst.
 // cppcheck-suppress unusedFunction
 bool Cartridge::has_battery() const
 {

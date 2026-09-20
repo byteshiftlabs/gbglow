@@ -275,6 +275,9 @@ std::string Gamepad::get_controller_name(int index) const {
     return name ? name : "Unknown Controller";
 }
 
+// Not called internally: no settings UI lists connected controllers by
+// name yet. Kept alongside get_controller_name(int) as part of the
+// gamepad enumeration API.
 // cppcheck-suppress unusedFunction
 std::vector<std::string> Gamepad::get_controller_names() const {
     std::vector<std::string> names;
