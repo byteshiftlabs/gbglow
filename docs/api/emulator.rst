@@ -330,31 +330,28 @@ Debugging
 Example: Breakpoint Support
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+``Emulator`` has no virtual destructor, so it is not meant to be subclassed.
+Its own ``Debugger`` already tracks breakpoints; drive it from a free
+function instead:
+
 .. code-block:: cpp
 
-   class DebuggingEmulator : public Emulator {
-   public:
-       void add_breakpoint(u16 address) {
-           breakpoints_.insert(address);
-       }
-       
-       void run_until_breakpoint() {
-           while (true) {
-               auto& dbg_cpu = cpu();
-               u16 pc = dbg_cpu.registers().pc;
-               
-               if (breakpoints_.count(pc)) {
-                   std::cout << "Breakpoint at " << std::hex << pc << '\n';
-                   break;
-               }
-               
-               run_cycles(1);
+   void run_until_breakpoint(Emulator& emulator) {
+       Debugger& debugger = emulator.debugger();
+
+       while (true) {
+           u16 pc = emulator.cpu().registers().pc;
+
+           if (debugger.should_break(pc)) {
+               std::cout << "Breakpoint at " << std::hex << pc << '\n';
+               break;
            }
+
+           emulator.run_cycles(1);
        }
-       
-   private:
-       std::set<u16> breakpoints_;
-   };
+   }
+
+   // emulator.debugger().add_breakpoint(0x0150); before calling this.
 
 Example: Instruction Tracing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
