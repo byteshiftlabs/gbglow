@@ -4,6 +4,7 @@
 
 #include "display.h"
 #include "../core/constants.h"
+#include "../core/rom_path_utils.h"
 #include "../input/joypad.h"
 #include "../input/gamepad.h"
 #include "../debug/debugger.h"
@@ -1452,15 +1453,8 @@ bool Display::check_slot_exists(const std::string& state_path) {
 std::string Display::get_slot_label(int slot, const std::string& rom_path) const {
     char label[SLOT_LABEL_SIZE];
     
-    // Build state path from rom_path first
-    std::string state_path;
-    size_t last_dot = rom_path.find_last_of('.');
-    if (last_dot != std::string::npos) {
-        state_path = rom_path.substr(0, last_dot);
-    } else {
-        state_path = rom_path;
-    }
-    state_path += ".slot" + std::to_string(slot + 1) + ".state";
+    const std::string state_path =
+        derive_rom_sibling_path(rom_path, ".slot" + std::to_string(slot + 1) + ".state");
     
     // Check if file actually exists
     if (!check_slot_exists(state_path)) {
