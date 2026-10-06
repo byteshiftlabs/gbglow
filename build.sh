@@ -76,7 +76,7 @@ Usage: ./build.sh [options]
 Options:
   --help, -h              Show this help message and exit
   --clean, -c             Remove the build directory before building
-  --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis
+  --bootstrap-cppcheck    Bootstrap pinned cppcheck for static analysis (needs curl)
   --native-tuning         Build with host-specific -march/-mtune optimizations
 EOF
 }
@@ -120,11 +120,21 @@ CPPCHECK_BIN="${CPPCHECK_BIN:-cppcheck}"
 echo -e "${GREEN}=== gbglow Build Script ===${NC}"
 
 require_tool cmake "sudo apt install cmake"
-require_tool "$CPPCHECK_BIN" "sudo apt install cppcheck"
-echo -e "${YELLOW}Using cppcheck: ${CPPCHECK_BIN}${NC}"
 
-# SDL2 detection is handled by CMake; let CMake report missing development
-# packages rather than requiring pkg-config here.
+RUN_CPPCHECK=1
+if [[ "$CPPCHECK_BIN" == */* ]]; then
+    [ -x "$CPPCHECK_BIN" ] || RUN_CPPCHECK=0
+elif ! command -v "$CPPCHECK_BIN" >/dev/null 2>&1; then
+    RUN_CPPCHECK=0
+fi
+
+if [ "$RUN_CPPCHECK" -eq 1 ]; then
+    echo -e "${YELLOW}Using cppcheck: ${CPPCHECK_BIN}${NC}"
+else
+    echo -e "${YELLOW}cppcheck not found; static analysis will be skipped. Install it with 'sudo apt install cppcheck' or use --bootstrap-cppcheck.${NC}"
+fi
+
+# SDL2 detection is handled by CMake, which reports a missing development package.
 
 if [ "$CLEAN_BUILD" -eq 1 ]; then
     if [ -d "build" ]; then
@@ -159,6 +169,11 @@ echo -e "${YELLOW}Running tests...${NC}"
 ctest --output-on-failure
 
 # Run static analysis
+if [ "$RUN_CPPCHECK" -eq 0 ]; then
+    echo -e "${YELLOW}Skipping static analysis (cppcheck not available).${NC}"
+    echo -e "${GREEN}=== Build Complete! ===${NC}"
+    exit 0
+fi
 echo -e "${YELLOW}Running static analysis...${NC}"
 cd ..
 CPPCHECK_EXIT=0
