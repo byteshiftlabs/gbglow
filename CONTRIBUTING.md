@@ -4,7 +4,7 @@ Thank you for your interest in contributing. This document describes the workflo
 
 ## Prerequisites
 
-See [Requirements](README.md#requirements) in the README for the package list and what each dependency is for.
+Install the packages listed under [Quick start](README.md#quick-start) in the README. `cppcheck` is optional for local builds but a PR must be clean under it.
 
 Development and CI both run on Ubuntu 22.04 LTS, with these versions:
 
@@ -23,7 +23,7 @@ cd gbglow
 ./build.sh
 ```
 
-`build.sh` compiles, runs tests, and runs static analysis. Dear ImGui is fetched automatically by CMake during configure. All three stages must be clean before a PR is accepted.
+`build.sh` compiles, runs tests, and runs static analysis when cppcheck is available. Dear ImGui is fetched automatically by CMake during configure. All three stages must be clean before a PR is accepted.
 
 By default `build.sh` uses whatever `cppcheck` is on your `PATH`, which may differ from the version CI pins. To match CI exactly, use `--bootstrap-cppcheck` as described under Static Analysis.
 
