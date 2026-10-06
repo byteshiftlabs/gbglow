@@ -28,12 +28,9 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             cmake \
-            git \
+            curl \
             libsdl2-dev \
-            pkg-config \
-            python3-pip \
-            python3-venv \
-            zenity
+            python3-venv
 
       - name: Restore cached cppcheck
         id: cppcheck-cache
