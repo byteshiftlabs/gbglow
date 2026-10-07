@@ -4,116 +4,48 @@
 ![Language: C++17](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
 ![CI](https://github.com/byteshiftlabs/gbglow/actions/workflows/ci.yml/badge.svg)
 
-A Game Boy emulator written in C++17.
+A Game Boy emulator written in C++17, with a built-in debugger.
 
 ## Quick start
 
-Clone, build, run:
+On Ubuntu 22.04:
 
 ```bash
+sudo apt install build-essential cmake libsdl2-dev
 git clone https://github.com/byteshiftlabs/gbglow.git
 cd gbglow
 ./build.sh
 ./run.sh path/to/game.gb
 ```
 
-Install the dependencies below first if you do not already have them.
-
-`build.sh` compiles, runs the test suite, and runs static analysis. `run.sh` builds first if `build/gbglow` is missing, then launches the emulator with the ROM you pass it.
-
-## Requirements
-
-On Debian/Ubuntu:
-
-```bash
-sudo apt install build-essential cmake cppcheck git libsdl2-dev pkg-config zenity
-```
-
-What each one is for:
-
-- **build-essential** — a C++17 compiler; GCC is what the project is built with
-- **cmake** — 3.14 or newer, as required by `CMakeLists.txt`
-- **libsdl2-dev** — video, audio, and input
-- **pkg-config** — CMake locates SDL2 through it
-- **cppcheck** — `build.sh` runs static analysis on every build and will not proceed without it
-- **git** — CMake uses it to fetch Dear ImGui
-- **zenity** — optional; only for the in-app "open ROM" file picker, which also accepts kdialog
-
-Dear ImGui is fetched automatically by CMake during configure, so it does not need installing.
-
-`install_deps_ubuntu.sh` runs the same apt command, and exits on anything that is not Ubuntu 22.04.
-
-### Platforms
-
-Developed, built, and tested on **Ubuntu 22.04 LTS** — GCC 11, CMake 3.22, SDL2 2.0.20. CI runs on the same release.
-
-## Tests
-
-`./build.sh` already runs the tests. To re-run them on their own against an existing build:
-
-```bash
-cd build
-ctest --output-on-failure
-```
-
-To build against the same pinned cppcheck version CI uses, rather than whatever your distro ships:
-
-```bash
-./build.sh --bootstrap-cppcheck --clean
-```
-
-This downloads and builds cppcheck into `.tools/` the first time, which is slow, then reuses it.
+`build.sh` builds and runs the tests, then runs cppcheck if it is installed (`sudo apt install cppcheck`). `zenity` (or `kdialog`) is only needed for the `Ctrl+O` file picker.
 
 ## Controls
 
-- D-pad: Arrow keys
-- A: `Z` — B: `X` — Start: `Enter` — Select: `Shift`
-- Save state: `F1`–`F9` — Load state: `Shift+F1`–`Shift+F9`
-- Open ROM: `Ctrl+O` — Reset: `Ctrl+R`
-- Pause: `P` — Mute: `M` — Fast-forward: hold `Space`
-- Debugger: `F11` — Screenshot: `F12` — Exit: `Esc`
+| Action | Key |
+|---|---|
+| D-pad | Arrow keys |
+| A / B | `Z` / `X` |
+| Start / Select | `Enter` / `Shift` |
+| Save / load state | `F1`–`F9` / `Shift+F1`–`Shift+F9` |
+| Open ROM / Reset | `Ctrl+O` / `Ctrl+R` |
+| Pause / Mute / Fast-forward | `P` / `M` / hold `Space` |
+| Debugger / Screenshot / Exit | `F11` / `F12` / `Esc` |
 
-Game Boy button bindings can be remapped in `config/keybindings.conf`. The debugger adds `F5` (continue/pause) and `F10` (step over) while it is open. See `docs/` for developer notes.
+Button bindings live in `config/keybindings.conf`.
 
 ## Supported cartridges
 
-ROM-only, MBC1, MBC3, MBC5. Any other cartridge type is rejected at load time with an error.
+ROM-only, MBC1, MBC3, MBC5.
 
-## Documentation
+## Development
 
-The Sphinx sources live in `docs/`. Building them needs `python3-venv` in addition to the packages above — on Debian/Ubuntu the base `python3` package does not include it, and `venv` creation fails in `ensurepip` without it.
-
-```bash
-sudo apt install python3-venv
-```
-
-To build the docs:
-
-```bash
-python3 -m venv .docs-venv
-. .docs-venv/bin/activate
-python -m pip install -r docs/requirements.txt
-make -C docs html
-```
-
-Output lands in `docs/_build/html`.
-
-See [ROADMAP.md](ROADMAP.md) for what is and is not currently in scope, and [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and static analysis, [ROADMAP.md](ROADMAP.md) for scope, and `docs/` for the Sphinx developer docs (`make -C docs html` after `pip install -r docs/requirements.txt`).
 
 ## Acknowledgments
 
-Hardware references this was built from:
-
-- [Pan Docs](https://gbdev.io/pandocs/) — the Game Boy hardware reference
-- [Game Boy CPU Manual](http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf)
-- [GB Opcodes](https://gbdev.io/gb-opcodes/) — opcode tables
-- [awesome-gbdev](https://github.com/gbdev/awesome-gbdev)
-
-Third-party code:
-
-- [SDL2](https://www.libsdl.org/) — video, audio, and input
-- [Dear ImGui](https://github.com/ocornut/imgui) v1.91.8 — debugger UI, fetched by CMake
-- [stb_image_write](https://github.com/nothings/stb) v1.16 by Sean Barrett — PNG screenshots, vendored in `src/vendor/`
+- [Pan Docs](https://gbdev.io/pandocs/), [GB Opcodes](https://gbdev.io/gb-opcodes/), [Game Boy CPU Manual](http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf), [awesome-gbdev](https://github.com/gbdev/awesome-gbdev)
+- [SDL2](https://www.libsdl.org/), [Dear ImGui](https://github.com/ocornut/imgui) v1.91.8 (fetched by CMake), [stb_image_write](https://github.com/nothings/stb) v1.16 (vendored in `src/vendor/`)
 
 ## License
 

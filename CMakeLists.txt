@@ -84,15 +84,15 @@ set(UI_SOURCES
 )
 
 # Find and link SDL2 for graphics output
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED sdl2)
+find_package(SDL2 REQUIRED)
 
-# Dear ImGui dependency
+# Dear ImGui dependency, fetched as a release tarball so git is not required
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
 FetchContent_Declare(
     imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.91.8
-    GIT_SHALLOW TRUE
+    URL https://github.com/ocornut/imgui/archive/refs/tags/v1.91.8.tar.gz
 )
 FetchContent_MakeAvailable(imgui)
 
@@ -110,9 +110,8 @@ add_library(imgui_backend STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui_backend PUBLIC
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
-    ${SDL2_INCLUDE_DIRS}
 )
-target_link_libraries(imgui_backend PUBLIC ${SDL2_LIBRARIES})
+target_link_libraries(imgui_backend PUBLIC SDL2::SDL2)
 
 # Main executable
 add_executable(gbglow
@@ -129,7 +128,7 @@ add_executable(gbglow
 target_include_directories(gbglow PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(gbglow PRIVATE imgui_backend ${SDL2_LIBRARIES})
+target_link_libraries(gbglow PRIVATE imgui_backend SDL2::SDL2)
 
 # Testing support
 enable_testing()

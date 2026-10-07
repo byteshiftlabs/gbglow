@@ -10,14 +10,17 @@ Required tools:
 
 * C++17 compiler
 * CMake 3.14 or newer
-* ``pkg-config``
-* SDL2 development package discoverable as ``sdl2`` via ``pkg-config``
-* ``cppcheck``
-* Git
+* SDL2 development package (found by CMake with ``find_package(SDL2)``)
 
-The Ubuntu 22.04 package list, and what each dependency is for, lives in the
-Requirements section of ``README.md``. It is kept there only, so the two cannot
-drift apart. Or use the helper script from the repository root:
+Optional tools:
+
+* ``cppcheck``: static analysis; ``build.sh`` skips it when absent, but a pull request must be clean under it
+* ``curl``: only for ``--bootstrap-cppcheck``
+* ``zenity`` or ``kdialog``: only for the ``Ctrl+O`` file picker
+
+The Ubuntu 22.04 package list lives in the Quick start section of
+``README.md``. It is kept there only, so the two cannot drift apart. Or use
+the helper script from the repository root:
 
 .. code-block:: bash
 
@@ -58,12 +61,12 @@ Recommended build path:
 
 ``build.sh`` performs all of the following:
 
-* dependency checks for ``cmake``, ``pkg-config``, ``cppcheck``, and SDL2
+* a dependency check for ``cmake``
 * Dear ImGui download through CMake ``FetchContent`` during configure
 * CMake configure into ``build/``
 * project build
 * test execution with ``ctest --output-on-failure``
-* ``cppcheck`` static analysis
+* ``cppcheck`` static analysis, skipped with a warning when ``cppcheck`` is not installed
 
 To match the CI analyzer version locally, use:
 

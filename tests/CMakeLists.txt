@@ -33,7 +33,7 @@ function(add_gbglow_test target test_source)
         ${CMAKE_CURRENT_SOURCE_DIR}/..
     )
 
-    target_link_libraries(${target} PRIVATE imgui_backend ${SDL2_LIBRARIES})
+    target_link_libraries(${target} PRIVATE imgui_backend SDL2::SDL2)
 
     add_test(NAME ${target} COMMAND ${target})
 endfunction()

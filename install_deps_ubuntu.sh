@@ -28,9 +28,7 @@ apt-get install -y \
     build-essential \
     cmake \
     cppcheck \
-    git \
     libsdl2-dev \
-    pkg-config \
     zenity
 
 echo "Done. You can now run ./build.sh"
