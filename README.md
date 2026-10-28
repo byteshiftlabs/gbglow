@@ -18,8 +18,6 @@ cd gbglow
 ./run.sh path/to/game.gb
 ```
 
-`build.sh` builds and runs the tests, then runs cppcheck if it is installed (`sudo apt install cppcheck`). `zenity` (or `kdialog`) is only needed for the `Ctrl+O` file picker.
-
 ## Controls
 
 | Action | Key |
